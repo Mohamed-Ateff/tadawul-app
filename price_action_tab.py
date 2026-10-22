@@ -1,0 +1,700 @@
+import streamlit as st
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import pandas as pd
+import numpy as np
+from ui_helpers import insight_toggle
+from apple_theme import (T1, T2, T3, CARD, INSET, FILL, HAIR, SHADOW, GRID,
+                         GREEN, RED, BLUE, AMBER, PURPLE, UP, DOWN, rgba, style_fig)
+
+# Signal colours returned to other modules (kept unchanged for compatibility)
+BULL  = "#4caf50"
+BEAR  = "#f44336"
+NEUT  = "#ff9800"
+INFO  = "#2196f3"
+PURP  = "#9c27b0"
+
+# Display mapping: legacy signal colours -> light Apple palette
+_DISPLAY = {
+    BULL: GREEN, BEAR: RED, NEUT: AMBER, INFO: BLUE, PURP: PURPLE,
+    "#757575": T3, "#4a9eff": BLUE, "#ff7a7a": RED, "#7bdfb8": GREEN,
+    "#26a69a": GREEN, "#8bc34a": GREEN,
+}
+
+
+def _c(color):
+    """Map a legacy (dark-theme) colour to its light-theme display colour."""
+    return _DISPLAY.get(str(color).lower(), color)
+
+
+def _sec(title, color=INFO, sub=None):
+    return (
+        "<div class='ap-section'><div>"
+        f"<div class='ap-section-title'>{title}</div>"
+        + (f"<div class='ap-section-sub'>{sub}</div>" if sub else "")
+        + "</div></div>"
+    )
+
+
+def _glowbar(pct, color=BULL, height="6px"):
+    pct = max(0, min(100, pct))
+    return (
+        f"<div style='background:{FILL};border-radius:999px;height:{height};overflow:hidden;'>"
+        f"<div style='width:{pct}%;height:100%;background:{_c(color)};border-radius:999px;'></div></div>"
+    )
+
+
+_LBL = f"font-size:0.8rem;font-weight:600;color:{T3};"
+_NUM = "font-weight:700;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;line-height:1.15;"
+_CHART_CARD_CSS = (
+    "<style>.stApp .st-key-pa_chart_card{"
+    f"background:{CARD};border:1px solid {HAIR};border-radius:18px;box-shadow:{SHADOW};"
+    "padding:0.9rem 1rem 0.6rem;gap:0;}</style>"
+)
+
+
+def _date_axis(df):
+    """Dates for the x-axis plus rangebreaks that hide non-trading days.
+    Falls back to the frame's own index when no usable dates exist."""
+    x = None
+    try:
+        if "Date" in df.columns:
+            x = pd.to_datetime(df["Date"], errors="coerce")
+        elif isinstance(df.index, pd.DatetimeIndex):
+            x = pd.Series(df.index)
+        if x is None or x.isna().any():
+            return list(df.index), None
+        if getattr(x.dt, "tz", None) is not None:
+            x = x.dt.tz_localize(None)
+        x = pd.DatetimeIndex(x)
+        breaks = None
+        if len(x) > 1 and (x.normalize() == x).all():
+            missing = pd.date_range(x.min(), x.max(), freq="D").difference(x)
+            if len(missing):
+                breaks = [dict(values=missing.strftime("%Y-%m-%d").tolist())]
+        return list(x), breaks
+    except Exception:
+        return list(df.index), None
+
+
+def _pivot_sr(df, current_price, lookback=120, window=8):
+    """Find nearest S/R from recent pivot points (not global min/max)."""
+    n = min(len(df), lookback)
+    sub = df.tail(n)
+    highs, lows = sub['High'].values, sub['Low'].values
+    res_c, sup_c = [], []
+    for i in range(window, len(sub) - window):
+        h_sl = highs[max(0, i - window):i + window + 1]
+        l_sl = lows[max(0, i - window):i + window + 1]
+        if highs[i] == h_sl.max() and highs[i] > current_price:
+            res_c.append(float(highs[i]))
+        if lows[i] == l_sl.min() and lows[i] < current_price:
+            sup_c.append(float(lows[i]))
+    res_c.sort()              # ascending — nearest resistance first
+    sup_c.sort(reverse=True)  # descending — nearest support first
+    fb_hi = float(sub['High'].tail(20).max())
+    fb_lo = float(sub['Low'].tail(20).min())
+    r1 = res_c[0] if res_c else max(fb_hi, current_price * 1.02)
+    r2 = res_c[1] if len(res_c) > 1 else r1 + (r1 - current_price) * 0.5
+    s1 = sup_c[0] if sup_c else min(fb_lo, current_price * 0.98)
+    s2 = sup_c[1] if len(sup_c) > 1 else s1 - (current_price - s1) * 0.5
+    return s1, s2, r1, r2
+
+
+def _count_zone_tests(series, threshold, above=True, min_gap=3):
+    """Count distinct zone test events (gaps of min_gap bars between tests)."""
+    in_zone = (series >= threshold) if above else (series <= threshold)
+    tests, gap = 0, min_gap
+    for v in in_zone:
+        if v:
+            if gap >= min_gap:
+                tests += 1
+            gap = 0
+        else:
+            gap += 1
+    return tests
+
+
+def _compute_trade_setup(df, current_price, trend,
+                          sup1, sup2, res1, res2,
+                          swing_low, swing_high,
+                          ma_series, s_touches, r_touches,
+                          s_str, r_str, in_s, in_r):
+    """Compute a price-action based trade setup: entry, stop, targets, reasons."""
+    if len(df) < 15:
+        return None
+
+    h, l, c = df['High'], df['Low'], df['Close']
+
+    # ATR-14
+    tr  = pd.concat([(h - l),
+                     (h - c.shift(1)).abs(),
+                     (l - c.shift(1)).abs()], axis=1).max(axis=1)
+    atr_s = tr.rolling(14, min_periods=1).mean()
+    atr   = float(atr_s.iloc[-1])
+    if not np.isfinite(atr) or atr <= 0:
+        atr = float((h - l).mean())
+
+    # MA relationship
+    ma_now   = float(ma_series.iloc[-1]) if not ma_series.empty else current_price
+    ma_5ago  = float(ma_series.iloc[-6]) if len(ma_series) >= 6 else ma_now
+    price_above_ma = current_price > ma_now
+    ma_slope_up    = ma_now > ma_5ago
+
+    # RSI-14
+    delta   = c.diff()
+    avg_g   = delta.clip(lower=0).rolling(14, min_periods=1).mean().iloc[-1]
+    avg_l   = (-delta).clip(lower=0).rolling(14, min_periods=1).mean().iloc[-1]
+    rsi     = float(100 - 100 / (1 + avg_g / (avg_l + 1e-9)))
+
+    # Last 2 candles
+    c0 = df.iloc[-1]
+    c1 = df.iloc[-2] if len(df) >= 2 else c0
+    bull0  = c0['Close'] > c0['Open']
+    bear0  = c0['Close'] < c0['Open']
+    bull1  = c1['Close'] > c1['Open']
+    bear1  = c1['Close'] < c1['Open']
+    rng0   = float(c0['High'] - c0['Low'])
+    body0  = float(abs(c0['Close'] - c0['Open']))
+    uw0    = float(c0['High'] - max(c0['Close'], c0['Open']))
+    lw0    = float(min(c0['Close'], c0['Open']) - c0['Low'])
+
+    is_bull_engulf = (bull0 and bear1
+                      and c0['Close'] > c1['Open']
+                      and c0['Open']  < c1['Close'])
+    is_bear_engulf = (bear0 and bull1
+                      and c0['Close'] < c1['Open']
+                      and c0['Open']  > c1['Close'])
+    is_hammer = rng0 > 0 and lw0 > 2 * body0 and uw0 < 0.35 * rng0
+    is_shoot  = rng0 > 0 and uw0 > 2 * body0 and lw0 < 0.35 * rng0
+    is_doji   = rng0 > 0 and body0 < 0.1 * rng0
+
+    patterns = []
+    if is_bull_engulf: patterns.append(('Bullish Engulfing', BULL))
+    if is_hammer:      patterns.append(('Hammer / Pin Bar',  BULL))
+    if is_bear_engulf: patterns.append(('Bearish Engulfing', BEAR))
+    if is_shoot:       patterns.append(('Shooting Star',     BEAR))
+    if is_doji:        patterns.append(('Doji — Indecision', NEUT))
+
+    # Volume confirmation
+    vol_confirm = False
+    if 'Volume' in df.columns and len(df) >= 10:
+        avg_vol    = float(df['Volume'].iloc[-11:-1].mean())
+        last_vol   = float(df['Volume'].iloc[-1])
+        vol_confirm = last_vol > avg_vol * 1.2
+
+    # ── Scoring ──────────────────────────────────────────────────────
+    ls = 0; ss = 0; lr = []; sr = []
+
+    # Trend
+    if trend == 'UPTREND':
+        ls += 3; lr.append("Primary trend is UPTREND — higher highs & higher lows confirm bullish bias")
+    elif trend == 'DOWNTREND':
+        ss += 3; sr.append("Primary trend is DOWNTREND — lower highs & lower lows confirm bearish bias")
+    else:
+        ls += 1; ss += 1
+        lr.append("Sideways market — best traded from the extremes of the range")
+        sr.append("Sideways market — best traded from the extremes of the range")
+
+    # MA position
+    if price_above_ma:
+        ls += 2; lr.append(f"Price ({current_price:.2f}) is above the 20-MA ({ma_now:.2f}) — buyers are in control")
+    else:
+        ss += 2; sr.append(f"Price ({current_price:.2f}) is below the 20-MA ({ma_now:.2f}) — sellers are in control")
+
+    # MA slope
+    if ma_slope_up:
+        ls += 1; lr.append("20-MA is rising — short-term momentum is bullish")
+    else:
+        ss += 1; sr.append("20-MA is declining — short-term momentum is bearish")
+
+    # Zone proximity
+    pct_sup = (current_price - sup1) / current_price * 100
+    pct_res = (res1 - current_price) / current_price * 100
+    if 0 <= pct_sup <= 3:
+        ls += 2; lr.append(f"Price is only {pct_sup:.1f}% above Support ({sup1:.2f}) — high-quality long entry zone")
+    if 0 <= pct_res <= 3:
+        ss += 2; sr.append(f"Price is only {pct_res:.1f}% below Resistance ({res1:.2f}) — high-quality short entry zone")
+    if in_s:
+        ls += 1; lr.append("Price is inside the Support Zone — active demand area")
+    if in_r:
+        ss += 1; sr.append("Price is inside the Resistance Zone — active supply area")
+
+    # Zone strength bonus
+    if s_touches >= 3:
+        ls += 1; lr.append(f"Support has been tested {s_touches}× — {s_str} demand zone, higher probability hold")
+    if r_touches >= 3:
+        ss += 1; sr.append(f"Resistance has been tested {r_touches}× — {r_str} supply zone, higher probability rejection")
+
+    # Candle patterns
+    if is_bull_engulf:
+        ls += 3; lr.append("Bullish Engulfing candle — buyers completely overwhelmed sellers; high-conviction reversal signal")
+    if is_hammer:
+        ls += 2; lr.append("Hammer / Pin Bar — price rejected lower levels with a long lower wick; demand stepped in")
+    if is_bear_engulf:
+        ss += 3; sr.append("Bearish Engulfing candle — sellers completely overwhelmed buyers; high-conviction reversal signal")
+    if is_shoot:
+        ss += 2; sr.append("Shooting Star — price rejected higher levels with a long upper wick; supply stepped in")
+    if is_doji and in_s:
+        ls += 1; lr.append("Doji at support level — indecision after a decline; potential exhaustion of sellers")
+    if is_doji and in_r:
+        ss += 1; sr.append("Doji at resistance level — indecision after a rally; potential exhaustion of buyers")
+
+    # Volume
+    if vol_confirm and bull0:
+        ls += 1; lr.append("Above-average volume on a bullish candle — institutional buyers present")
+    if vol_confirm and bear0:
+        ss += 1; sr.append("Above-average volume on a bearish candle — institutional sellers present")
+
+    # RSI
+    if   rsi < 30: ls += 2; lr.append(f"RSI deeply oversold ({rsi:.0f}) — high mean-reversion probability")
+    elif rsi < 40: ls += 1; lr.append(f"RSI ({rsi:.0f}) — entering oversold territory; downside momentum fading")
+    if   rsi > 70: ss += 2; sr.append(f"RSI overbought ({rsi:.0f}) — upside exhaustion signal")
+    elif rsi > 60: ss += 1; sr.append(f"RSI ({rsi:.0f}) — approaching overbought; bullish momentum may tire")
+
+    # ── Determine dominant direction ─────────────────────────────────
+    total = max(ls + ss, 1)
+    if ls > ss:
+        setup = 'LONG';    reasons = lr; sc = BULL
+        conf  = min(round(ls / total * 100), 94)
+    elif ss > ls:
+        setup = 'SHORT';   reasons = sr; sc = BEAR
+        conf  = min(round(ss / total * 100), 94)
+    else:
+        setup = 'NEUTRAL'; reasons = (lr + sr)[:4]; sc = NEUT; conf = 50
+    # Only return a trade setup for high-quality LONG setups
+    # (user only trades long; skip shorts/neutrals and weak signals)
+    if setup != 'LONG' or ls < 5:
+        # Return info dict with no_trade flag so UI can show why
+        no_trade_reason = (
+            'Bearish signals dominate — price action is not currently set up for a long entry.'
+            if setup == 'SHORT' else
+            'Signals are mixed or neutral — no clear long opportunity at this time.'
+        )
+        return {
+            'no_trade': True,
+            'setup': setup,
+            'conf': conf if setup == 'LONG' else 0,
+            'ls': ls, 'ss': ss,
+            'rsi': rsi, 'atr': atr,
+            'reasons': lr if setup == 'LONG' else sr,
+            'no_trade_reason': no_trade_reason,
+        }
+    # ── Trade levels ─────────────────────────────────────────────────
+    # Only LONG reaches here (SHORT/NEUTRAL returned early above)
+    entry     = current_price
+    sl_struct = min(float(swing_low), float(sup1)) - atr * 0.3
+    stop      = max(sl_struct, entry - atr * 2.0, entry * 0.92)  # never > 8%
+    risk      = max(entry - stop, 1e-6)
+    t1        = min(entry + risk * 1.5, float(res1))
+    t2        = min(entry + risk * 2.5, float(res2))
+    rr1       = (t1 - entry) / risk
+    rr2       = (t2 - entry) / risk
+    if rr1 < 1.0:
+        lr.append(f"\u26a0\ufe0f Poor R:R ({rr1:.1f}:1) \u2014 resistance at {res1:.2f} limits upside")
+    sl_why    = (f"Below swing low (${float(swing_low):.2f}) & support (${float(sup1):.2f}) "
+                 f"with 0.3× ATR ({atr:.2f}) buffer to avoid noise")
+
+    risk_pct = abs(entry - stop) / entry * 100
+
+    return {
+        'setup': setup, 'conf': conf, 'setup_color': sc,
+        'entry': entry, 'stop': stop, 'risk': abs(entry - stop),
+        'risk_pct': risk_pct, 't1': t1, 't2': t2,
+        'rr1': rr1, 'rr2': rr2,
+        'rsi': rsi, 'atr': atr, 'patterns': patterns,
+        'reasons': reasons, 'sl_why': sl_why,
+        'ls': ls, 'ss': ss, 'ma_now': ma_now,
+    }
+
+
+def price_action_analysis_tab(df, info_icon):
+    st.markdown(_sec("Price action", INFO,
+                     "Trend structure, swing range and the current long-entry verdict"),
+                unsafe_allow_html=True)
+
+    ma_period  = 20
+    recent_df  = df.copy()
+    current_price = recent_df["Close"].iloc[-1]
+    # Zone half-width = 1.5% of price (was a fixed 1.5 SAR: ±21% on a 7-SAR stock,
+    # ±0.5% on a 300-SAR stock).
+    zone_width = float(current_price) * 0.015
+    _sw          = min(len(df), 60)
+    recent_swing = df.tail(_sw)
+
+    swing_high  = recent_swing["High"].max()
+    swing_low   = recent_swing["Low"].min()
+    higher_high = recent_df["High"].iloc[-5:].max() > recent_df["High"].iloc[-15:-5].max()
+    higher_low  = recent_df["Low"].iloc[-5:].min()  > recent_df["Low"].iloc[-15:-5].min()
+    lower_low   = recent_df["Low"].iloc[-5:].min()  < recent_df["Low"].iloc[-15:-5].min()
+    lower_high  = recent_df["High"].iloc[-5:].max() < recent_df["High"].iloc[-15:-5].max()
+
+    if higher_high and higher_low:
+        trend, t_col = "UPTREND",   BULL
+    elif lower_low and lower_high:
+        trend, t_col = "DOWNTREND", BEAR
+    else:
+        trend, t_col = "SIDEWAYS",  NEUT
+
+    recent_day = df.iloc[-2] if len(df) >= 2 else df.iloc[-1]
+    pivot = (recent_day["High"] + recent_day["Low"] + recent_day["Close"]) / 3
+    r1_pp = 2 * pivot - recent_day["Low"]
+    s1_pp = 2 * pivot - recent_day["High"]
+    sup1, sup2, res1, res2 = _pivot_sr(df, current_price)
+
+    range_sz  = swing_high - swing_low
+    pos_pct   = int((current_price - swing_low) / range_sz * 100) if range_sz > 0 else 50
+    dist_high = (swing_high - current_price) / current_price * 100
+    dist_low  = (current_price - swing_low)  / current_price * 100
+
+    r_zone_hi = res1 + zone_width;  r_zone_lo = res1 - zone_width
+    s_zone_hi = sup1 + zone_width;  s_zone_lo = sup1 - zone_width
+    r_touches = _count_zone_tests(df["High"], r_zone_lo, above=True)
+    s_touches = _count_zone_tests(df["Low"],  s_zone_hi, above=False)
+
+    def _zone_strength(t):
+        if t >= 5: return "STRONG",   BULL
+        if t >= 3: return "MODERATE", NEUT
+        return           "WEAK",      "#757575"
+
+    r_str, r_sc = _zone_strength(r_touches)
+    s_str, s_sc = _zone_strength(s_touches)
+    in_r = r_zone_lo <= current_price <= r_zone_hi
+    in_s = s_zone_lo <= current_price <= s_zone_hi
+
+    # ── DECISION BOX ─────────────────────────────────────────────────────────
+    ma_series = df["Close"].rolling(window=20).mean()
+    _ts = _compute_trade_setup(
+        df, current_price, trend,
+        sup1, sup2, res1, res2,
+        swing_low, swing_high,
+        ma_series, s_touches, r_touches,
+        s_str, r_str, in_s, in_r,
+    )
+    _pa_verdict   = "BUY"   if _ts and not _ts.get("no_trade") else ("WAIT" if _ts else "WAIT")
+    _pa_vc        = BULL    if _pa_verdict == "BUY" else NEUT
+    _pa_conf      = _ts.get("conf", 0) if _ts else 0
+    _pa_sub       = (
+        f"Price action confirms a long setup — {_ts.get('conf',0)}% confidence"
+        if _pa_verdict == "BUY" else
+        (_ts.get("no_trade_reason", "No clear setup at this time.") if _ts else "Insufficient data.")
+    )
+    _pa_reasons   = (_ts.get("reasons") or [])[:3]
+    _pa_vc_d      = _c(_pa_vc)
+    _t_col_d      = _c(t_col)
+    _pa_reasons_html = "".join(
+        f"<div style='display:flex;align-items:flex-start;gap:0.55rem;margin-bottom:0.4rem;'>"
+        f"<span style='width:6px;height:6px;border-radius:50%;background:{_pa_vc_d};"
+        f"flex-shrink:0;margin-top:0.5rem;'></span>"
+        f"<span style='font-size:0.88rem;color:{T2};line-height:1.55;'>{_r}</span></div>"
+        for _r in _pa_reasons
+    )
+    trend_desc = ("Higher highs & higher lows" if trend == "UPTREND"
+                  else "Lower lows & lower highs" if trend == "DOWNTREND"
+                  else "No clear directional bias")
+    pos_zone = "Upper" if pos_pct >= 66 else "Lower" if pos_pct <= 33 else "Middle"
+
+    _pa_ladder = ""
+    if _ts and not _ts.get("no_trade"):
+        try:
+            from _levels import price_ladder_html as _pa_plh
+            _pa_ladder = _pa_plh(
+                _ts["entry"], _ts["stop"],
+                _ts["t1"], _ts["t2"],
+                round(_ts["entry"] + (_ts["entry"] - _ts["stop"]) * 4.236, 2),
+                True,
+            )
+        except Exception:
+            pass
+
+    _tile = (f"background:{INSET};border:1px solid {HAIR};border-radius:14px;"
+             f"padding:0.95rem 1.1rem;")
+    st.markdown(
+        f"<div style='background:{CARD};border:1px solid {HAIR};border-radius:18px;"
+        f"box-shadow:{SHADOW};overflow:hidden;margin-bottom:1.4rem;'>"
+        f"<div style='padding:1.4rem 1.6rem 1.2rem;"
+        f"display:flex;align-items:flex-start;justify-content:space-between;gap:1.5rem;flex-wrap:wrap;'>"
+        f"<div style='flex:1;min-width:260px;'>"
+        f"<div style='{_LBL}margin-bottom:0.45rem;'>Price action decision</div>"
+        f"<div style='font-size:2.8rem;{_NUM}color:{_pa_vc_d};line-height:1;'>{_pa_verdict}</div>"
+        f"<div style='font-size:0.95rem;color:{T2};margin-top:0.6rem;line-height:1.55;'>{_pa_sub}</div>"
+        + (f"<div style='margin-top:0.85rem;'>{_pa_reasons_html}</div>" if _pa_reasons_html else "")
+        + f"</div>"
+        f"<div style='display:flex;gap:0.8rem;flex-shrink:0;flex-wrap:wrap;'>"
+        f"<div style='{_tile}min-width:170px;'>"
+        f"<div style='{_LBL}margin-bottom:0.35rem;'>Structure</div>"
+        f"<div style='font-size:1.6rem;{_NUM}color:{_t_col_d};'>{trend.capitalize()}</div>"
+        f"<div style='font-size:0.82rem;color:{T3};margin-top:0.3rem;'>{trend_desc}</div>"
+        f"</div>"
+        f"<div style='{_tile}min-width:130px;'>"
+        f"<div style='{_LBL}margin-bottom:0.35rem;'>Confidence</div>"
+        + (f"<div style='font-size:1.6rem;{_NUM}color:{_pa_vc_d};'>{_pa_conf}%</div>"
+           if _pa_conf and _pa_conf > 0 else
+           f"<div style='font-size:1.6rem;{_NUM}color:{T3};'>—</div>"
+           f"<div style='font-size:0.82rem;color:{T3};margin-top:0.3rem;'>No long setup</div>")
+        + f"</div></div></div>"
+        f"<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0.8rem;"
+        f"padding:0 1.6rem 1.4rem;'>"
+        f"<div style='{_tile}'>"
+        f"<div style='{_LBL}margin-bottom:0.3rem;'>Range position</div>"
+        f"<div style='font-size:1.35rem;{_NUM}color:{_t_col_d};'>{pos_pct}%</div>"
+        f"<div style='font-size:0.82rem;color:{T3};margin-top:0.2rem;'>{pos_zone} of {_sw}d range</div>"
+        f"</div>"
+        f"<div style='{_tile}'>"
+        f"<div style='{_LBL}margin-bottom:0.3rem;'>Swing high</div>"
+        f"<div style='font-size:1.35rem;{_NUM}color:{T1};'>{swing_high:.2f}</div>"
+        f"<div style='font-size:0.82rem;font-weight:600;color:{RED};margin-top:0.2rem;'>↑ {dist_high:.2f}% away</div>"
+        f"</div>"
+        f"<div style='{_tile}'>"
+        f"<div style='{_LBL}margin-bottom:0.3rem;'>Swing low</div>"
+        f"<div style='font-size:1.35rem;{_NUM}color:{T1};'>{swing_low:.2f}</div>"
+        f"<div style='font-size:0.82rem;font-weight:600;color:{GREEN};margin-top:0.2rem;'>↓ {dist_low:.2f}% cushion</div>"
+        f"</div>"
+        f"<div style='{_tile}'>"
+        f"<div style='{_LBL}margin-bottom:0.3rem;'>Range size</div>"
+        f"<div style='font-size:1.35rem;{_NUM}color:{T1};'>{range_sz:.2f}</div>"
+        f"<div style='font-size:0.82rem;color:{T3};margin-top:0.2rem;'>{_sw}d Hi–Lo spread</div>"
+        f"</div></div>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+    if _pa_ladder:
+        st.markdown(_pa_ladder, unsafe_allow_html=True)
+
+    # ── 2. KEY PRICE LEVELS ───────────────────────────────────────────────────
+    st.markdown(_sec("Key price levels", INFO,
+                     "Nearest support, resistance and pivot levels and their distance from the current price"),
+                unsafe_allow_html=True)
+    insight_toggle(
+        'pa_levels',
+        'How are Key Price Levels identified?',
+        '<p><strong>Support levels</strong> are price zones where buying pressure historically exceeded selling pressure, causing price to bounce upward. The more times a level has been tested and held, the stronger and more reliable it is.</p><p><strong>Resistance levels</strong> are zones where sellers dominated and price reversed downward. Once broken convincingly (with volume), resistance often flips to become support.</p><p>Levels are identified using swing highs/lows from recent trading sessions, looking for clusters of price rejections and high-volume nodes.</p>',
+    )
+    level_data = [
+        ("Resistance 2", res2,          RED,       f"{(res2  - current_price)/current_price*100:+.2f}%"),
+        ("Resistance 1", res1,          RED,       f"{(res1  - current_price)/current_price*100:+.2f}%"),
+        ("Pivot R1",     r1_pp,         AMBER,     f"{(r1_pp - current_price)/current_price*100:+.2f}%"),
+        ("Current",      current_price, BLUE,      "\u2014"),
+        ("Pivot S1",     s1_pp,         GREEN,     f"{(s1_pp - current_price)/current_price*100:+.2f}%"),
+        ("Support 1",    sup1,          GREEN,     f"{(sup1  - current_price)/current_price*100:+.2f}%"),
+        ("Support 2",    sup2,          GREEN,     f"{(sup2  - current_price)/current_price*100:+.2f}%"),
+    ]
+    cols = st.columns(len(level_data), gap="small")
+    for col, (label, price, color, dist) in zip(cols, level_data):
+        _is_cur = label == "Current"
+        with col:
+            st.markdown(
+                f"<div style='background:{CARD};border:1px solid {'rgba(0,99,209,0.35)' if _is_cur else HAIR};"
+                f"border-radius:16px;box-shadow:{SHADOW};padding:1rem 0.7rem;text-align:center;'>"
+                f"<div style='{_LBL}margin-bottom:0.45rem;'>{label}</div>"
+                f"<div style='font-size:1.3rem;{_NUM}color:{color};'>${price:.2f}</div>"
+                f"<div style='font-size:0.84rem;color:{T3};margin-top:0.3rem;font-variant-numeric:tabular-nums;'>{dist}</div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+    # ── 3. REACTION ZONES ────────────────────────────────────────────────────
+    st.markdown(_sec("Key reaction zones", PURP,
+                     "Price bands around the nearest resistance and support, rated by how often they were tested"),
+                unsafe_allow_html=True)
+    insight_toggle(
+        'pa_zones',
+        'What are Key Reaction Zones?',
+        '<p>Reaction zones are wider price bands (not single lines) where the market has repeatedly shown a strong response. Unlike precise support/resistance levels, these are <strong>high-probability reversal areas</strong> based on multiple touches.</p><p><strong>Zone Strength</strong> is rated by the number of times price tested that zone and reversed: 3+ touches = Strong, 2 touches = Moderate, 1 touch = Weak.</p><p>Zones near the current price with a Strong rating are the highest-priority levels to watch for entries or exits.</p>',
+    )
+    zc1, zc2 = st.columns(2, gap="medium")
+    for col, lvl, sc, strength_str, touches, zone_lo, zone_hi, label in [
+        (zc1, res1, r_sc, r_str, r_touches, r_zone_lo, r_zone_hi, "Resistance Zone"),
+        (zc2, sup1, s_sc, s_str, s_touches, s_zone_lo, s_zone_hi, "Support Zone"),
+    ]:
+        col_accent = RED if label == "Resistance Zone" else GREEN
+        in_zone    = zone_lo <= current_price <= zone_hi
+        in_html    = (f"<span class='ap-pill amber'>In zone</span>" if in_zone
+                      else f"<span class='ap-pill'>Outside</span>")
+        with col:
+            st.markdown(
+                f"<div style='background:{CARD};border:1px solid {HAIR};"
+                f"border-radius:18px;box-shadow:{SHADOW};padding:1.25rem 1.4rem;'>"
+                f"<div style='display:flex;justify-content:space-between;align-items:center;"
+                f"margin-bottom:0.6rem;'>"
+                f"<div style='font-size:0.95rem;color:{T1};font-weight:600;'>{label.capitalize()}</div>"
+                f"{in_html}</div>"
+                f"<div style='font-size:2rem;{_NUM}color:{col_accent};'>${lvl:.2f}</div>"
+                f"<div style='font-size:0.85rem;color:{T3};margin:0.3rem 0 0.9rem;font-variant-numeric:tabular-nums;'>"
+                f"Band: ${zone_lo:.2f} \u2013 ${zone_hi:.2f}</div>"
+                f"<div style='display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;'>"
+                f"<div style='background:{INSET};border:1px solid {HAIR};border-radius:12px;padding:0.75rem 0.95rem;'>"
+                f"<div style='{_LBL}margin-bottom:0.25rem;'>Strength</div>"
+                f"<div style='font-size:1.1rem;font-weight:700;color:{_c(sc)};'>{strength_str.capitalize()}</div>"
+                f"</div>"
+                f"<div style='background:{INSET};border:1px solid {HAIR};border-radius:12px;padding:0.75rem 0.95rem;'>"
+                f"<div style='display:flex;align-items:baseline;justify-content:space-between;gap:0.5rem;'>"
+                f"<div style='{_LBL}margin-bottom:0.25rem;'>Touches</div>"
+                f"<div style='font-size:0.75rem;color:{T3};'>Strong at 5+</div></div>"
+                f"<div style='font-size:1.1rem;{_NUM}color:{T1};'>{touches}</div>"
+                f"<div style='margin-top:0.45rem;'>{_glowbar(min(touches*20,100), INFO, '4px')}</div>"
+                f"</div></div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+    # ── 5. CHART ─────────────────────────────────────────────────────────────
+    ma = recent_df["Close"].rolling(window=ma_period).mean()
+    ts = _compute_trade_setup(
+        df=recent_df, current_price=current_price, trend=trend,
+        sup1=sup1, sup2=sup2, res1=res1, res2=res2,
+        swing_low=swing_low, swing_high=swing_high,
+        ma_series=ma, s_touches=s_touches, r_touches=r_touches,
+        s_str=s_str, r_str=r_str, in_s=in_s, in_r=in_r,
+    )
+    st.markdown(_sec("Price action chart", INFO, "Candles · 20-MA · volume · support and resistance zones"),
+                unsafe_allow_html=True)
+    _x, _rbreaks = _date_axis(recent_df)
+    fig = make_subplots(
+        rows=2, cols=1, shared_xaxes=True,
+        row_heights=[0.78, 0.22], vertical_spacing=0.03,
+    )
+    fig.add_trace(go.Candlestick(
+        x=_x,
+        open=recent_df["Open"], high=recent_df["High"],
+        low=recent_df["Low"],   close=recent_df["Close"],
+        name="Price",
+        increasing_fillcolor=UP,
+        decreasing_fillcolor=DOWN,
+        increasing_line_color=UP,
+        decreasing_line_color=DOWN,
+    ), row=1, col=1)
+    fig.add_hrect(y0=r_zone_lo, y1=r_zone_hi, fillcolor=rgba(RED, 0.08), line_width=0,
+                  layer="below", annotation_text="Resistance", annotation_position="right",
+                  annotation=dict(font_color=RED, font_size=11),
+                  row=1, col=1)
+    fig.add_hrect(y0=s_zone_lo, y1=s_zone_hi, fillcolor=rgba(GREEN, 0.08), line_width=0,
+                  layer="below", annotation_text="Support", annotation_position="right",
+                  annotation=dict(font_color=GREEN, font_size=11),
+                  row=1, col=1)
+    fig.add_trace(go.Scatter(x=_x, y=ma, name=f"{ma_period}-MA",
+                             line=dict(color=AMBER, width=2)),
+                  row=1, col=1)
+    # Volume bars
+    if 'Volume' in recent_df.columns:
+        vol_colors = [rgba(UP, 0.45) if c >= o else rgba(DOWN, 0.45)
+                      for c, o in zip(recent_df['Close'], recent_df['Open'])]
+        fig.add_trace(go.Bar(
+            x=_x, y=recent_df['Volume'],
+            name='Volume', marker_color=vol_colors,
+            marker_line_width=0, showlegend=False,
+        ), row=2, col=1)
+    # Entry / stop / targets on chart if a valid LONG setup exists
+    if ts is not None and not ts.get('no_trade'):
+        fig.add_hline(y=ts['entry'], line_color=rgba(BLUE, 0.75),
+                      line_dash="dot", line_width=1.5,
+                      annotation_text=f"Entry {ts['entry']:.2f}",
+                      annotation_bgcolor="rgba(255,255,255,0.9)",
+                      annotation_font_color=BLUE, row=1, col=1)
+        fig.add_hline(y=ts['stop'], line_color=rgba(RED, 0.7),
+                      line_dash="dash", line_width=1.5,
+                      annotation_text=f"Stop {ts['stop']:.2f}",
+                      annotation_bgcolor="rgba(255,255,255,0.9)",
+                      annotation_font_color=RED, row=1, col=1)
+        fig.add_hline(y=ts['t1'], line_color=rgba(GREEN, 0.7),
+                      line_dash="dot", line_width=1.2,
+                      annotation_text=f"T1 {ts['t1']:.2f}",
+                      annotation_bgcolor="rgba(255,255,255,0.9)",
+                      annotation_font_color=GREEN, row=1, col=1)
+        fig.add_hline(y=ts['t2'], line_color=rgba(GREEN, 0.5),
+                      line_dash="dot", line_width=1.2,
+                      annotation_text=f"T2 {ts['t2']:.2f}",
+                      annotation_bgcolor="rgba(255,255,255,0.9)",
+                      annotation_font_color=GREEN, row=1, col=1)
+    else:
+        fig.add_hline(y=current_price, line_color=rgba(BLUE, 0.6),
+                      line_dash="dot", line_width=1.5,
+                      annotation_text=f"{current_price:.2f}",
+                      annotation_position="right",
+                      annotation_bgcolor="#FFFFFF",
+                      annotation_font_color=BLUE, row=1, col=1)
+    fig.update_xaxes(gridcolor=GRID, showline=False, zeroline=False,
+                     tickfont=dict(color=T3))
+    if _rbreaks:
+        fig.update_xaxes(rangebreaks=_rbreaks)
+    fig.update_yaxes(gridcolor=GRID, showline=False, zeroline=False,
+                     tickfont=dict(color=T3))
+    fig.update_layout(
+        height=620, plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
+        font=dict(color=T2, family="Inter, Arial, sans-serif", size=12),
+        hovermode="x unified", xaxis_rangeslider=dict(visible=False),
+        legend=dict(orientation="h", yanchor="bottom", y=1.01,
+                    xanchor="right", x=1, font=dict(color=T2),
+                    bgcolor="rgba(0,0,0,0)"),
+        margin=dict(t=30, b=10, l=40, r=80),
+        bargap=0.1,
+    )
+    style_fig(fig)
+    st.markdown(_CHART_CARD_CSS, unsafe_allow_html=True)
+    with st.container(key="pa_chart_card"):
+        st.plotly_chart(fig, width='stretch', config={"displayModeBar": False}, theme=None)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  PUBLIC GETTER — called from Decision Tab
+# ══════════════════════════════════════════════════════════════════════════════
+
+def get_pa_signal(df, cp):
+    """Return a BUY signal dict for the Decision Tab, or None if no trade."""
+    if df is None or len(df) < 15:
+        return None
+    try:
+        df = df.copy()
+        zone_width   = float(cp) * 0.015      # ±1.5% of price (same as the tab)
+        _sw          = min(len(df), 60)
+        recent_swing = df.tail(_sw)
+        swing_high   = float(recent_swing["High"].max())
+        swing_low    = float(recent_swing["Low"].min())
+
+        hh = float(df["High"].iloc[-5:].max()) > float(df["High"].iloc[-15:-5].max())
+        hl = float(df["Low"].iloc[-5:].min())  > float(df["Low"].iloc[-15:-5].min())
+        ll = float(df["Low"].iloc[-5:].min())  < float(df["Low"].iloc[-15:-5].min())
+        lh = float(df["High"].iloc[-5:].max()) < float(df["High"].iloc[-15:-5].max())
+
+        if hh and hl:   trend = "UPTREND"
+        elif ll and lh: trend = "DOWNTREND"
+        else:           trend = "SIDEWAYS"
+
+        sup1, sup2, res1, res2 = _pivot_sr(df, float(cp))
+        r_zone_lo = res1 - zone_width
+        s_zone_hi = sup1 + zone_width
+        r_touches = _count_zone_tests(df["High"], r_zone_lo, above=True)
+        s_touches = _count_zone_tests(df["Low"],  s_zone_hi, above=False)
+
+        def _zstr(t):
+            return "STRONG" if t >= 5 else ("MODERATE" if t >= 3 else "WEAK")
+
+        r_str = _zstr(r_touches); s_str = _zstr(s_touches)
+        in_r  = (res1 - zone_width) <= float(cp) <= (res1 + zone_width)
+        in_s  = (sup1 - zone_width) <= float(cp) <= (sup1 + zone_width)
+        ma_series = df["Close"].rolling(20, min_periods=1).mean()
+
+        setup = _compute_trade_setup(
+            df, float(cp), trend, sup1, sup2, res1, res2,
+            swing_low, swing_high, ma_series,
+            s_touches, r_touches, s_str, r_str, in_s, in_r,
+        )
+        if setup is None or setup.get("no_trade"):
+            return None
+
+        _risk = max(setup["entry"] - setup["stop"], 0.001)
+        _t3   = round(setup["entry"] + _risk * 4.236, 2)
+        return dict(
+            color=BULL,
+            verdict_text="▲ LONG",
+            sublabel=f"Price Action Trade Setup — {trend}",
+            conf=setup["conf"],
+            reasons=setup["reasons"][:3],
+            entry=setup["entry"],
+            stop=round(setup["stop"], 2),
+            t1=round(setup["t1"], 2),
+            t2=round(setup["t2"], 2),
+            t3=_t3,
+        )
+    except Exception:
+        return None

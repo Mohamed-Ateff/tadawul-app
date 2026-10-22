@@ -1,0 +1,44 @@
+name: Keep app awake
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"     # every 6 hours
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  visit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install headless browser
+        run: |
+          pip install playwright==1.48.0
+          python -m playwright install --with-deps chromium
+
+      - name: Visit the app (wakes it if asleep)
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: python keepalive.py
+
+      # GitHub disables scheduled workflows in public repos after 60 days without
+      # activity. A heartbeat commit on a side branch keeps this job alive
+      # without touching the app's branch (so the app is not redeployed).
+      - name: Heartbeat
+        run: |
+          git config user.name "keepalive-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan keepalive
+          git rm -rf --cached . > /dev/null
+          date -u > .heartbeat
+          git add .heartbeat
+          git commit -m "heartbeat $(date -u +%F)" > /dev/null
+          git push -f origin keepalive

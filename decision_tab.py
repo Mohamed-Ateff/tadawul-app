@@ -1,0 +1,2194 @@
+"""
+Decision Intelligence Tab v3
+Advanced probability engine with historical analogs, scenario analysis,
+conditional win rates, and confidence intervals.
+"""
+
+import streamlit as st
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
+
+# Lazy-import sibling modules only when needed to avoid circular imports
+def _import_pa():
+    from price_action_tab import _compute_trade_setup
+    return _compute_trade_setup
+
+def _import_vp():
+    from volume_profile_tab import _compute_volume_profile, _vp_signal
+    return _compute_volume_profile, _vp_signal
+
+def _import_pt():
+    from patterns_tab import _detect_candlestick, _detect_chart
+    return _detect_candlestick, _detect_chart
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DESIGN TOKENS  (shared style with other tabs)
+# ─────────────────────────────────────────────────────────────────────────────
+from apple_theme import (
+    T1, T2, T3, T4, CARD, INSET, FILL, HAIR, HAIR2, SHADOW,
+    GREEN, RED, AMBER, BLUE, PURPLE, TEAL, ORANGE,
+    GREEN_BG, RED_BG, AMBER_BG, BLUE_BG, GREY_BG,
+    UP, DOWN, GRID, rgba as _rgba, style_fig,
+)
+
+BULL  = GREEN
+BEAR  = RED
+NEUT  = AMBER
+INFO  = BLUE
+PURP  = PURPLE
+BG    = CARD
+BG2   = INSET
+BDR   = HAIR
+
+
+def _tint(color, alpha=0.10):
+    """Light tint of a '#RRGGBB' colour (falls back to a neutral grey tint)."""
+    try:
+        if isinstance(color, str) and color.startswith("#") and len(color) == 7:
+            return _rgba(color, alpha)
+    except Exception:
+        pass
+    return GREY_BG
+
+
+def _sec(title, color=INFO, sub=""):
+    _sub = f"<div class='ap-section-sub'>{sub}</div>" if sub else ""
+    return (
+        f"<div class='ap-section' style='margin:2.2rem 0 0.9rem;'>"
+        f"<div><div class='ap-section-title'>{title}</div>{_sub}</div></div>"
+    )
+
+
+def _glowbar(pct, color=BULL, height="6px"):
+    pct = max(0, min(100, pct))
+    return (
+        f"<div style='background:{FILL};border-radius:999px;height:{height};overflow:hidden;'>"
+        f"<div style='width:{pct}%;height:100%;border-radius:999px;"
+        f"background:{color};transition:width 0.4s ease;'></div></div>"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SIGNAL SUMMARY HELPERS  (compute signals from other tabs without importing
+# their full render functions)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _get_pa_signal(df, current_price):
+    """Re-derive the Price Action tab signal (Market Structure + Trade Setup)."""
+    try:
+        recent_20  = df.tail(20)
+        swing_high = float(recent_20["High"].max())
+        swing_low  = float(recent_20["Low"].min())
+        higher_high = df["High"].iloc[-5:].max() > df["High"].iloc[-15:-5].max()
+        higher_low  = df["Low"].iloc[-5:].min()  > df["Low"].iloc[-15:-5].min()
+        lower_low   = df["Low"].iloc[-5:].min()  < df["Low"].iloc[-15:-5].min()
+        lower_high  = df["High"].iloc[-5:].max() < df["High"].iloc[-15:-5].max()
+        if higher_high and higher_low:
+            trend, t_col = "UPTREND",   BULL
+        elif lower_low and lower_high:
+            trend, t_col = "DOWNTREND", BEAR
+        else:
+            trend, t_col = "SIDEWAYS",  NEUT
+
+        res1 = float(df["High"].max())
+        res2 = float(df["High"].nlargest(2).iloc[-1]) if len(df) >= 2 else res1
+        sup1 = float(df["Low"].min())
+        sup2 = float(df["Low"].nsmallest(2).iloc[-1]) if len(df) >= 2 else sup1
+
+        ma   = df["Close"].rolling(window=20).mean()
+        zone_width = float(df["Close"].iloc[-1]) * 0.015   # ±1.5% of price
+        r_zone_lo  = res1 - zone_width;  r_zone_hi = res1 + zone_width
+        s_zone_lo  = sup1 - zone_width;  s_zone_hi = sup1 + zone_width
+        r_touches  = len(df[df["High"] >= r_zone_lo])
+        s_touches  = len(df[df["Low"]  <= s_zone_hi])
+        r_str = "STRONG" if r_touches >= 5 else "MODERATE" if r_touches >= 3 else "WEAK"
+        s_str = "STRONG" if s_touches >= 5 else "MODERATE" if s_touches >= 3 else "WEAK"
+        in_r  = r_zone_lo <= current_price <= r_zone_hi
+        in_s  = s_zone_lo <= current_price <= s_zone_hi
+
+        _compute_trade_setup = _import_pa()
+        ts = _compute_trade_setup(
+            df=df, current_price=current_price, trend=trend,
+            sup1=sup1, sup2=sup2, res1=res1, res2=res2,
+            swing_low=swing_low, swing_high=swing_high,
+            ma_series=ma, s_touches=s_touches, r_touches=r_touches,
+            s_str=s_str, r_str=r_str, in_s=in_s, in_r=in_r,
+        )
+
+        if ts is None:
+            return None
+        if ts.get("no_trade"):
+            signal = "WAIT"
+            conf   = 0
+            color  = T3
+            sub    = ts.get("no_trade_reason", "No clear setup")
+        else:
+            signal = "BUY"
+            conf   = ts.get("conf", 0)
+            color  = BULL
+            sub    = f"Confidence {conf}% · {trend}"
+        return dict(label="Market Structure", signal=signal, conf=conf,
+                    color=color, trend=trend, trend_col=t_col, sub=sub)
+    except Exception:
+        return None
+
+
+def _get_vp_signal(df, current_price):
+    """Re-derive the Volume Profile tab signal."""
+    try:
+        if "Volume" not in df.columns or df["Volume"].sum() == 0:
+            return None
+        _compute_volume_profile, _vp_signal = _import_vp()
+        vp = _compute_volume_profile(df, bins=40)
+        if vp is None:
+            return None
+        sig = _vp_signal(vp, current_price, df)
+        raw_sig = sig["signal"]
+        display_sig = "BUY" if raw_sig == "BUY" else "SELL" if raw_sig == "SELL" else "WAIT"
+        if raw_sig == "BUY":
+            color = BULL
+        elif raw_sig == "SELL":
+            color = BEAR
+        elif raw_sig == "WATCH":
+            color = NEUT
+        else:
+            color = T3
+        pct_from_poc = (current_price / vp["poc"] - 1) * 100 if vp["poc"] else 0
+        sub = f"Score {sig['score']}/100 · {sig['zone']}"
+        return dict(label="Volume Profile", signal=display_sig,
+                    score=sig["score"], color=color,
+                    poc=vp["poc"], vah=vp["vah"], val=vp["val"], sub=sub)
+    except Exception:
+        return None
+
+
+def _get_pattern_signal(df):
+    """Re-derive the Patterns tab signal."""
+    try:
+        _detect_candlestick, _detect_chart = _import_pt()
+        cs  = _detect_candlestick(df)
+        ch  = _detect_chart(df)
+        all_p = cs + ch
+
+        recent_dates = set(df["Date"].tail(10).dt.normalize().tolist())
+        active = [p for p in all_p
+                  if pd.to_datetime(p["date"]).normalize() in recent_dates]
+
+        bull_cnt = sum(1 for p in active if p["type"] == "Bullish")
+        bear_cnt = sum(1 for p in active if p["type"] == "Bearish")
+        net_bias = bull_cnt - bear_cnt
+
+        if net_bias > 0:
+            signal, color = "BUY",  BULL
+        elif net_bias < 0:
+            signal, color = "SELL", BEAR
+        else:
+            signal, color = "WAIT", NEUT
+
+        strongest = max(active, key=lambda p: p["strength"]) if active else None
+        if strongest:
+            sub = f"{strongest['pattern']} · {strongest['strength']}% strength"
+        elif not active:
+            sub = "No active patterns in last 10 sessions"
+        else:
+            sub = f"{bull_cnt} bullish, {bear_cnt} bearish"
+
+        return dict(label="Pattern Signal", signal=signal,
+                    bull=bull_cnt, bear=bear_cnt, active=len(active),
+                    color=color, sub=sub)
+    except Exception:
+        return None
+
+
+def _render_signal_summaries(df, current_price):
+    """Render 3 signal sub-cards (Market Structure, Pattern Signal, Volume Profile) side by side."""
+    df = df.copy()
+    if "Date" in df.columns:
+        df["Date"] = pd.to_datetime(df["Date"])
+
+    pa  = _get_pa_signal(df, current_price)
+    vp  = _get_vp_signal(df, current_price)
+    pat = _get_pattern_signal(df)
+
+    def _mini_card_html(card):
+        c   = card["color"]
+        stats = card.get("stats", [])
+        stats_rows = "".join([
+            f"<div style='display:flex;justify-content:space-between;align-items:center;"
+            f"padding:0.45rem 0;'>"
+            f"<span style='font-size:0.82rem;color:{T3};font-weight:500;'>{sn}</span>"
+            f"<span style='font-size:0.88rem;font-weight:600;color:{sc};"
+            f"font-variant-numeric:tabular-nums;'>{sv}</span>"
+            f"</div>"
+            for sn, sv, sc in stats
+        ])
+        return (
+            f"<div style='background:{CARD};border:1px solid {HAIR};"
+            f"border-radius:16px;overflow:hidden;box-shadow:{SHADOW};'>"
+            f"<div style='padding:1rem 1.25rem;border-bottom:1px solid {HAIR};'>"
+            f"<div style='display:flex;justify-content:space-between;align-items:center;'>"
+            f"<span style='font-size:0.92rem;color:{T1};font-weight:600;'>{card['label']}</span>"
+            f"<span style='font-size:0.8rem;font-weight:600;color:{c};background:{_tint(c)};"
+            f"padding:0.2rem 0.65rem;border-radius:980px;'>{card['signal']}</span>"
+            f"</div></div>"
+            f"<div style='padding:1rem 1.25rem;'>"
+            f"<div style='font-size:0.85rem;color:{T3};margin-bottom:0.7rem;"
+            f"line-height:1.5;'>{card['sub']}</div>"
+            + _glowbar(card["bar"], c) +
+            f"<div style='margin-top:0.75rem;border-top:1px solid {HAIR};padding-top:0.55rem;'>{stats_rows}</div>"
+            f"</div></div>"
+        )
+
+    sub_cards = []
+    if pa:
+        sub_cards.append(dict(
+            label="Market Structure",
+            signal=pa["signal"],
+            color=pa["color"],
+            bar=pa["conf"] if pa.get("conf") else 0,
+            sub=pa["sub"],
+            stats=[
+                ("Trend",  pa["trend"],  pa["trend_col"]),
+                ("Setup",  pa["signal"], pa["color"]),
+            ],
+        ))
+    if pat:
+        pat_bar = min(100, max(0, (pat["bull"] + pat["bear"]) * 12))
+        sub_cards.append(dict(
+            label="Pattern Signal",
+            signal=pat["signal"],
+            color=pat["color"],
+            bar=pat_bar,
+            sub=pat["sub"],
+            stats=[
+                ("Active",   str(pat["active"]), INFO),
+                ("Bullish",  str(pat["bull"]),    BULL),
+                ("Bearish",  str(pat["bear"]),    BEAR),
+            ],
+        ))
+    if vp:
+        sub_cards.append(dict(
+            label="Volume Profile",
+            signal=vp["signal"],
+            color=vp["color"],
+            bar=vp.get("score", 0),
+            sub=vp["sub"],
+            stats=[
+                ("VAL",   f"${vp['val']:.2f}",       BULL),
+                ("POC",   f"${vp['poc']:.2f}",       AMBER),
+                ("VAH",   f"${vp['vah']:.2f}",       BEAR),
+                ("Score", f"{vp.get('score',0)}/100", vp["color"]),
+            ],
+        ))
+
+    if not sub_cards:
+        return
+
+    while len(sub_cards) < 3:
+        sub_cards.append(None)
+
+    col1, col2, col3 = st.columns(3, gap="small")
+    for col, card in zip([col1, col2, col3], sub_cards[:3]):
+        with col:
+            if card:
+                st.markdown(_mini_card_html(card), unsafe_allow_html=True)
+            else:
+                st.markdown(
+                    f"<div style='background:{INSET};border:1px solid {HAIR};"
+                    f"border-radius:16px;padding:1.1rem 1.25rem;"
+                    f"text-align:center;color:{T4};font-size:0.85rem;'>—</div>",
+                    unsafe_allow_html=True,
+                )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LOW-LEVEL HELPERS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _fv(df, col, bars_back=0, default=None):
+    if col not in df.columns:
+        return default
+    s = df[col].dropna()
+    if len(s) <= bars_back:
+        return default
+    v = s.iloc[-(1 + bars_back)]
+    return float(v) if not (isinstance(v, float) and np.isnan(v)) else default
+
+
+def _col(df, *names):
+    for n in names:
+        v = _fv(df, n)
+        if v is not None:
+            return v
+    return None
+
+
+def _pct(a, b):
+    """Safe (a/b - 1) * 100."""
+    if b and b != 0:
+        return (float(a) / float(b) - 1) * 100
+    return 0.0
+
+
+def _quartile(lst, q):
+    """q in [0,1]."""
+    if not lst:
+        return 0.0
+    s = sorted(lst)
+    idx = int(len(s) * q)
+    return float(s[min(idx, len(s) - 1)])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SCORING ENGINE  (unchanged from v2 — produces composite score + factors)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _score_engine(df, cp):
+    close  = df["Close"].astype(float)
+    high   = df["High"].astype(float)
+    low    = df["Low"].astype(float)
+    volume = (df["Volume"].astype(float) if "Volume" in df.columns
+              else pd.Series(np.ones(len(close))))
+    n = len(close)
+
+    e20    = _fv(df, "EMA_20")  or cp
+    e50    = _fv(df, "EMA_50")  or cp
+    e200   = _fv(df, "EMA_200") or cp
+    rsi    = _col(df, "RSI_14") or 50.0
+    macd   = _col(df, "MACD_12_26_9") or 0.0
+    macd_s = _col(df, "MACDs_12_26_9") or 0.0
+    macd_h = _col(df, "MACDh_12_26_9") or 0.0
+    macd_h_prev = _fv(df, "MACDh_12_26_9", bars_back=1) or 0.0
+    adx    = _col(df, "ADX_14") or 15.0
+    atr    = _col(df, "ATR_14") or (cp * 0.02)
+    sk     = _col(df, "STOCHk_14_3_3") or 50.0
+    sd_val = _col(df, "STOCHd_14_3_3") or 50.0
+    sk_p   = _fv(df, "STOCHk_14_3_3", bars_back=1) or 50.0
+    sd_p   = _fv(df, "STOCHd_14_3_3", bars_back=1) or 50.0
+    bbl    = _col(df, "BBL_20_2.0", "BBL_20") or (cp * 0.97)
+    bbu    = _col(df, "BBU_20_2.0", "BBU_20") or (cp * 1.03)
+    mfi    = _col(df, "MFI_14")
+    cmf    = _col(df, "CMF_20")
+    cci    = _col(df, "CCI_20", "CCI_20_0.015")
+    regime = (df.iloc[-1].get("REGIME", "VOLATILE")
+              if "REGIME" in df.columns else "VOLATILE")
+
+    vol_20  = float(volume.iloc[-20:].mean()) if n >= 20 else float(volume.mean())
+    vol_cur = float(volume.iloc[-1])
+    vol_ratio = vol_cur / vol_20 if vol_20 > 0 else 1.0
+
+    obv_rising = None
+    if "OBV" in df.columns:
+        obv_s = df["OBV"].dropna()
+        if len(obv_s) >= 10:
+            obv_rising = float(obv_s.iloc[-1]) > float(obv_s.iloc[-10])
+
+    lb = min(252, n)
+    w52h = float(high.iloc[-lb:].max())
+    w52l = float(low.iloc[-lb:].min())
+    w52_pos = (cp - w52l) / (w52h - w52l) * 100 if (w52h - w52l) > 0 else 50.0
+
+    atr_pct = atr / cp * 100 if cp > 0 else 2.0
+    p5d  = _pct(cp, float(close.iloc[-5]))  if n >= 6  else 0.0
+    p20d = _pct(cp, float(close.iloc[-20])) if n >= 21 else 0.0
+    p60d = _pct(cp, float(close.iloc[-60])) if n >= 61 else 0.0
+    bb_rng = bbu - bbl
+    bb_pct = (cp - bbl) / bb_rng if bb_rng > 0 else 0.5
+
+    factors = []
+
+    def F(name, pts, max_pts, cat, direction):
+        factors.append({"name": name, "pts": pts, "max": max_pts,
+                        "cat": cat, "dir": direction})
+
+    above_all = cp > e20 > e50 > e200
+    below_all = cp < e20 < e50 < e200
+    above_2   = cp > e20 and cp > e50
+    below_2   = cp < e20 and cp < e50
+
+    # How extended is price from EMA20 (as % of price)?  Used to detect "already ran."
+    ema20_gap_pct = (cp - e20) / e20 * 100 if e20 > 0 else 0.0
+
+    # ── EMA Stack: trend direction only (not entry timing) ───────────────
+    if above_all:
+        F("EMA Stack Full Bull — price above EMA20, EMA50, EMA200", 8, 8, "Trend", 1)
+    elif above_2:
+        F("EMA Stack Partial Bull — price above EMA20 and EMA50", 5, 8, "Trend", 1)
+    elif cp > e20:
+        F("Price above EMA20 only (weak bull)", 2, 8, "Trend", 1)
+    elif below_all:
+        F("EMA Stack Full Bear — price below EMA20, EMA50, EMA200", -8, 8, "Trend", -1)
+    elif below_2:
+        F("EMA Stack Partial Bear — price below EMA20 and EMA50", -5, 8, "Trend", -1)
+    elif cp < e20:
+        F("Price below EMA20 only (weak bear)", -2, 8, "Trend", -1)
+
+    # ── Extension from EMA20 — penalise stocks that already ran ──────────
+    # A good entry is near the EMA, not 10%+ extended above it.
+    if above_all or above_2:
+        if ema20_gap_pct > 12:
+            F(f"Price extended {ema20_gap_pct:.1f}% above EMA20 — stock already ran, high risk of pullback", -6, 6, "Trend", -1)
+        elif ema20_gap_pct > 7:
+            F(f"Price {ema20_gap_pct:.1f}% above EMA20 — extended, better to wait for pullback", -3, 6, "Trend", -1)
+        elif ema20_gap_pct < 2:
+            F(f"Price hugging EMA20 ({ema20_gap_pct:.1f}% above) — clean entry zone", 4, 6, "Trend", 1)
+        elif ema20_gap_pct < 4:
+            F(f"Price near EMA20 ({ema20_gap_pct:.1f}% above) — acceptable entry", 2, 6, "Trend", 1)
+
+    macd_p1  = _fv(df, "MACD_12_26_9",  bars_back=1) or macd
+    macds_p1 = _fv(df, "MACDs_12_26_9", bars_back=1) or macd_s
+    cross_up   = macd > macd_s and macd_p1 <= macds_p1
+    cross_down = macd < macd_s and macd_p1 >= macds_p1
+    hist_acc   = macd_h > macd_h_prev
+
+    # ── MACD: crossover freshness matters — old signal = less value ───────
+    if cross_up:
+        F("MACD bullish crossover — fresh buy signal", 6, 6, "Momentum", 1)
+    elif macd > macd_s and hist_acc:
+        F("MACD bullish and accelerating", 4, 6, "Momentum", 1)
+    elif macd > macd_s:
+        F("MACD above signal line (bullish)", 2, 6, "Momentum", 1)
+    elif cross_down:
+        F("MACD bearish crossover — fresh sell signal", -6, 6, "Momentum", -1)
+    elif macd < macd_s and not hist_acc:
+        F("MACD bearish and weakening", -4, 6, "Momentum", -1)
+    elif macd < macd_s:
+        F("MACD below signal line (bearish)", -2, 6, "Momentum", -1)
+
+    # ── RSI: oversold = opportunity, overbought = too late ───────────────
+    # Overbought gets harder penalty than old version — stock has already run.
+    if rsi < 25:
+        F(f"RSI deeply oversold ({rsi:.0f}) — extreme fear, high bounce potential", 6, 6, "Momentum", 1)
+    elif rsi < 35:
+        F(f"RSI oversold ({rsi:.0f}) — good entry zone", 4, 6, "Momentum", 1)
+    elif rsi < 45:
+        F(f"RSI cooling off ({rsi:.0f}) — reset from prior run, watch for reversal", 2, 6, "Momentum", 1)
+    elif rsi > 80:
+        F(f"RSI deeply overbought ({rsi:.0f}) — stock already ran, buyers exhausted", -6, 6, "Momentum", -1)
+    elif rsi > 70:
+        F(f"RSI overbought ({rsi:.0f}) — extended, late entry risk", -4, 6, "Momentum", -1)
+    elif rsi > 60:
+        F(f"RSI elevated ({rsi:.0f}) — momentum fading, limited upside room", -1, 6, "Momentum", -1)
+    elif 45 <= rsi <= 60:
+        F(f"RSI neutral ({rsi:.0f}) — no directional edge", 0, 6, "Momentum", 0)
+
+    # ── Stochastic: oversold crossover = best entry, overbought = avoid ──
+    if sk < 25 and sk > sd_val and sk_p <= sd_p:
+        F(f"Stoch bullish crossover from oversold ({sk:.0f}) — momentum turning up", 4, 4, "Momentum", 1)
+    elif sk < 25:
+        F(f"Stoch oversold ({sk:.0f}) — price compressed, watch for bounce", 2, 4, "Momentum", 1)
+    elif sk > 75 and sk < sd_val and sk_p >= sd_p:
+        F(f"Stoch bearish crossover from overbought ({sk:.0f}) — momentum turning down", -4, 4, "Momentum", -1)
+    elif sk > 75:
+        F(f"Stoch overbought ({sk:.0f}) — stock already ran, selling pressure likely", -2, 4, "Momentum", -1)
+
+    # ── Bollinger Bands: lower band = value, upper band = extended ────────
+    if bb_pct < 0.05:
+        F("Price at lower Bollinger Band — 2-sigma oversold, mean reversion likely", 4, 4, "Volatility", 1)
+    elif bb_pct < 0.20:
+        F("Price near lower BB — value zone, entry opportunity", 2, 4, "Volatility", 1)
+    elif bb_pct > 0.95:
+        F("Price at upper Bollinger Band — 2-sigma extended, stock already ran", -4, 4, "Volatility", -1)
+    elif bb_pct > 0.80:
+        F("Price near upper BB — extended from mean, poor entry timing", -2, 4, "Volatility", -1)
+    elif 0.40 <= bb_pct <= 0.60:
+        F("Price at BB midpoint — neutral zone, no edge", 0, 4, "Volatility", 0)
+
+    pos_di = _col(df, "DMP_14") or 20.0
+    neg_di = _col(df, "DMN_14") or 20.0
+    if adx > 30 and pos_di > neg_di:
+        F(f"Strong bullish trend — ADX {adx:.0f}, +DI above -DI", 4, 4, "Trend", 1)
+    elif adx > 20 and pos_di > neg_di:
+        F(f"Bullish trend — ADX {adx:.0f}", 2, 4, "Trend", 1)
+    elif adx > 30 and neg_di > pos_di:
+        F(f"Strong bearish trend — ADX {adx:.0f}, -DI above +DI", -4, 4, "Trend", -1)
+    elif adx > 20 and neg_di > pos_di:
+        F(f"Bearish trend — ADX {adx:.0f}", -2, 4, "Trend", -1)
+    elif adx < 15:
+        F(f"No trend — ADX {adx:.0f}, choppy", 0, 4, "Trend", 0)
+
+    # ── Recent move: if stock already surged 5–20 days ago, opportunity is gone ─
+    # Heavy recent gain = ran already. Modest prior gain that's now cooling = OK.
+    if p5d > 8:
+        F(f"Up {p5d:.1f}% in 5 days — spike already happened, chasing risk high", -5, 5, "Momentum", -1)
+    elif p5d > 4:
+        F(f"Up {p5d:.1f}% in 5 days — recent surge, better to wait for consolidation", -2, 5, "Momentum", -1)
+    elif p5d < -8:
+        F(f"Down {abs(p5d):.1f}% in 5 days — sharp drop, watch for stabilisation", 2, 5, "Momentum", 1)
+    elif p5d < -4:
+        F(f"Down {abs(p5d):.1f}% in 5 days — healthy pullback, potential entry forming", 3, 5, "Momentum", 1)
+
+    if p20d > 20:
+        F(f"Up {p20d:.1f}% in 20 days — large move already done, limited upside near-term", -4, 4, "Momentum", -1)
+    elif p20d > 12:
+        F(f"Up {p20d:.1f}% in 20 days — significant run, entry risk elevated", -2, 4, "Momentum", -1)
+    elif p20d < -15:
+        F(f"Down {abs(p20d):.1f}% in 20 days — sold off hard, contrarian opportunity forming", 3, 4, "Momentum", 1)
+    elif p20d < -8:
+        F(f"Down {abs(p20d):.1f}% in 20 days — pullback into value zone", 2, 4, "Momentum", 1)
+
+    if vol_ratio > 2.0 and p5d > 1:
+        F(f"Heavy volume ({vol_ratio:.1f}x) on up-move — institutional buying", 3, 3, "Volume", 1)
+    elif vol_ratio > 1.5 and p5d > 0:
+        F(f"Above-avg volume ({vol_ratio:.1f}x) confirming rally", 2, 3, "Volume", 1)
+    elif vol_ratio > 2.0 and p5d < -1:
+        F(f"Heavy volume ({vol_ratio:.1f}x) on down-move — institutional selling", -3, 3, "Volume", -1)
+    elif vol_ratio > 1.5 and p5d < 0:
+        F(f"Above-avg volume ({vol_ratio:.1f}x) confirming decline", -2, 3, "Volume", -1)
+
+    if obv_rising is not None:
+        if obv_rising and p5d >= 0:
+            F("OBV rising — smart money accumulating", 2, 2, "Volume", 1)
+        elif not obv_rising and p5d <= 0:
+            F("OBV falling — smart money distributing", -2, 2, "Volume", -1)
+        elif obv_rising and p5d < 0:
+            F("OBV up vs falling price — hidden accumulation signal", 1, 2, "Volume", 1)
+
+    if mfi is not None:
+        if mfi < 20:
+            F(f"MFI oversold ({mfi:.0f}) — money flowing in at lows", 2, 2, "Volume", 1)
+        elif mfi > 80:
+            F(f"MFI overbought ({mfi:.0f}) — money outflow at highs", -2, 2, "Volume", -1)
+    if cmf is not None:
+        if cmf > 0.15:
+            F(f"CMF positive ({cmf:.2f}) — sustained accumulation", 1, 1, "Volume", 1)
+        elif cmf < -0.15:
+            F(f"CMF negative ({cmf:.2f}) — sustained distribution", -1, 1, "Volume", -1)
+
+    if cci is not None:
+        if cci < -150:
+            F(f"CCI deeply oversold ({cci:.0f})", 2, 2, "Momentum", 1)
+        elif cci > 150:
+            F(f"CCI overbought ({cci:.0f})", -2, 2, "Momentum", -1)
+
+    # ── RSI divergence detection ──────────────────────────────────────────
+    if n >= 25 and "RSI_14" in df.columns:
+        _rsi_s = df["RSI_14"].dropna().astype(float)
+        if len(_rsi_s) >= 20:
+            _p_lo1 = float(low.iloc[-20:-10].min())
+            _p_lo2 = float(low.iloc[-10:].min())
+            _r_lo1 = float(_rsi_s.iloc[-20:-10].min())
+            _r_lo2 = float(_rsi_s.iloc[-10:].min())
+            _p_hi1 = float(high.iloc[-20:-10].max())
+            _p_hi2 = float(high.iloc[-10:].max())
+            _r_hi1 = float(_rsi_s.iloc[-20:-10].max())
+            _r_hi2 = float(_rsi_s.iloc[-10:].max())
+            if _p_lo2 < _p_lo1 and _r_lo2 > _r_lo1 + 2:
+                F("RSI bullish divergence — price lower low but RSI higher low", 5, 5, "Divergence", 1)
+            elif _p_hi2 > _p_hi1 and _r_hi2 < _r_hi1 - 2:
+                F("RSI bearish divergence — price higher high but RSI lower high", -5, 5, "Divergence", -1)
+
+    # ── MACD divergence detection ─────────────────────────────────────────
+    if n >= 25 and "MACDh_12_26_9" in df.columns:
+        _mh_s = df["MACDh_12_26_9"].dropna().astype(float)
+        if len(_mh_s) >= 20:
+            _p_lo1 = float(low.iloc[-20:-10].min())
+            _p_lo2 = float(low.iloc[-10:].min())
+            _mh_lo1 = float(_mh_s.iloc[-20:-10].min())
+            _mh_lo2 = float(_mh_s.iloc[-10:].min())
+            _p_hi1 = float(high.iloc[-20:-10].max())
+            _p_hi2 = float(high.iloc[-10:].max())
+            _mh_hi1 = float(_mh_s.iloc[-20:-10].max())
+            _mh_hi2 = float(_mh_s.iloc[-10:].max())
+            if _p_lo2 < _p_lo1 and _mh_lo2 > _mh_lo1:
+                F("MACD bullish divergence — hidden buying pressure building", 5, 5, "Divergence", 1)
+            elif _p_hi2 > _p_hi1 and _mh_hi2 < _mh_hi1:
+                F("MACD bearish divergence — momentum fading despite higher prices", -5, 5, "Divergence", -1)
+
+    # ── 52W position: near lows = opportunity, near highs = already ran ───
+    if w52_pos <= 10:
+        F(f"Near 52-week low ({w52_pos:.0f}th pct) — maximum pessimism, contrarian buy zone", 4, 4, "Momentum", 1)
+    elif w52_pos <= 25:
+        F(f"In lower 52W range ({w52_pos:.0f}th pct) — value territory", 2, 4, "Momentum", 1)
+    elif w52_pos >= 90:
+        F(f"Near 52-week high ({w52_pos:.0f}th pct) — stock already ran, limited upside", -4, 4, "Momentum", -1)
+    elif w52_pos >= 75:
+        F(f"Upper 52W range ({w52_pos:.0f}th pct) — extended, buy opportunity has passed", -2, 4, "Momentum", -1)
+
+    # ── Regime overlay ────────────────────────────────────────────────────
+    if regime == "TREND":
+        if above_all or above_2:
+            F("TRENDING regime + bullish EMA alignment — trend continuation favoured", 3, 3, "Regime", 1)
+        elif below_all or below_2:
+            F("TRENDING regime + bearish EMA alignment — downtrend continuation", -3, 3, "Regime", -1)
+        else:
+            F("TRENDING regime but EMAs mixed — trend may be transitioning", 0, 3, "Regime", 0)
+    elif regime == "RANGE":
+        if rsi < 35 or bb_pct < 0.15:
+            F("RANGE regime near support — mean reversion BUY favoured", 2, 3, "Regime", 1)
+        elif rsi > 65 or bb_pct > 0.85:
+            F("RANGE regime near resistance — mean reversion SELL favoured", -2, 3, "Regime", -1)
+        else:
+            F("RANGE regime — no edge at midrange, wait for extremes", 0, 3, "Regime", 0)
+    else:
+        F("VOLATILE regime — reduce position size, expect whipsaws", -1, 3, "Regime", 0)
+
+    total_pts = sum(f["pts"] for f in factors)
+    total_max = sum(f["max"] for f in factors)
+    pct = total_pts / total_max * 100 if total_max > 0 else 0.0
+
+    bull_n = sum(1 for f in factors if f["dir"] > 0)
+    bear_n = sum(1 for f in factors if f["dir"] < 0)
+
+    # Magnitude-weighted ratio boost: instead of counting signals,
+    # use actual point values to determine dominance.
+    bull_pts_abs = sum(f["pts"] for f in factors if f["dir"] > 0)
+    bear_pts_abs = sum(abs(f["pts"]) for f in factors if f["dir"] < 0)
+    total_pts_abs = bull_pts_abs + bear_pts_abs
+    if total_pts_abs > 0:
+        mag_ratio = bull_pts_abs / total_pts_abs  # 0..1
+        if mag_ratio >= 0.72:
+            pct += (mag_ratio - 0.5) * 20       # up to +10 max
+        elif mag_ratio <= 0.28:
+            pct -= (0.5 - mag_ratio) * 20       # up to -10 max
+
+    if pct >= 35:
+        verdict = "BUY";       confidence = min(95, int(40 + pct * 0.6))
+    elif pct >= 15:
+        verdict = "LEAN BULL"; confidence = min(70, int(30 + pct * 0.7))
+    elif pct <= -35:
+        verdict = "SELL";      confidence = min(95, int(40 + abs(pct) * 0.6))
+    elif pct <= -15:
+        verdict = "LEAN BEAR"; confidence = min(70, int(30 + abs(pct) * 0.7))
+    else:
+        verdict = "WAIT";      confidence = min(80, 40 + min(bull_n, bear_n) * 5)
+
+    is_actionable = verdict in ("BUY", "SELL")
+    is_lean       = verdict in ("LEAN BULL", "LEAN BEAR")
+    is_bullish    = verdict in ("BUY", "LEAN BULL")
+
+    entry  = cp
+
+    # ── STOP + TARGETS: delegate to shared _levels module ─────────────────
+    try:
+        from _levels import compute_structural_levels as _csl
+        _lv = _csl(df, cp, is_bullish)
+        stop         = _lv["stop"]
+        t1           = _lv["t1"];  t2 = _lv["t2"];  t3 = _lv["t3"]
+        risk_pct     = _lv["risk_pct"]
+        rr1          = _lv["rr1"]; rr2 = _lv["rr2"]
+        R            = _lv["R"]
+        entry_quality = _lv.get("entry_quality", "")
+        eq_col        = _lv.get("eq_col", "")
+    except Exception:
+        # Fallback: simple ATR-based levels
+        R        = atr * 1.5
+        stop     = round(cp - R, 2) if is_bullish else round(cp + R, 2)
+        t1       = round(cp + 1.618 * R, 2) if is_bullish else round(cp - 1.618 * R, 2)
+        t2       = round(cp + 2.618 * R, 2) if is_bullish else round(cp - 2.618 * R, 2)
+        t3       = round(cp + 4.236 * R, 2) if is_bullish else round(cp - 4.236 * R, 2)
+        risk_pct = round(R / cp * 100, 1) if cp > 0 else 2.0
+        rr1      = 1.6; rr2 = 2.6
+        entry_quality = ""; eq_col = ""
+
+    # ── R:R quality adjustment — reward good setups, penalize poor ones ───
+    _rr_quality = "FAIR"
+    _rr_adj = 0
+    if rr1 >= 3.0:
+        _rr_quality = "EXCELLENT"
+        _rr_adj = 8    # excellent R:R boosts confidence
+    elif rr1 >= 2.0:
+        _rr_quality = "GOOD"
+        _rr_adj = 4
+    elif rr1 >= 1.5:
+        _rr_quality = "FAIR"
+        _rr_adj = 0
+    elif rr1 >= 1.0:
+        _rr_quality = "POOR"
+        _rr_adj = -5   # poor R:R penalizes
+    else:
+        _rr_quality = "BAD"
+        _rr_adj = -10  # terrible R:R — major penalty
+
+    # Apply R:R adjustment to confidence (not to pct — affects display only)
+    confidence = max(10, min(95, confidence + _rr_adj))
+
+    return {
+        "verdict": verdict, "confidence": confidence,
+        "is_actionable": is_actionable, "is_lean": is_lean, "is_bullish": is_bullish,
+        "pct": round(pct, 1), "total_pts": total_pts, "total_max": total_max,
+        "factors": factors, "bull_n": bull_n, "bear_n": bear_n,
+        "entry": entry, "stop": stop, "t1": t1, "t2": t2, "t3": t3,
+        "risk_pct": round(risk_pct, 1), "rr1": round(rr1, 1), "rr2": round(rr2, 1),
+        "rsi": round(rsi, 1), "adx": round(adx, 1),
+        "sk": round(sk, 1), "macd_h": round(macd_h, 4),
+        "bb_pct": round(bb_pct * 100, 0), "vol_ratio": round(vol_ratio, 2),
+        "atr_pct": round(atr_pct, 2), "atr_abs": round(atr, 4),
+        "regime": regime,
+        "w52_pos": round(w52_pos, 1), "p5d": round(p5d, 2),
+        "p20d": round(p20d, 2), "p60d": round(p60d, 2),
+        "e20": round(e20, 2), "e50": round(e50, 2), "e200": round(e200, 2),
+        "w52h": round(w52h, 2), "w52l": round(w52l, 2), "cp": round(cp, 2),
+        "entry_quality": entry_quality, "eq_col": eq_col,
+        "rr_quality": _rr_quality,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADVANCED PROBABILITY ENGINE
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _probability_engine(df, d):
+    """
+    Multi-layer probability model:
+      Layer 1 - Historical base rate at each horizon (unconditional)
+      Layer 2 - Historical ANALOG setups (same RSI zone + EMA side + MACD dir)
+      Layer 3 - Regime-conditional win rates
+      Layer 4 - Score-based Bayesian adjustment
+      Layer 5 - Momentum persistence (short-term trend continuation bias)
+      Layer 6 - Volatility dampening (high ATR -> pull toward 50%)
+      Layer 7 - Confidence interval from analog spread + ATR scaling
+    Returns rich dict per horizon: prob_up, n_analogs, analog_win_rate,
+      avg_ret, median_ret, p10, p25, p75, p90, ci_lo, ci_hi,
+      bull_target, base_target, bear_target,
+      bull_probability, base_probability, bear_probability,
+      bull_ret, base_ret, bear_ret,
+      regime_win_rate, n_regime_analogs,
+      key_driver, driver_contribution,
+      when_right_avg, when_wrong_avg, ev
+    """
+    close  = df["Close"].astype(float)
+    high   = df["High"].astype(float)
+    low    = df["Low"].astype(float)
+    n      = len(close)
+    cp     = d["cp"]
+    atr_pct  = d["atr_pct"]
+    regime   = d["regime"]
+    rsi_now  = d["rsi"]
+    pct_score = d["pct"]
+    is_bullish = d["is_bullish"]
+    p5d      = d["p5d"]
+
+    # Current indicator states (categorical)
+    above_e20  = cp > d["e20"]
+    macd_bull  = d["macd_h"] > 0
+    rsi_zone   = ("oversold" if rsi_now < 35 else
+                  "overbought" if rsi_now > 65 else "neutral")
+
+    results = {}
+
+    for days in [5, 10, 20]:
+        min_needed = days + 5
+        if n < min_needed:
+            results[days] = _fallback_horizon(days, d)
+            continue
+
+        # ── Layer 1: Unconditional base rate ────────────────────────────
+        window    = min(150, n - days - 1)
+        all_rets  = []
+        for i in range(window):
+            p0 = float(close.iloc[-(days + 1 + i)])
+            pN = float(close.iloc[-(1 + i)])
+            all_rets.append(_pct(pN, p0))
+
+        uncond_win_rate = sum(1 for r in all_rets if r > 0) / len(all_rets) if all_rets else 0.5
+        uncond_avg      = float(np.mean(all_rets)) if all_rets else 0.0
+
+        # ── Layer 2: Analog setups ───────────────────────────────────────
+        # Match: same EMA20 side, same RSI zone, same MACD direction
+        analog_rets     = []
+        regime_rets     = []
+        strong_rets     = []  # analogs where score also in same direction
+
+        for i in range(min(250, n - days - 1)):
+            bar_idx = -(days + 1 + i)
+            if abs(bar_idx) >= n:
+                break
+
+            # Reconstruct past state
+            past_close   = float(close.iloc[bar_idx])
+            past_e20_raw = _fv(df, "EMA_20", bars_back=days + i)
+            past_rsi_raw = _fv(df, "RSI_14", bars_back=days + i)
+            past_macd_h  = _fv(df, "MACDh_12_26_9", bars_back=days + i)
+            past_regime  = None
+            if "REGIME" in df.columns:
+                reg_s = df["REGIME"].dropna()
+                reg_idx = -(days + 1 + i)
+                if abs(reg_idx) < len(reg_s):
+                    past_regime = reg_s.iloc[reg_idx]
+
+            past_above_e20 = (past_close > past_e20_raw) if past_e20_raw else above_e20
+            past_rsi_zone  = ("oversold"  if (past_rsi_raw or 50) < 35 else
+                              "overbought" if (past_rsi_raw or 50) > 65 else "neutral")
+            past_macd_bull = (past_macd_h or 0) > 0
+
+            # Forward return FROM that analog point
+            p0 = float(close.iloc[bar_idx])
+            pN_idx = bar_idx + days
+            if pN_idx >= 0:
+                pN_idx = -1
+            pN = float(close.iloc[pN_idx]) if abs(pN_idx) <= n else p0
+            fwd_ret = _pct(pN, p0)
+
+            # Regime analog
+            if past_regime == regime:
+                regime_rets.append(fwd_ret)
+
+            # Full analog: same EMA side + same RSI zone
+            same_ema  = past_above_e20 == above_e20
+            same_rsi  = past_rsi_zone  == rsi_zone
+            same_macd = past_macd_bull == macd_bull
+
+            if same_ema and same_rsi:
+                analog_rets.append(fwd_ret)
+                if same_macd:
+                    strong_rets.append(fwd_ret)
+
+        # Choose best dataset (strong > analog > regime > unconditional)
+        if len(strong_rets) >= 10:
+            best_rets = strong_rets
+            dataset_label = f"{len(strong_rets)} strong analogs (EMA+RSI+MACD match)"
+        elif len(analog_rets) >= 8:
+            best_rets = analog_rets
+            dataset_label = f"{len(analog_rets)} analogs (EMA+RSI zone match)"
+        elif len(regime_rets) >= 8:
+            best_rets = regime_rets
+            dataset_label = f"{len(regime_rets)} regime-matched periods"
+        else:
+            best_rets = all_rets
+            dataset_label = f"{len(all_rets)} unconditional historical periods"
+
+        m = len(best_rets)
+        if m == 0:
+            results[days] = _fallback_horizon(days, d)
+            continue
+
+        s_rets     = sorted(best_rets)
+        wins       = sum(1 for r in best_rets if r > 0)
+        analog_wr  = wins / m
+        avg_ret    = float(np.mean(best_rets))
+        median_ret = float(np.median(best_rets))
+        p10        = _quartile(s_rets, 0.10)
+        p25        = _quartile(s_rets, 0.25)
+        p75        = _quartile(s_rets, 0.75)
+        p90        = _quartile(s_rets, 0.90)
+
+        # ── Layer 3: Score-based Bayesian update ────────────────────────
+        # Shift analog win rate toward score direction
+        # Each 10% of max score = ~2.5% adjustment
+        score_adj  = float(np.clip(pct_score / 100 * 0.20, -0.18, 0.18))
+
+        # ── Layer 4: Momentum bias ───────────────────────────────────────
+        mom_adj = 0.0
+        if abs(p5d) > 2:
+            mom_adj = float(np.clip(p5d / 100 * 0.15, -0.06, 0.06))
+
+        # ── Layer 5: Regime multiplier ───────────────────────────────────
+        reg_adj = 0.0
+        if regime == "TREND":
+            reg_adj = 0.04 if is_bullish else -0.04
+        elif regime == "VOLATILE":
+            # In volatile regimes dampen toward 50% — less predictable
+            analog_wr = analog_wr * 0.7 + 0.5 * 0.3
+
+        # ── Layer 6: Volatility dampening ────────────────────────────────
+        raw_prob = analog_wr + score_adj + mom_adj + reg_adj
+        if atr_pct > 4:
+            damp = float(np.clip((atr_pct - 4) / 10, 0, 0.5)) * 0.20
+            raw_prob = raw_prob * (1 - damp) + 0.5 * damp
+
+        prob_up = float(np.clip(raw_prob, 0.05, 0.95))
+
+        # ── Layer 7: Confidence interval ────────────────────────────────
+        # Use interquartile range from analogs blended with ATR projection
+        daily_vol   = atr_pct / 1.414
+        atr_proj    = daily_vol * (days ** 0.5)
+        spread_half = max(abs(p75 - p25) / 2, atr_proj * 0.8)
+        ci_lo  = round(cp * (1 + (avg_ret - spread_half * 1.28) / 100), 2)
+        ci_hi  = round(cp * (1 + (avg_ret + spread_half * 1.28) / 100), 2)
+
+        # ── Scenarios ────────────────────────────────────────────────────
+        # Bull case  = 75th–90th percentile of analog returns
+        # Base case  = median of analog returns
+        # Bear case  = 10th–25th percentile
+        bull_ret  = round((p75 + p90) / 2, 2)
+        base_ret  = round(median_ret, 2)
+        bear_ret  = round((p10 + p25) / 2, 2)
+
+        bull_target = round(cp * (1 + bull_ret / 100), 2)
+        base_target = round(cp * (1 + base_ret / 100), 2)
+        bear_target = round(cp * (1 + bear_ret / 100), 2)
+
+        # Assign scenario probabilities
+        # Bull scenario = fraction of analogs above p75
+        bull_p = sum(1 for r in best_rets if r >= p75) / m
+        bear_p = sum(1 for r in best_rets if r <= p25) / m
+        base_p = 1 - bull_p - bear_p
+
+        # Expected value (from entry, accounting for prob distribution)
+        when_right_avg = float(np.mean([r for r in best_rets if r > 0])) if any(r > 0 for r in best_rets) else 0.0
+        when_wrong_avg = float(np.mean([r for r in best_rets if r <= 0])) if any(r <= 0 for r in best_rets) else 0.0
+        ev = round(prob_up * when_right_avg + (1 - prob_up) * when_wrong_avg, 2)
+
+        # Regime-specific win rate
+        regime_wr = None
+        if len(regime_rets) >= 5:
+            regime_wr = round(sum(1 for r in regime_rets if r > 0) / len(regime_rets) * 100, 1)
+
+        # Key driver (which signal group contributes most to bullish/bearish lean)
+        cat_scores = {}
+        for f in d["factors"]:
+            cat = f["cat"]
+            cat_scores[cat] = cat_scores.get(cat, 0) + f["pts"]
+        if cat_scores:
+            key_driver = max(cat_scores, key=lambda k: abs(cat_scores[k]))
+            driver_pts = cat_scores[key_driver]
+        else:
+            key_driver = "N/A"
+            driver_pts = 0
+
+        results[days] = {
+            "prob_up":           round(prob_up * 100, 1),
+            "n_analogs":         m,
+            "dataset_label":     dataset_label,
+            "analog_win_rate":   round(analog_wr * 100, 1),
+            "avg_ret":           round(avg_ret, 2),
+            "median_ret":        round(median_ret, 2),
+            "p10":               round(p10, 2), "p25": round(p25, 2),
+            "p75":               round(p75, 2), "p90": round(p90, 2),
+            "ci_lo":             ci_lo, "ci_hi": ci_hi,
+            "bull_ret":          bull_ret, "base_ret": base_ret, "bear_ret": bear_ret,
+            "bull_target":       bull_target, "base_target": base_target, "bear_target": bear_target,
+            "bull_prob":         round(bull_p * 100, 0),
+            "base_prob":         round(base_p * 100, 0),
+            "bear_prob":         round(bear_p * 100, 0),
+            "when_right_avg":    round(when_right_avg, 2),
+            "when_wrong_avg":    round(when_wrong_avg, 2),
+            "ev":                ev,
+            "regime_win_rate":   regime_wr,
+            "key_driver":        key_driver,
+            "driver_pts":        driver_pts,
+            "score_adj":         round(score_adj * 100, 1),
+            "atr_proj":          round(atr_proj, 1),
+        }
+
+    return results
+
+
+def _fallback_horizon(days, d):
+    atr_pct = d["atr_pct"]
+    cp      = d["cp"]
+    pct     = d["pct"]
+    prob_up = float(np.clip(0.5 + pct / 100 * 0.3, 0.1, 0.9))
+    daily_vol = atr_pct / 1.414
+    mv = daily_vol * (days ** 0.5) * (1 if prob_up > 0.5 else -1)
+    return {
+        "prob_up": round(prob_up * 100, 1),
+        "n_analogs": 0, "dataset_label": "insufficient history",
+        "analog_win_rate": round(prob_up * 100, 1),
+        "avg_ret": round(mv, 2), "median_ret": round(mv, 2),
+        "p10": round(-atr_pct * 2, 2), "p25": round(-atr_pct, 2),
+        "p75": round(atr_pct, 2),      "p90": round(atr_pct * 2, 2),
+        "ci_lo": round(cp * (1 - atr_pct * 0.03), 2),
+        "ci_hi": round(cp * (1 + atr_pct * 0.03), 2),
+        "bull_ret": round(atr_pct * 1.5, 2),
+        "base_ret": round(mv, 2),
+        "bear_ret": round(-atr_pct * 1.5, 2),
+        "bull_target": round(cp * (1 + atr_pct * 0.015), 2),
+        "base_target": round(cp * (1 + mv / 100), 2),
+        "bear_target": round(cp * (1 - atr_pct * 0.015), 2),
+        "bull_prob": 25.0, "base_prob": 50.0, "bear_prob": 25.0,
+        "when_right_avg": round(abs(mv) * 1.2, 2),
+        "when_wrong_avg": round(-abs(mv) * 0.8, 2),
+        "ev": round(mv * 0.5, 2),
+        "regime_win_rate": None,
+        "key_driver": "N/A", "driver_pts": 0,
+        "score_adj": 0.0, "atr_proj": round(daily_vol * (days ** 0.5), 1),
+    }
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CACHED EXTERNAL SIGNAL COLLECTION  (survives page refresh for 5 min)
+# ─────────────────────────────────────────────────────────────────────────────
+_EXT_TABS = [
+    ("Price Action",   "price_action_tab",   "get_pa_signal"),
+    ("Volume Profile", "volume_profile_tab",  "get_vp_signal"),
+    ("Chart Patterns", "patterns_tab",        "get_patterns_signal"),
+    ("Smart Money",    "smc_tab",             "get_smc_signal"),
+    ("Regime",         "regime_analysis_tab", "get_regime_signal"),
+    ("Elliott Wave",   "elliott_wave_tab",    "get_ew_signal"),
+    ("Classical TA",   "classical_ta_tab",    "get_cta_signal"),
+    # AI Analysis: heavy (15 ML models); uses get_ai_signal from gemini_tab but cached separately
+]
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _collect_ext_signals(_df_hash: str, _cp: float, df_json: str):
+    """Compute external tab signals once; cached 5 min by data fingerprint."""
+    import io
+    _df = pd.read_json(io.StringIO(df_json))
+    out = {}
+    for _name, _mod, _fn in _EXT_TABS:
+        try:
+            _module = __import__(_mod)
+            _sig = getattr(_module, _fn)(_df, _cp)
+            if _sig:
+                out[_name] = {k: (v if not isinstance(v, (pd.Series, pd.DataFrame, np.ndarray)) else None)
+                              for k, v in _sig.items()}
+            else:
+                out[_name] = None
+        except Exception:
+            out[_name] = None
+    # AI Analysis — separate (heavier) signal
+    try:
+        import gemini_tab as _gt
+        _ai_sig = _gt.get_ai_signal(_df, _cp)
+        if _ai_sig:
+            out["AI Analysis"] = {k: (v if not isinstance(v, (pd.Series, pd.DataFrame, np.ndarray)) else None)
+                                  for k, v in _ai_sig.items()}
+        else:
+            out["AI Analysis"] = None
+    except Exception:
+        out["AI Analysis"] = None
+    return out
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PRICE CHART (used in hero section)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def render_price_chart(df, symbol_input, stock_name, current_price, d=None):
+    """Standalone price chart with user-controlled overlay toggles.
+    Reads filter state from session_state (set by chips below the chart).
+    `d` is the optional decision dict (for entry/stop/target lines)."""
+    try:
+        import plotly.graph_objects as _go
+        from plotly.subplots import make_subplots as _make_subplots
+        import numpy as _np
+
+        _df_chart = df.copy()
+        if "Date" not in _df_chart.columns:
+            _df_chart = _df_chart.reset_index().rename(columns={"index": "Date"})
+        if not pd.api.types.is_datetime64_any_dtype(_df_chart["Date"]):
+            _df_chart["Date"] = pd.to_datetime(_df_chart["Date"], errors="coerce")
+        _df_chart = _df_chart.dropna(subset=["Date", "Close"]).reset_index(drop=True)
+
+        if len(_df_chart) < 2:
+            raise RuntimeError("Not enough bars to render chart.")
+
+        cp_now    = float(_df_chart["Close"].iloc[-1])
+        _last_252 = _df_chart.tail(252)
+        _hi_52    = float(_last_252["High"].max()) if "High" in _last_252.columns else float(_last_252["Close"].max())
+        _lo_52    = float(_last_252["Low"].min())  if "Low"  in _last_252.columns else float(_last_252["Close"].min())
+
+        # ── Fixed overlays — EMAs, S/R, 52W H/L only ───────────────────────
+        _dec_chart_type   = "Candlestick"
+        _dec_log_scale    = False
+        _dec_chart_height = 540
+        _ovl_ema          = ["EMA 50", "EMA 200"]
+        _ovl_sma          = []
+        _ovl_bands        = []
+        _ovl_extras       = []
+        _dec_show_vol     = False
+        _dec_show_rsi     = False
+        _dec_show_macd    = False
+        _dec_show_sr      = True
+        _dec_show_52w     = True
+        _dec_show_fib     = False
+        _dec_show_pivots  = False
+        _dec_show_anchor  = False
+        _dec_pivot_window = 5
+        _dec_sr_count     = 3
+
+        # ── Theme palette — match platform ──────────────────────────────────
+        _theme_map = {
+            "Platform": {"bg": CARD, "grid": GRID, "panel": INSET},
+        }
+        _T = _theme_map["Platform"]
+
+        # ── Pivot detection (always needed for S/R, Fib) ────────────────────
+        _highs = _df_chart["High"].astype(float).values if "High" in _df_chart.columns else _df_chart["Close"].astype(float).values
+        _lows  = _df_chart["Low" ].astype(float).values if "Low"  in _df_chart.columns else _df_chart["Close"].astype(float).values
+        _closes = _df_chart["Close"].astype(float).values
+
+        def _swings(arr, kind, w):
+            out = []
+            for i in range(w, len(arr) - w):
+                window = arr[i - w : i + w + 1]
+                if kind == "high" and arr[i] == window.max():
+                    out.append(i)
+                elif kind == "low" and arr[i] == window.min():
+                    out.append(i)
+            return out
+
+        _pw = int(_dec_pivot_window)
+        _swing_high_idx = _swings(_highs, "high", _pw)
+        _swing_low_idx  = _swings(_lows,  "low",  _pw)
+
+        def _cluster(prices, n=3, tol=0.015):
+            if not prices:
+                return []
+            prices = sorted(prices, reverse=True)
+            clusters = []
+            for p in prices:
+                placed = False
+                for cl in clusters:
+                    if abs(p - cl["price"]) / max(cl["price"], 1e-9) <= tol:
+                        cl["count"] += 1
+                        cl["price"] = (cl["price"] * (cl["count"] - 1) + p) / cl["count"]
+                        placed = True
+                        break
+                if not placed:
+                    clusters.append({"price": p, "count": 1})
+            clusters.sort(key=lambda c: c["count"], reverse=True)
+            return [c["price"] for c in clusters[:n]]
+
+        _recent_swing_highs = [_highs[i] for i in _swing_high_idx[-40:]]
+        _recent_swing_lows  = [_lows[i]  for i in _swing_low_idx[-40:]]
+        _resistances = sorted([p for p in _cluster(_recent_swing_highs, n=int(_dec_sr_count) * 2) if p > cp_now])[:int(_dec_sr_count)]
+        _supports    = sorted([p for p in _cluster(_recent_swing_lows,  n=int(_dec_sr_count) * 2) if p < cp_now], reverse=True)[:int(_dec_sr_count)]
+
+        # ── Build figure ────────────────────────────────────────────────────
+        _has_vol  = _dec_show_vol and "Volume" in _df_chart.columns and _df_chart["Volume"].sum() > 0
+        if _has_vol:
+            _fig_dec = _make_subplots(
+                rows=2, cols=1, shared_xaxes=True,
+                vertical_spacing=0.025, row_heights=[0.78, 0.22],
+            )
+            _price_row = 1
+            _vol_row   = 2
+        else:
+            _fig_dec = _go.Figure()
+            _price_row = None
+            _vol_row   = None
+
+        def _add(trace, row=None):
+            if row is not None:
+                _fig_dec.add_trace(trace, row=row, col=1)
+            else:
+                _fig_dec.add_trace(trace)
+
+        # Main candlestick
+        if {"Open", "High", "Low"}.issubset(_df_chart.columns):
+            _add(_go.Candlestick(
+                x=_df_chart["Date"], open=_df_chart["Open"], high=_df_chart["High"],
+                low=_df_chart["Low"], close=_df_chart["Close"],
+                name="Price",
+                increasing_line_color=UP, increasing_fillcolor=UP,
+                decreasing_line_color=DOWN, decreasing_fillcolor=DOWN,
+            ), _price_row)
+        else:
+            _add(_go.Scatter(
+                x=_df_chart["Date"], y=_df_chart["Close"], name="Price",
+                line=dict(color=INFO, width=2.0),
+            ), _price_row)
+
+        # Overlays
+        try:
+            import pandas_ta as _pta
+            _c = _df_chart["Close"].astype(float)
+            _h = _df_chart["High"].astype(float) if "High" in _df_chart.columns else _c
+            _l = _df_chart["Low"].astype(float)  if "Low"  in _df_chart.columns else _c
+
+            _ema_palette = {"EMA 50": (BLUE, 50), "EMA 200": (PURPLE, 200)}
+            _sma_palette = {"SMA 50": (TEAL, 50), "SMA 200": (AMBER, 200)}
+
+            for n in _ovl_ema:
+                if n in _ema_palette:
+                    col, ln = _ema_palette[n]
+                    s = _pta.ema(_c, length=ln)
+                    if s is not None:
+                        _add(_go.Scatter(x=_df_chart["Date"], y=s, name=n, line=dict(color=col, width=1.4)), _price_row)
+            for n in _ovl_sma:
+                if n in _sma_palette:
+                    col, ln = _sma_palette[n]
+                    s = _pta.sma(_c, length=ln)
+                    if s is not None:
+                        _add(_go.Scatter(x=_df_chart["Date"], y=s, name=n, line=dict(color=col, width=1.3, dash="dash")), _price_row)
+
+            if "Bollinger" in _ovl_bands:
+                _bb = _pta.bbands(_c, length=20, std=2)
+                if _bb is not None and not _bb.empty:
+                    _bbu = next((c for c in _bb.columns if c.startswith("BBU_")), None)
+                    _bbl = next((c for c in _bb.columns if c.startswith("BBL_")), None)
+                    if _bbu and _bbl:
+                        _add(_go.Scatter(x=_df_chart["Date"], y=_bb[_bbu], name="BB Upper", line=dict(color=T4, width=1, dash="dash")), _price_row)
+                        _add(_go.Scatter(x=_df_chart["Date"], y=_bb[_bbl], name="BB Lower", fill="tonexty",
+                                         fillcolor=_rgba(BLUE, 0.05), line=dict(color=T4, width=1, dash="dash")), _price_row)
+        except Exception:
+            pass
+
+        # Horizontal helper
+        def _hline(y, color, dash, label, position="right", _row=_price_row):
+            # Line drawn a touch softer (~0.7 opacity), label in the full deep colour
+            kw = dict(line=dict(color=_tint(color, 0.7), width=1.1, dash=dash),
+                      annotation_text=label, annotation_position=position,
+                      annotation=dict(font=dict(color=color, size=11),
+                                      bgcolor="rgba(255,255,255,0.85)", borderpad=2))
+            if _row:
+                _fig_dec.add_hline(y=y, row=_row, col=1, **kw)
+            else:
+                _fig_dec.add_hline(y=y, **kw)
+
+        if _dec_show_sr:
+            for _idx, _r in enumerate(_resistances, 1):
+                _hline(_r, RED, "dash", f"R{_idx} {_r:.2f}", "right")
+            for _idx, _s in enumerate(_supports, 1):
+                _hline(_s, GREEN, "dash", f"S{_idx} {_s:.2f}", "right")
+
+        if _dec_show_52w:
+            _hline(_hi_52, AMBER, "dot", f"52W H {_hi_52:.2f}", "top left")
+            _hline(_lo_52, PURPLE, "dot", f"52W L {_lo_52:.2f}", "bottom left")
+
+        if _dec_show_fib and _swing_high_idx and _swing_low_idx:
+            _last_h_i = _swing_high_idx[-1]
+            _last_l_i = _swing_low_idx[-1]
+            _fib_high = float(_highs[_last_h_i])
+            _fib_low  = float(_lows[_last_l_i])
+            if _fib_high > _fib_low:
+                _fib_levels = [0.236, 0.382, 0.5, 0.618, 0.786]
+                _fib_colors = [GREEN, ORANGE, AMBER, RED, PURPLE]
+                _rng = _fib_high - _fib_low
+                for _lvl, _fc in zip(_fib_levels, _fib_colors):
+                    _yp = _fib_high - _rng * _lvl
+                    _hline(_yp, _fc, "dot", f"Fib {_lvl:.3f} {_yp:.2f}", "left")
+
+        if _dec_show_anchor and d is not None:
+            try:
+                _entry  = float(d.get("entry", 0)) or float(d.get("entry_zone_lo", 0))
+                _stop   = float(d.get("stop", 0))
+                _target = float(d.get("target", 0)) or float(d.get("tp1", 0))
+                if _entry > 0:
+                    _hline(_entry, BLUE, "solid", f"Entry {_entry:.2f}", "right")
+                if _stop > 0:
+                    _hline(_stop, RED, "solid", f"Stop {_stop:.2f}", "right")
+                if _target > 0:
+                    _hline(_target, GREEN, "solid", f"Target {_target:.2f}", "right")
+            except Exception:
+                pass
+
+        # Volume bars
+        if _has_vol:
+            _vol_colors = [
+                _rgba(UP, 0.45) if (i > 0 and _df_chart["Close"].iloc[i] >= _df_chart["Close"].iloc[i - 1]) else _rgba(DOWN, 0.45)
+                for i in range(len(_df_chart))
+            ]
+            _add(_go.Bar(
+                x=_df_chart["Date"], y=_df_chart["Volume"], name="Volume",
+                marker=dict(color=_vol_colors, line=dict(width=0)), showlegend=False,
+            ), _vol_row)
+            _fig_dec.update_yaxes(title_text="Vol", row=_vol_row, col=1, showgrid=False)
+
+        # Layout — match platform palette
+        _fig_dec.update_layout(
+            height=_dec_chart_height,
+            template="plotly_white",
+            paper_bgcolor=_T["bg"],
+            plot_bgcolor=_T["bg"],
+            margin=dict(l=10, r=78, t=36, b=10),
+            hovermode="x unified",
+            dragmode="zoom",
+            modebar=dict(bgcolor="rgba(0,0,0,0)", color=T4, activecolor=INFO),
+        )
+        _xa_kw = dict(
+            type="date",
+            showspikes=True, spikemode="across", spikesnap="cursor",
+            spikecolor=HAIR2, spikethickness=1,
+            gridcolor=_T["grid"], zerolinecolor=_T["grid"],
+            rangeselector=dict(
+                buttons=[
+                    dict(count=1, label="1M", step="month", stepmode="backward"),
+                    dict(count=3, label="3M", step="month", stepmode="backward"),
+                    dict(count=6, label="6M", step="month", stepmode="backward"),
+                    dict(count=1, label="YTD", step="year", stepmode="todate"),
+                    dict(count=1, label="1Y", step="year", stepmode="backward"),
+                    dict(step="all", label="All"),
+                ],
+                bgcolor=_T["panel"], activecolor=_rgba(BLUE, 0.16),
+                bordercolor=HAIR, borderwidth=1,
+                font=dict(color=T2, size=12),
+                x=0, y=1.02, yanchor="bottom",
+            ),
+            rangeslider=dict(visible=False),
+        )
+        if _price_row:
+            _fig_dec.update_xaxes(row=_price_row, col=1, **_xa_kw)
+        else:
+            _fig_dec.update_xaxes(**_xa_kw)
+
+        _ya_kw = dict(
+            showspikes=True, spikemode="across", spikesnap="cursor",
+            spikecolor=HAIR2, spikethickness=1,
+            gridcolor=_T["grid"], zerolinecolor=_T["grid"],
+        )
+        if _price_row:
+            _fig_dec.update_yaxes(row=_price_row, col=1, **_ya_kw)
+        else:
+            _fig_dec.update_yaxes(**_ya_kw)
+
+        style_fig(_fig_dec)
+        # Legend: one quiet row top-right, no box (style_fig adds a framed legend)
+        _fig_dec.update_layout(
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
+                        bgcolor="rgba(0,0,0,0)", borderwidth=0,
+                        font=dict(size=12, color=T2)),
+        )
+        st.plotly_chart(
+            _fig_dec,
+            theme=None,
+            use_container_width=True,
+            config={
+                "scrollZoom": True,
+                "displaylogo": False,
+                "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+                "toImageButtonOptions": {"format": "png", "filename": f"{symbol_input}_chart"},
+            },
+            key="_pc_price_chart",
+        )
+    except Exception as _e_chart:
+        st.warning(f"Chart unavailable: {_e_chart}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RENDER
+# ─────────────────────────────────────────────────────────────────────────────
+
+def render_decision_tab(df, symbol_input, stock_name, current_price):
+    # Inject Inter font
+    # Font is set globally in app.py
+
+    d    = _score_engine(df, current_price)
+
+    # Store for Trade Validator to reuse (avoids duplicate computation)
+    st.session_state["_score_engine_d"] = d
+
+    # ── Run probability engine for historical validation (cached in session_state) ──
+    _prob_key = f"_prob_{symbol_input}_{len(df)}_{round(float(df['Close'].iloc[-1]),4)}"
+    if _prob_key in st.session_state:
+        _prob_data = st.session_state[_prob_key]
+    else:
+        _prob_data = _probability_engine(df, d)
+        st.session_state[_prob_key] = _prob_data
+    _prob_10d = _prob_data.get(10, {})
+    _win_rate = _prob_10d.get("prob_up", 50.0)
+    _n_analogs = _prob_10d.get("n_analogs", 0)
+    _ev = _prob_10d.get("ev", 0.0)
+
+    V       = d["verdict"]
+    cp      = current_price
+    is_bull = d["is_bullish"]
+
+    # ── Collect scores from ALL tabs for the master scoring system ──────────
+    # Each entry: (name, icon, weight, score 0-100, label, color, reasons_list, is_active)
+    # is_active: True if module returned real analysis, False if no signal/unavailable
+    _tab_scores = []
+
+    # ── Module weights (must sum to 1.0) ────────────────────────────────────
+    # Technical Indicators: 20%  | Regime: 15%         | Volume Profile: 15%
+    # Smart Money: 15%           | AI Analysis: 15%    | Classical TA: 10%
+    # Elliott Wave: 10%          | Price Action: 0% (informational, no own weight)
+    # Chart Patterns: 0% (informational, no own weight)
+    _MODULE_WEIGHTS = {
+        "Technical Indicators": 0.20,
+        "Regime":               0.15,
+        "Volume Profile":       0.15,
+        "Smart Money":          0.15,
+        "AI Analysis":          0.15,
+        "Classical TA":         0.10,
+        "Elliott Wave":         0.10,
+    }
+
+    # 1. Technical Indicators (from _score_engine — ALWAYS active, full bull+bear)
+    _ti_score = max(0, min(100, int(50 + d["pct"] * 0.5)))
+    _ti_lbl = "Bullish" if d["pct"] > 15 else ("Bearish" if d["pct"] < -15 else "Neutral")
+    _ti_col = BULL if d["pct"] > 15 else (BEAR if d["pct"] < -15 else AMBER)
+    _ti_reasons = [f["name"] for f in sorted(d["factors"], key=lambda x: abs(x["pts"]), reverse=True)[:3]]
+    _tab_scores.append(("Technical Indicators", "&#128200;", 0.20, _ti_score, _ti_lbl, _ti_col, _ti_reasons, True))
+
+    # 2-8. External tab signals — @st.cache_data (survives refresh, 5 min TTL)
+    _ext_icons = {
+        "Price Action":   "&#128201;",
+        "Volume Profile": "&#128202;",
+        "Chart Patterns": "&#128300;",
+        "Smart Money":    "&#128176;",
+        "Regime":         "&#9680;",
+        "Elliott Wave":   "&#8734;",
+        "Classical TA":   "&#128200;",
+        "AI Analysis":    "&#129302;",
+    }
+    _tail = df["Close"].tail(5).tolist()
+    _df_hash = f"{symbol_input}_{round(cp,2)}_{len(df)}_{[round(float(x),4) for x in _tail]}"
+    _cached_sigs = _collect_ext_signals(_df_hash, cp, df.to_json())
+
+    for _name, _icon in _ext_icons.items():
+        if _name == "Technical Indicators":
+            continue  # already added above
+        _sig = _cached_sigs.get(_name)
+        _wt  = _MODULE_WEIGHTS.get(_name, 0.0)
+        if _sig:
+            _s_conf = min(95, _sig["conf"])
+            _s_lbl = _sig.get("verdict_text", "▲ BUY").replace("▲ ", "")
+            _s_reasons = _sig.get("reasons", [])[:2]
+            _s_col = _sig.get("color", BULL)
+            _tab_scores.append((_name, _icon, _wt, _s_conf, _s_lbl, _s_col, _s_reasons, True))
+        else:
+            _tab_scores.append((_name, _icon, _wt, 50, "No Signal", T3, ["No setup detected — neutral"], False))
+
+    # ── Categorize modules ──────────────────────────────────────────────────
+    _active_tabs  = [s for s in _tab_scores if s[7]]
+    _active_count = len(_active_tabs)
+    _bull_tabs    = sum(1 for s in _tab_scores if s[7] and s[3] >= 55)
+    _bear_real    = sum(1 for s in _tab_scores if s[7] and s[3] < 40)
+    _inactive     = sum(1 for s in _tab_scores if not s[7])
+    _total_tabs   = len(_tab_scores)
+
+    # ── Master Score — weighted by module weights, only active modules vote ─
+    # Inactive modules abstain — redistribute their weight proportionally.
+    _wt_num = 0.0; _wt_den = 0.0
+    for (_n, _ic, _wt, _sc, _lb, _cl, _rs, _act) in _tab_scores:
+        if _act and _wt > 0:
+            _wt_num += _sc * _wt
+            _wt_den += _wt
+    if _wt_den > 0:
+        _master_score = int(_wt_num / _wt_den)
+    else:
+        _master_score = _ti_score  # fallback to TI only
+
+    # ── Probability engine adjustment ───────────────────────────────────
+    # Blend historical win rate into master score (20% weight) if we have
+    # enough analog matches to be statistically meaningful.
+    if _n_analogs >= 8:
+        _prob_score = int(_win_rate)  # 0-100 scale, same as master
+        _master_score = int(_master_score * 0.80 + _prob_score * 0.20)
+
+    _master_score = max(0, min(100, _master_score))
+
+    # ── D1 multi-timeframe filter — check BEFORE verdict logic ──────────
+    # If daily trend is firmly against the signal, downgrade confidence.
+    _d1_filter_ok   = True
+    _d1_filter_warn = ""
+    _d1_trend_bull  = None   # None = unknown, True = D1 bullish, False = D1 bearish
+    try:
+        import yfinance as _yf
+        _sym_d1 = symbol_input.strip()
+        _d1_key = f"_d1_df_{_sym_d1}"
+        if _d1_key not in st.session_state:
+            _tf_df = None
+            for _d1_try in range(3):
+                try:
+                    _tf_df = _yf.download(_sym_d1, period="1y", interval="1d",
+                                          progress=False, auto_adjust=True)
+                    if _tf_df is not None and not _tf_df.empty:
+                        break
+                except Exception:
+                    pass
+            st.session_state[_d1_key] = _tf_df
+        else:
+            _tf_df = st.session_state[_d1_key]
+
+        if _tf_df is not None and len(_tf_df) >= 55:
+            if isinstance(_tf_df.columns, pd.MultiIndex):
+                _tf_df.columns = _tf_df.columns.get_level_values(0)
+            _d1_close = _tf_df["Close"].astype(float)
+            _d1_e50   = float(_d1_close.rolling(50).mean().iloc[-1])
+            _d1_prev5 = float(_d1_close.rolling(50).mean().iloc[-6])
+            _d1_cp    = float(_d1_close.iloc[-1])
+            _d1_rising = _d1_e50 > _d1_prev5
+            if _d1_cp < _d1_e50 and not _d1_rising:
+                _d1_filter_ok   = False
+                _d1_trend_bull  = False
+                _d1_filter_warn = (
+                    f"&#128200; <b>Daily D1 bearish</b>: price is below the 50-day average (SMA 50) "
+                    f"({_d1_e50:.2f}) and that average is declining. "
+                    f"Intraday BUY signals are counter-trend — trade with reduced size."
+                )
+            elif _d1_cp < _d1_e50:
+                _d1_trend_bull = False
+                _d1_filter_warn = (
+                    f"&#8595; <b>Daily D1 caution</b>: price is below the 50-day average (SMA 50) "
+                    f"({_d1_e50:.2f}). Trend is recovering but not yet confirmed."
+                )
+            elif _d1_cp > _d1_e50 and _d1_rising:
+                _d1_trend_bull = True
+    except Exception:
+        pass
+
+    # ── Final Verdict Logic ─────────────────────────────────────────────────
+    # BUY requires: bullish engine + high master score + module agreement
+    # LEAN BULL can upgrade to BUY if master score & modules strongly confirm
+    # SELL requires: bearish engine + low master score + bearish TI
+    # Everything else → WAIT
+
+    _ti_bullish = _ti_score >= 55
+    _ti_bearish = _ti_score < 40
+    _ti_neutral = not _ti_bullish and not _ti_bearish
+
+    if (V in ("BUY", "LEAN BULL") and _master_score >= 60
+            and _bull_tabs >= 3 and _bear_real == 0 and _ti_bullish):
+        display_v = "BUY"
+        vc = BULL
+        _verdict_confidence = "HIGH"
+        vsub = f"{_bull_tabs}/7 weighted modules confirm — Strong bullish confluence"
+
+    elif (V in ("BUY", "LEAN BULL") and _master_score >= 55
+            and _bull_tabs >= 2 and _bear_real == 0 and _ti_bullish):
+        display_v = "BUY"
+        vc = BULL
+        _verdict_confidence = "MODERATE"
+        vsub = f"{_bull_tabs} module{'s' if _bull_tabs > 1 else ''} bullish — Entry with caution"
+
+    elif (V in ("BUY", "LEAN BULL") and _master_score >= 50
+            and _bull_tabs >= 1 and _bear_real == 0 and not _ti_bearish):
+        display_v = "BUY"
+        vc = BULL
+        _verdict_confidence = "LOW"
+        vsub = f"Leaning bullish — {_bull_tabs} module{'s' if _bull_tabs > 1 else ''} confirm but signals not strong"
+
+    elif (V == "SELL" and _master_score < 35
+            and _ti_bearish and _bull_tabs == 0):
+        display_v = "SELL"
+        vc = BEAR
+        _verdict_confidence = "HIGH"
+        vsub = f"Technical indicators strongly bearish — No bullish confirmation"
+
+    elif (V in ("SELL", "LEAN BEAR") and _master_score < 42
+            and _ti_bearish):
+        display_v = "SELL"
+        vc = BEAR
+        _verdict_confidence = "MODERATE"
+        vsub = f"Bearish bias — TI bearish, {_bull_tabs} bull confirmation{'s' if _bull_tabs != 1 else ''}"
+
+    else:
+        display_v = "WAIT"
+        vc = AMBER
+        if V in ("BUY", "LEAN BULL") and _ti_bullish and _bull_tabs == 0:
+            _verdict_confidence = "LOW"
+            vsub = f"TI bullish but no other module confirms — wait for confirmation"
+        elif V in ("BUY", "LEAN BULL") and _ti_bearish:
+            _verdict_confidence = "LOW"
+            vsub = f"Engine bullish but TI is bearish — conflicting signals"
+        elif V in ("SELL", "LEAN BEAR") and _bull_tabs > 0:
+            _verdict_confidence = "LOW"
+            vsub = f"Leaning bearish but {_bull_tabs} module{'s' if _bull_tabs > 1 else ''} still bullish"
+        elif _master_score >= 55 and _ti_neutral:
+            _verdict_confidence = "LOW"
+            vsub = f"Score is decent ({_master_score}) but TI neutral — wait for clearer signal"
+        elif _ti_neutral and _bull_tabs == 0:
+            _verdict_confidence = "NEUTRAL"
+            vsub = f"No strong signals in any direction — sit tight"
+        else:
+            _verdict_confidence = "NEUTRAL"
+            vsub = f"Mixed signals ({_bull_tabs} bull, {_bear_real} bear, {_inactive} no signal) — no clear edge"
+
+    # ── D1 filter: downgrade BUY when daily trend is bearish ────────────
+    if display_v == "BUY" and _d1_trend_bull is False and not _d1_filter_ok:
+        # Counter-trend BUY — downgrade to WAIT
+        display_v = "WAIT"
+        vc = AMBER
+        dir_icon = "&#9670;"
+        _verdict_confidence = "LOW"
+        vsub = f"Bullish setup but D1 daily trend is bearish — wait for daily confirmation"
+    elif display_v == "BUY" and _d1_trend_bull is False:
+        # D1 cautious — downgrade confidence by one level
+        if _verdict_confidence == "HIGH":
+            _verdict_confidence = "MODERATE"
+            vsub += " (D1 caution — price below the daily 50-day average)"
+
+    # Signal strength
+    total_sigs   = d["bull_n"] + d["bear_n"]
+    sig_strength = int(d["bull_n"] / max(1, total_sigs) * 100)
+    conf_c       = BULL if sig_strength >= 60 else NEUT if sig_strength >= 40 else BEAR
+
+    # Master score color
+    _ms_col = BULL if _master_score >= 60 else (AMBER if _master_score >= 40 else BEAR)
+
+    # Verdict confidence color
+    _vc_conf_col = BULL if _verdict_confidence == "HIGH" else (AMBER if _verdict_confidence in ("MODERATE", "LOW") else T3)
+
+
+    # ══════════════════════════════════════════════════════════════════════════
+    #  1. HERO CARD — Master scoring system from all tabs
+    # ══════════════════════════════════════════════════════════════════════════
+
+    # CSS
+    st.markdown(f"""<style>
+    .hero-tip{{position:relative;cursor:help;display:inline-flex;align-items:center}}
+    .hero-tip .tt{{
+        visibility:hidden;opacity:0;position:absolute;bottom:140%;left:50%;
+        transform:translateX(-50%);background:{CARD};color:{T2};border:1px solid {HAIR};
+        border-radius:12px;padding:0.6rem 0.8rem;font-size:0.8rem;font-weight:500;
+        line-height:1.5;white-space:normal;width:240px;text-align:left;z-index:100;
+        pointer-events:none;transition:opacity .15s;box-shadow:{SHADOW};
+        text-transform:none;letter-spacing:0}}
+    .hero-tip .tt::after{{content:'';position:absolute;top:100%;left:50%;
+        transform:translateX(-50%);border:6px solid transparent;border-top-color:{HAIR}}}
+    .hero-tip:hover .tt{{visibility:visible;opacity:1}}
+    .hero-q{{display:inline-flex;align-items:center;justify-content:center;
+        width:17px;height:17px;border-radius:50%;border:1px solid {HAIR2};background:{CARD};
+        font-size:0.75rem;color:{T3};font-weight:600;margin-left:0.3rem;line-height:1}}
+    .dx-card{{background:{CARD};border:1px solid {HAIR};border-radius:20px;box-shadow:{SHADOW};
+        overflow:hidden;margin-bottom:1.5rem}}
+    .dx-sec{{padding:1.5rem 1.9rem;border-top:1px solid {HAIR}}}
+    .dx-label{{font-size:0.85rem;font-weight:600;color:{T3}}}
+    .dx-title{{font-size:1.05rem;font-weight:600;color:{T1};letter-spacing:-0.01em}}
+    .dx-tile{{background:{INSET};border:1px solid {HAIR};border-radius:14px}}
+    .dx-mods{{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:0.6rem}}
+    .dx-plan{{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0.7rem}}
+    @media (max-width:900px){{.dx-plan{{grid-template-columns:repeat(2,minmax(0,1fr))}}}}
+    </style>""", unsafe_allow_html=True)
+
+    # ── Scan context reconciliation banner ───────────────────────────────────
+    _scan_ctx = st.session_state.get("scan_context")
+    if _scan_ctx:
+        _sc_score  = _scan_ctx.get("score", "")
+        _sc_conv   = _scan_ctx.get("conviction", "")
+        _sc_setup  = _scan_ctx.get("setup", "")
+        _sc_agree  = display_v == "BUY"
+        _sc_col    = BULL if _sc_agree else AMBER
+        _sc_msg    = (
+            f"Both systems agree — scanner found a strong setup and Decision tab confirms BUY. "
+            f"High confidence."
+        ) if _sc_agree else (
+            f"The market scanner flagged this stock (Score: {_sc_score}, Conviction: {_sc_conv}%) "
+            f"but the Decision tab says <b>{display_v}</b>. "
+            f"The scanner uses a simpler scoring model across 200+ stocks. "
+            f"The Decision tab applies stricter multi-module gating (needs 2+ bullish tabs, TI agreement, and strong master score). "
+            f"<b>Trust the Decision tab</b> — if it says WAIT, one or more confirmation layers are missing. "
+            f"Watch the stock and wait for a cleaner setup."
+        )
+        st.markdown(
+            f"<div style='border:1px solid {_tint(_sc_col, 0.22)};"
+            f"background:{_tint(_sc_col, 0.07)};border-radius:16px;padding:1rem 1.25rem;"
+            f"margin-bottom:1rem;display:flex;align-items:flex-start;gap:0.85rem;'>"
+            f"<span style='display:inline-flex;align-items:center;justify-content:center;"
+            f"width:24px;height:24px;border-radius:50%;background:{_sc_col};color:#FFFFFF;"
+            f"font-size:0.8rem;font-weight:700;flex-shrink:0;'>{'✓' if _sc_agree else '!'}</span>"
+            f"<div>"
+            f"<div style='font-size:0.92rem;font-weight:600;color:{_sc_col};margin-bottom:0.25rem;'>"
+            f"{'Scanner &amp; Decision tab agree' if _sc_agree else 'Scanner vs Decision tab — why different?'}</div>"
+            f"<div style='font-size:0.88rem;color:{T2};line-height:1.6;'>{_sc_msg}</div>"
+            f"</div></div>",
+            unsafe_allow_html=True,
+        )
+
+    # RGB of verdict color for glows
+    _vc_rgb = ','.join(str(int(vc[i:i+2], 16)) for i in (1, 3, 5))
+
+    # ── D1 trend display ─────────────────────────────────────────────────────
+    _d1_text  = "Bullish" if _d1_trend_bull is True else ("Bearish" if _d1_trend_bull is False else "Unknown")
+    _d1_col   = BULL if _d1_trend_bull is True else (BEAR if _d1_trend_bull is False else T3)
+    _d1_arrow = "▲" if _d1_trend_bull is True else ("▼" if _d1_trend_bull is False else "—")
+
+    # ── R:R color ────────────────────────────────────────────────────────────
+    _rr_col = BULL if d['rr1'] >= 2.0 else (AMBER if d['rr1'] >= 1.5 else BEAR)
+
+    # ── Win probability color ─────────────────────────────────────────────────
+    _wp_col = BULL if _win_rate >= 55 else (BEAR if _win_rate < 45 else AMBER)
+
+    # ── Win probability explanation ──────────────────────────────────────────
+    if _n_analogs >= 8:
+        _wp_source = (
+            f"Looked at {_n_analogs} past moments on this stock where RSI, trend &amp; "
+            f"momentum were in the same state as today. The stock was higher 10 days "
+            f"later {_win_rate:.0f}% of those times."
+        )
+    else:
+        _wp_source = "Too few matching past setups — treat as a rough estimate."
+
+    # ── Tooltip helper ────────────────────────────────────────────────────────
+    def _tip_bubble(tooltip):
+        return (
+            f"<span class='hero-tip' style='display:inline-flex;align-items:center;"
+            f"justify-content:center;cursor:help;'>"
+            f"<span class='hero-q'>?</span>"
+            f"<span class='tt' style='width:240px;font-size:0.8rem;line-height:1.55;'>"
+            f"{tooltip}</span></span>"
+        )
+
+    # ── Score ring — BIG, the hero stat ──────────────────────────────────────
+    _ring_font = "Inter,-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif"
+
+    def _big_ring(pct, color, val_text, sub_text, val_color=T1):
+        circ = 376.0   # 2π × 60
+        dash = round(circ * max(0, min(100, pct)) / 100, 1)
+        return (
+            f"<svg width='150' height='150' viewBox='0 0 140 140' style='display:block;'>"
+            f"<circle cx='70' cy='70' r='60' fill='none' stroke='{FILL}' stroke-width='9'/>"
+            f"<circle cx='70' cy='70' r='60' fill='none' stroke='{color}' stroke-width='9' "
+            f"stroke-linecap='round' stroke-dasharray='{dash} {circ}' "
+            f"transform='rotate(-90 70 70)'/>"
+            f"<text x='70' y='72' text-anchor='middle' fill='{val_color}' "
+            f"font-size='34' font-weight='700' letter-spacing='-0.5' "
+            f"font-family=\"{_ring_font}\">{val_text}</text>"
+            f"<text x='70' y='93' text-anchor='middle' fill='{T3}' "
+            f"font-size='11.5' font-weight='600' font-family=\"{_ring_font}\">{sub_text}</text>"
+            f"</svg>"
+        )
+
+    # ── Medium ring — supporting stats (120×120) ─────────────────────────────
+    def _ring(pct, color, val_text, sub_text, val_color=T1):
+        circ = 301.6   # 2π × 48
+        dash = round(circ * max(0, min(100, pct)) / 100, 1)
+        return (
+            f"<svg width='120' height='120' viewBox='0 0 110 110' style='display:block;margin:0 auto;'>"
+            f"<circle cx='55' cy='55' r='48' fill='none' stroke='{FILL}' stroke-width='7'/>"
+            f"<circle cx='55' cy='55' r='48' fill='none' stroke='{color}' stroke-width='7' "
+            f"stroke-linecap='round' stroke-dasharray='{dash} {circ}' "
+            f"transform='rotate(-90 55 55)'/>"
+            f"<text x='55' y='57' text-anchor='middle' fill='{val_color}' "
+            f"font-size='21' font-weight='700' letter-spacing='-0.3' "
+            f"font-family=\"{_ring_font}\">{val_text}</text>"
+            f"<text x='55' y='73' text-anchor='middle' fill='{T3}' "
+            f"font-size='10.5' font-weight='600' font-family=\"{_ring_font}\">{sub_text}</text>"
+            f"</svg>"
+        )
+
+    def _small_ring_col(ring_svg, title, tooltip=""):
+        _tt = _tip_bubble(tooltip) if tooltip else ""
+        return (
+            f"<div style='display:flex;flex-direction:column;align-items:center;gap:0.5rem;'>"
+            + ring_svg
+            + f"<div style='display:flex;align-items:center;gap:0.25rem;'>"
+            f"<span style='font-size:0.88rem;color:{T2};font-weight:600;'>{title}</span>"
+            + _tt + f"</div></div>"
+        )
+
+    # BIG score ring with tooltip
+    _score_tooltip = (
+        f"Weighted master score across 7 analysis modules — "
+        f"Technicals 20%, Regime 15%, Volume 15%, SMC 15%, AI 15%, Classical TA 10%, Elliott Wave 10%. "
+        f"Inactive modules abstain; weight is redistributed to active ones. "
+        f"Historical win rate is blended in at 20% when enough past setups exist. "
+        f"Above 60 = strong conviction. Below 40 = bearish or weak."
+    )
+    _r_score_big = (
+        f"<div style='display:flex;flex-direction:column;align-items:center;gap:0.5rem;"
+        f"padding-right:2rem;border-right:1px solid {HAIR};'>"
+        + _big_ring(_master_score, _ms_col, str(_master_score), "out of 100")
+        + f"<div style='display:flex;align-items:center;gap:0.3rem;'>"
+        f"<span style='font-size:0.95rem;color:{T1};font-weight:600;'>Master score</span>"
+        + _tip_bubble(_score_tooltip)
+        + f"</div></div>"
+    )
+
+    # 3 small supporting rings
+    _r_win = _small_ring_col(
+        _ring(_win_rate, _wp_col, f"{_win_rate:.0f}%", "win rate"),
+        "Win rate", tooltip=_wp_source
+    )
+    _rr_pct = min(100, d['rr1'] / 4.0 * 100)
+    _r_rr = _small_ring_col(
+        _ring(_rr_pct, _rr_col, f"1:{d['rr1']:.1f}", "risk/reward"),
+        "Risk / reward",
+        tooltip=(
+            f"For every 1 unit risked on the stop, Target 1 returns {d['rr1']:.1f} units. "
+            f"1:2 or better is good. Below 1:1.5 means the reward doesn't justify the risk — skip or resize."
+        )
+    )
+    _d1_pct = 100 if _d1_trend_bull is True else (0 if _d1_trend_bull is False else 50)
+    _r_d1 = _small_ring_col(
+        _ring(_d1_pct, _d1_col, _d1_arrow, _d1_text.lower(),
+              val_color=(_d1_col if _d1_trend_bull is not None else T3)),
+        "Daily trend",
+        tooltip=(
+            f"Daily timeframe check: price vs. the 50-day EMA. "
+            f"Bullish = price is above a rising EMA50 — trade goes with the bigger trend. "
+            f"Bearish = price below declining EMA50 — any BUY here is counter-trend and higher risk. "
+            f"A bearish D1 automatically downgrades a BUY to WAIT."
+        )
+    )
+
+    # ── Top signals — compact chip grid ──────────────────────────────────────
+    _sorted_f   = sorted(d["factors"], key=lambda x: abs(x["pts"]), reverse=True)
+    _top_f      = _sorted_f[:6]   # cap at 6 for 2×3 grid
+    _bull_sigs  = sum(1 for _f in _top_f if _f["dir"] > 0)
+    _bear_sigs  = sum(1 for _f in _top_f if _f["dir"] < 0)
+
+    # Shorten long factor names to a readable headline + optional detail
+    def _split_name(raw):
+        # Names like "EMA Stack Full Bull — price above EMA20, EMA50, EMA200"
+        if " — " in raw:
+            head, detail = raw.split(" — ", 1)
+        elif " - " in raw:
+            head, detail = raw.split(" - ", 1)
+        else:
+            head, detail = raw, ""
+        # Trim trailing junk in head
+        head = head.strip()
+        detail = detail.strip()
+        # Cap detail length
+        if len(detail) > 48:
+            detail = detail[:45] + "…"
+        return head, detail
+
+    _cat_colors = {
+        "Trend":      BLUE,
+        "Momentum":   PURPLE,
+        "Volatility": ORANGE,
+        "Volume":     TEAL,
+        "Divergence": RED,
+        "Regime":     T3,
+    }
+
+    _sig_chips_html = ""
+    for _f in _top_f:
+        _fc    = BULL if _f["dir"] > 0 else (BEAR if _f["dir"] < 0 else T3)
+        _icon  = "▲" if _f["dir"] > 0 else ("▼" if _f["dir"] < 0 else "●")
+        _head, _ = _split_name(_f["name"])
+        _cat   = _f.get("cat", "")
+        _cat_c = _cat_colors.get(_cat, T3)
+        if len(_head) > 28:
+            _head = _head[:26] + "…"
+        _sig_chips_html += (
+            f"<div style='display:flex;align-items:center;gap:0;"
+            f"border-radius:12px;overflow:hidden;background:{INSET};"
+            f"border:1px solid {HAIR};min-width:0;'>"
+            # Body
+            f"<div style='flex:1;min-width:0;padding:0.6rem 0.6rem 0.6rem 0.8rem;"
+            f"display:flex;flex-direction:column;gap:0.2rem;'>"
+            # Category pill
+            f"<div style='display:inline-flex;align-items:center;gap:0.3rem;"
+            f"align-self:flex-start;'>"
+            f"<div style='width:6px;height:6px;border-radius:50%;background:{_cat_c};"
+            f"flex-shrink:0;'></div>"
+            f"<span style='font-size:0.75rem;color:{T3};font-weight:600;'>{_cat}</span>"
+            f"</div>"
+            # Signal name
+            f"<div style='font-size:0.85rem;color:{T1};font-weight:600;"
+            f"white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>{_head}</div>"
+            f"</div>"
+            # Direction icon
+            f"<div style='padding:0 0.75rem;font-size:0.8rem;font-weight:700;"
+            f"color:{_fc};flex-shrink:0;'>{_icon}</div>"
+            f"</div>"
+        )
+
+    # ── Module score tiles (one per weighted module) ─────────────────────────
+    _mod_names = {
+        "Technical Indicators": "Technicals",
+        "Regime":               "Regime",
+        "Volume Profile":       "Volume",
+        "Smart Money":          "SMC",
+        "AI Analysis":          "AI",
+        "Classical TA":         "Classic TA",
+        "Elliott Wave":         "Elliott",
+        "Price Action":         "PA",
+        "Chart Patterns":       "Patterns",
+    }
+    # Weight labels shown in tile footer
+    _mod_wt_labels = {
+        "Technical Indicators": "20%",
+        "Regime":               "15%",
+        "Volume Profile":       "15%",
+        "Smart Money":          "15%",
+        "AI Analysis":          "15%",
+        "Classical TA":         "10%",
+        "Elliott Wave":         "10%",
+        "Price Action":         "",
+        "Chart Patterns":       "",
+    }
+    _mods_html = ""
+    for _n, _ic, _wt, _sc, _lb, _cl, _rs, _act in _tab_scores:
+        _mname   = _mod_names.get(_n, _n)
+        _mwt_lbl = _mod_wt_labels.get(_n, "")
+        _is_bull_m = _act and _sc >= 55
+        _is_bear_m = _act and _sc < 40
+        _mc      = BULL if _is_bull_m else (BEAR if _is_bear_m else (T1 if _act else T4))
+        _m_stat_c = BULL if _is_bull_m else (BEAR if _is_bear_m else T3)
+        _m_bg    = GREEN_BG if _is_bull_m else (RED_BG if _is_bear_m else INSET)
+        _m_bd    = _tint(BULL, 0.28) if _is_bull_m else (_tint(BEAR, 0.25) if _is_bear_m else HAIR)
+        _mlabel  = f"{_sc}" if _act else "—"
+        _mstatus = (
+            "Bullish"   if _act and _sc >= 55 else
+            "Bearish"   if _act and _sc < 40  else
+            "Neutral"   if _act               else
+            "No signal"
+        )
+        _mods_html += (
+            f"<div style='text-align:center;padding:0.85rem 0.4rem 0.75rem;"
+            f"background:{_m_bg};border:1px solid {_m_bd};"
+            f"border-radius:14px;display:flex;flex-direction:column;"
+            f"align-items:center;gap:0.25rem;min-width:0;'>"
+            f"<div style='font-size:1.4rem;font-weight:700;color:{_mc};line-height:1.1;"
+            f"letter-spacing:-0.02em;font-variant-numeric:tabular-nums;'>{_mlabel}</div>"
+            f"<div style='font-size:0.85rem;color:{T1};font-weight:600;white-space:nowrap;"
+            f"overflow:hidden;text-overflow:ellipsis;max-width:100%;'>{_mname}</div>"
+            f"<div style='font-size:0.78rem;font-weight:600;color:{_m_stat_c};'>{_mstatus}</div>"
+            + (f"<div style='font-size:0.75rem;color:{T3};margin-top:0.05rem;'>{_mwt_lbl} weight</div>" if _mwt_lbl else "")
+            + f"</div>"
+        )
+
+    # ── Modules agreement summary ─────────────────────────────────────────────
+    _agree_col = BULL if _bull_tabs >= 4 else (AMBER if _bull_tabs >= 2 else BEAR)
+
+    # ── KEY LEVELS for inline price ladder ────────────────────────────────────
+    _kl_entry = d["entry"]
+    _kl_stop  = d["stop"]
+    _kl_t1, _kl_t2, _kl_t3 = d["t1"], d["t2"], d["t3"]
+    if _kl_stop >= _kl_entry:
+        _kl_stop = round(_kl_entry - abs(_kl_entry - _kl_stop), 2)
+    _kl_stop_pct = abs((_kl_stop - _kl_entry) / _kl_entry * 100) if _kl_entry > 0 else d["risk_pct"]
+    _kl_t1_pct   = (_kl_t1 - _kl_entry) / _kl_entry * 100 if _kl_entry > 0 else 0
+    _kl_t2_pct   = (_kl_t2 - _kl_entry) / _kl_entry * 100 if _kl_entry > 0 else 0
+    _kl_t3_pct   = (_kl_t3 - _kl_entry) / _kl_entry * 100 if _kl_entry > 0 else 0
+    _kl_rr1 = abs(_kl_t1 - _kl_entry) / max(0.001, abs(_kl_entry - _kl_stop))
+    _kl_rr2 = abs(_kl_t2 - _kl_entry) / max(0.001, abs(_kl_entry - _kl_stop))
+    _kl_rr3 = abs(_kl_t3 - _kl_entry) / max(0.001, abs(_kl_entry - _kl_stop))
+    _kl_rr1c = BULL if _kl_rr1 >= 2.0 else (NEUT if _kl_rr1 >= 1.5 else BEAR)
+    _kl_rr2c = BULL if _kl_rr2 >= 3.0 else (NEUT if _kl_rr2 >= 2.0 else BEAR)
+    _kl_rr3c = BULL if _kl_rr3 >= 5.0 else (NEUT if _kl_rr3 >= 3.0 else BEAR)
+    _eq       = d.get("entry_quality", "")
+    _eq_col   = d.get("eq_col", "")
+
+    def _tp_card(label, price, pct_val, accent, rr="", action="", is_entry=False):
+        sign = "+" if pct_val > 0 else ("−" if pct_val < 0 else "")
+        pct_text = "at market" if is_entry else f"{sign}{abs(pct_val):.1f}%"
+        # Same tile look as the shared trade plan (_levels.price_ladder_html)
+        return (
+            f"<div class='dx-tile' style='display:flex;flex-direction:column;align-items:center;"
+            f"text-align:center;padding:1rem 0.75rem 1rem;gap:0.3rem;min-width:0;'>"
+            f"<div style='display:flex;align-items:center;gap:0.4rem;font-size:0.82rem;"
+            f"font-weight:600;color:{accent};'>"
+            f"<span style='width:7px;height:7px;border-radius:50%;background:{accent};flex-shrink:0;'></span>"
+            f"{label}</div>"
+            f"<div style='font-size:1.45rem;font-weight:700;color:{T1};"
+            f"letter-spacing:-0.02em;line-height:1.15;font-variant-numeric:tabular-nums;'>{price:.2f}</div>"
+            f"<div style='font-size:0.82rem;font-weight:600;color:{accent if not is_entry else T3};"
+            f"font-variant-numeric:tabular-nums;'>{pct_text}</div>"
+            + (f"<div style='font-size:0.78rem;font-weight:600;color:{accent};background:{_tint(accent, 0.09)};"
+               f"border-radius:980px;padding:0.15rem 0.6rem;margin-top:0.15rem;"
+               f"font-variant-numeric:tabular-nums;white-space:nowrap;'>{rr}</div>" if rr else "")
+            + (f"<div style='font-size:0.8rem;color:{T3};margin-top:0.1rem;'>{action}</div>" if action else "")
+            + f"</div>"
+        )
+
+    def _eq_pill(eq, eq_col=""):
+        _ec = eq_col if (isinstance(eq_col, str) and eq_col.startswith("#") and len(eq_col) == 7) else NEUT
+        return (
+            f"<span style='display:inline-flex;align-items:center;font-size:0.78rem;font-weight:600;"
+            f"color:{_ec};background:{_tint(_ec)};border-radius:980px;padding:0.22rem 0.7rem;"
+            f"margin-left:0.7rem;white-space:nowrap;'>{str(eq).capitalize()} entry</span>"
+        ) if eq else ""
+
+    def _plan_grid(stop, entry, t1, t2, t3, stop_pct, t1_pct, t2_pct, t3_pct,
+                   risk_pct, rr1, rr2, rr3):
+        return (
+            f"<div class='dx-plan'>"
+            + _tp_card("Stop loss", stop,  stop_pct, RED,
+                       rr=f"Risk −{risk_pct:.1f}%", action="exit here")
+            + _tp_card("Entry",    entry, 0.0,      BLUE,
+                       action="buy at market", is_entry=True)
+            + _tp_card("Target 1", t1,    t1_pct,   GREEN,
+                       rr=f"1:{rr1:.1f}R", action="sell ⅓")
+            + _tp_card("Target 2", t2,    t2_pct,   GREEN,
+                       rr=f"1:{rr2:.1f}R", action="sell ⅓")
+            + _tp_card("Target 3", t3,    t3_pct,   GREEN,
+                       rr=f"1:{rr3:.1f}R", action="trail")
+            + f"</div>"
+        )
+
+    _eq_tag = _eq_pill(_eq, _eq_col)
+
+    _kl_risk_pct = _kl_stop_pct
+
+    _tp_cards = _plan_grid(
+        _kl_stop, _kl_entry, _kl_t1, _kl_t2, _kl_t3,
+        -_kl_stop_pct, _kl_t1_pct, _kl_t2_pct, _kl_t3_pct,
+        _kl_risk_pct, _kl_rr1, _kl_rr2, _kl_rr3,
+    )
+
+    _ladder_section = (
+        f"<div class='dx-sec'>"
+        f"<div style='display:flex;align-items:center;margin-bottom:0.85rem;'>"
+        f"<span class='dx-title'>Trade plan</span>{_eq_tag}</div>"
+        + _tp_cards +
+        f"</div>"
+    ) if display_v == "BUY" else ""
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # ASSEMBLE HERO CARD
+    # ══════════════════════════════════════════════════════════════════════════
+    _hero_html = (
+        f"<div class='dx-card'>"
+
+        # ── SECTION 1: VERDICT + sub-text ────────────────────────────────────
+        f"<div style='padding:1.7rem 1.9rem 1.5rem;'>"
+        f"<div style='display:flex;align-items:flex-start;justify-content:space-between;"
+        f"flex-wrap:wrap;gap:1rem;'>"
+        f"<div>"
+        f"<div class='dx-label' style='margin-bottom:0.45rem;'>Decision</div>"
+        f"<div style='display:inline-block;font-size:3rem;font-weight:700;color:{vc};"
+        f"letter-spacing:-0.03em;line-height:1;'>{display_v}</div>"
+        f"<div style='font-size:0.98rem;color:{T2};margin-top:0.75rem;"
+        f"font-weight:500;line-height:1.55;max-width:620px;'>{vsub}</div>"
+        f"</div>"
+        f"<div style='display:flex;flex-direction:column;align-items:flex-end;gap:0.45rem;"
+        f"flex-shrink:0;'>"
+        f"<div style='display:flex;align-items:center;gap:0.3rem;'>"
+        f"<div class='dx-label'>Confidence</div>"
+        + _tip_bubble("How confident is the system in this verdict? HIGH = all modules agree strongly. MODERATE = most agree. LOW = mixed signals. NEUTRAL = no clear direction.")
+        + f"</div>"
+        f"<div style='font-size:1.05rem;font-weight:600;color:{_vc_conf_col};"
+        f"background:{_tint(_vc_conf_col, 0.10) if _vc_conf_col != T3 else GREY_BG};"
+        f"padding:0.35rem 1rem;border-radius:980px;line-height:1.2;'>"
+        f"{_verdict_confidence.capitalize()}</div>"
+        f"</div>"
+        f"</div></div>"
+
+        # ── SECTION 2: RINGS — Master Score (big) + 3 supporting ─────────────
+        + f"<div class='dx-sec' style='padding:1.6rem 1.9rem 1.7rem;'>"
+        f"<div style='display:flex;align-items:center;gap:2rem;flex-wrap:wrap;'>"
+        + _r_score_big
+        + f"<div style='display:flex;flex:1;justify-content:space-around;"
+        f"gap:1rem;flex-wrap:wrap;'>"
+        + _r_win + _r_rr + _r_d1
+        + f"</div>"
+        + f"</div></div>"
+
+        # ── SECTION 3: PRICE LADDER (BUY only — inside card) ─────────────────
+        + _ladder_section
+
+        # ── SECTION 4: ANALYSIS MODULES ──────────────────────────────────────
+        + f"<div class='dx-sec'>"
+        f"<div style='display:flex;justify-content:space-between;align-items:center;"
+        f"margin-bottom:0.9rem;gap:1rem;flex-wrap:wrap;'>"
+        f"<div style='display:flex;align-items:center;gap:0.35rem;'>"
+        f"<div class='dx-title'>Analysis modules</div>"
+        + _tip_bubble(
+            "Each module is an independent analysis engine. "
+            "The number shown is that module's score (0–100). "
+            "Grey = no clear setup found (abstains from the master score). "
+            "The % label below each tile is how much it contributes to the master score."
+        )
+        + f"</div>"
+        f"<div style='font-size:0.85rem;font-weight:600;color:{_agree_col};"
+        f"background:{_tint(_agree_col, 0.09)};padding:0.25rem 0.8rem;border-radius:980px;'>"
+        f"{_bull_tabs} bullish &nbsp;·&nbsp; {_bear_real} bearish</div>"
+        f"</div>"
+        f"<div class='dx-mods'>"
+        + _mods_html
+        + f"</div>"
+        f"<div style='font-size:0.82rem;color:{T3};margin-top:0.8rem;'>"
+        f"Grey tile = tab found no clear setup on this stock — it abstains, does not drag the score down."
+        f"</div></div>"
+
+        f"</div>"
+    )
+    st.markdown(_hero_html, unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    #  3. LIVE BUY SIGNALS FROM ALL TABS
+    # ══════════════════════════════════════════════════════════════════════════
+    st.markdown(_sec("Live buy signals", BULL,
+                     sub="Analysis tabs with an active buy setup at 50% confidence or more, each with its trade plan."),
+                unsafe_allow_html=True)
+
+
+    # ── Collect signals from each tab (reuse cached results) ────────────────
+    _tab_signals = []   # list of (tab_label, signal_dict)
+    _sig_label_map = {
+        "Price Action":   "Patterns & Price Action",
+        "Chart Patterns": "Patterns",
+        "Volume Profile": "Volume Profile",
+        "Smart Money":    "Smart Money Concepts",
+        "Regime":         "Regime Analysis",
+        "Elliott Wave":   "Elliott Wave",
+        "Classical TA":   "Classical TA",
+        "AI Analysis":    "AI Analysis",
+    }
+    # Threshold: only show signals with conf >= 50. Below that they're not buys, they're noise.
+    _LIVE_BUY_MIN_CONF = 50
+    _weak_signals = []
+    for _sname, _slabel in _sig_label_map.items():
+        _s = _cached_sigs.get(_sname)
+        if not _s:
+            continue
+        if _s.get("conf", 0) >= _LIVE_BUY_MIN_CONF:
+            _tab_signals.append((_slabel, _s))
+        else:
+            _weak_signals.append((_slabel, _s))
+
+    # ── Render signal cards — Trade Plan style ───────────────────────────────
+    _module_icons = {
+        "Patterns & Price Action": "PA",
+        "Patterns":                "CP",
+        "Volume Profile":          "VP",
+        "Smart Money Concepts":    "SMC",
+        "Regime Analysis":         "RE",
+        "Elliott Wave":            "EW",
+        "Classical TA":            "TA",
+        "AI Analysis":             "AI",
+    }
+    _module_colors = {
+        "Patterns & Price Action": BLUE,
+        "Patterns":                PURPLE,
+        "Volume Profile":          TEAL,
+        "Smart Money Concepts":    ORANGE,
+        "Regime Analysis":         GREEN,
+        "Elliott Wave":            PURPLE,
+        "Classical TA":            BLUE,
+        "AI Analysis":             PURPLE,
+    }
+
+    if _tab_signals:
+        # ── Individual signal detail cards (header + confidence + trade plan) ──
+        for _idx, (_tlabel, _sig) in enumerate(_tab_signals):
+            _conf      = _sig.get("conf", 50)
+            _cc        = _module_colors.get(_tlabel, BLUE)
+            _str_label = "Strong" if _conf >= 65 else ("Moderate" if _conf >= 45 else "Weak")
+            _str_col   = BULL if _conf >= 65 else (BLUE if _conf >= 45 else T3)
+            _bk        = _module_icons.get(_tlabel, _tlabel[:2].upper())
+
+            # Trade plan — same figures as _levels.price_ladder_html (bullish ladder)
+            _plan_html = ""
+            try:
+                _pe  = float(_sig["entry"]); _ps = float(_sig["stop"])
+                _p1  = float(_sig["t1"]); _p2 = float(_sig["t2"]); _p3 = float(_sig["t3"])
+
+                def _pp(price, _e=_pe):
+                    return (price / _e - 1) * 100 if _e > 0 else 0.0
+
+                def _prr(price, _e=_pe, _s=_ps):
+                    return abs(price - _e) / max(0.001, abs(_e - _s))
+
+                _plan_html = (
+                    f"<div style='padding:1.1rem 1.4rem 1.3rem;border-top:1px solid {HAIR};'>"
+                    f"<div style='display:flex;align-items:center;margin-bottom:0.8rem;'>"
+                    f"<span class='dx-title' style='font-size:0.95rem;'>Trade plan</span>"
+                    + _eq_pill(_sig.get("entry_quality", ""), _sig.get("eq_col", ""))
+                    + f"</div>"
+                    + _plan_grid(
+                        _ps, _pe, _p1, _p2, _p3,
+                        _pp(_ps), _pp(_p1), _pp(_p2), _pp(_p3),
+                        abs(_pp(_ps)), _prr(_p1), _prr(_p2), _prr(_p3),
+                    )
+                    + f"</div>"
+                )
+            except Exception:
+                _plan_html = ""
+
+            st.markdown(
+                f"<div class='dx-card' style='margin-bottom:1rem;border-radius:18px;'>"
+                f"<div style='padding:1.1rem 1.4rem 1rem;"
+                f"display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;'>"
+                f"<div style='display:flex;align-items:center;gap:0.75rem;'>"
+                f"<div style='min-width:36px;height:36px;padding:0 0.35rem;border-radius:10px;"
+                f"background:{_tint(_cc, 0.10)};"
+                f"display:flex;align-items:center;justify-content:center;"
+                f"font-size:0.78rem;font-weight:700;color:{_cc};'>{_bk}</div>"
+                f"<span style='font-size:1.02rem;font-weight:600;color:{T1};'>{_tlabel}</span>"
+                f"</div>"
+                f"<div style='display:flex;align-items:center;gap:0.6rem;'>"
+                f"<span style='font-size:0.82rem;color:{T3};font-weight:500;'>Confidence</span>"
+                f"<span style='font-size:1.35rem;font-weight:700;color:{T1};letter-spacing:-0.02em;"
+                f"font-variant-numeric:tabular-nums;'>{_conf}%</span>"
+                f"<span style='font-size:0.78rem;font-weight:600;padding:0.2rem 0.65rem;"
+                f"border-radius:980px;background:{_tint(_str_col, 0.10)};color:{_str_col};'>{_str_label}</span>"
+                f"</div></div>"
+                f"<div style='padding:0 1.4rem 1.15rem;'>"
+                + _glowbar(_conf, BLUE, "6px") +
+                f"</div>"
+                + _plan_html +
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+    else:
+        st.markdown(
+            f"<div class='dx-card' style='padding:1.3rem 1.5rem;display:flex;align-items:center;gap:0.8rem;'>"
+            f"<span style='width:9px;height:9px;border-radius:50%;background:{T4};flex-shrink:0;'></span>"
+            f"<span style='font-size:0.95rem;color:{T2};'>No analysis tab has a buy setup at 50% "
+            f"confidence or more right now.</span></div>",
+            unsafe_allow_html=True,
+        )
+

@@ -1,0 +1,5548 @@
+﻿import streamlit as st
+import streamlit.components.v1 as components
+import yfinance as yf
+import pandas as pd
+import pandas_ta as ta
+import plotly.graph_objects as go
+from datetime import datetime, timedelta, timezone
+import warnings
+import numpy as np
+from plotly.subplots import make_subplots
+
+from auth import auth_wall, show_user_badge, logout
+from gemini_tab import gemini_tab
+from price_action_tab import price_action_analysis_tab
+
+# ── Extracted backend modules ──────────────────────────────────────────────────
+from market_data import (
+    get_saudi_market_status,
+    get_all_tadawul_tickers,
+    get_saudi_market_data,
+    run_market_analysis,
+)
+from regime_analyzer import RegimeAnalyzer
+from signal_engine import (
+    get_stock_name,
+    detect_signals,
+    evaluate_signal_success,
+    find_consensus_signals,
+    analyze_indicator_combinations,
+    calculate_monthly_performance,
+)
+from charts import (
+    create_price_chart,
+    create_regime_distribution_chart,
+    create_adx_chart,
+    create_rsi_chart,
+    create_macd_chart,
+    create_bollinger_bands_chart,
+    create_volume_chart,
+    create_ema_chart,
+    create_stochastic_chart,
+    create_signal_strength_heatmap,
+    create_signal_success_chart,
+    create_regime_performance_chart,
+    create_monthly_performance_chart,
+    render_trading_system_chart,
+    create_combo_performance_chart,
+    create_combo_regime_chart,
+    create_combo_metrics_comparison,
+    create_consensus_agreement_chart,
+    create_consensus_timeline_chart,
+    create_consensus_regime_chart,
+    placeholder_consensus,
+)
+from ui_helpers import info_icon, apply_ui_theme, insight_toggle
+
+warnings.filterwarnings('ignore')
+
+st.set_page_config(
+
+    page_title="",
+
+    page_icon="S",
+
+    layout="wide",
+
+    initial_sidebar_state="collapsed"
+
+)
+
+
+
+# Custom CSS for professional look
+
+st.markdown("""
+
+<style>
+
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+    .stApp, .stApp * { font-family: 'Inter', system-ui, -apple-system, sans-serif !important; }
+    .stApp { background: #111111 !important; }
+    section[data-testid="stSidebar"] { background: #111111 !important; }
+    [data-testid="stAppViewContainer"] { background: #111111 !important; }
+    [data-testid="stMain"] { background: #111111 !important; }
+
+    #MainMenu, footer, header,
+
+    [data-testid="stToolbar"], [data-testid="stDecoration"],
+
+    [data-testid="stStatusWidget"],
+
+    [data-testid="stHeader"],
+
+    [data-testid="collapsedControl"] {
+
+        visibility: hidden !important;
+
+        display: none !important;
+
+    }
+
+
+
+    .main-header {
+
+        font-size: 2.5rem;
+
+        font-weight: 700;
+
+        color: white;
+
+        margin-bottom: 0.5rem;
+
+    }
+
+    .sub-header {
+
+        font-size: 1.2rem;
+
+        color: #666;
+
+    }
+
+    .regime-label { margin-top: -0.4rem; font-size: 1.8rem; line-height: 1.2; font-weight: 700; }
+
+    .regime-trend { color: #26A69A; }
+
+    .regime-range { color: #4A9EFF; }
+
+    .regime-volatile { color: #FF6B6B; }
+
+    /* Section styling */
+
+    .section-container { background-color: transparent; margin-bottom: 0; border-radius: 0; padding: 0; }
+
+    .stCheckbox { font-size: 1.1rem !important; }
+
+    .stCheckbox > label { font-size: 1.05rem !important; padding: 0.4rem 0 !important; }
+
+    .block-container { padding-top: 0 !important; padding-bottom: 1rem !important; }
+    [data-testid="stMainBlockContainer"] { padding-top: 0 !important; }
+    [data-testid="stAppViewContainer"] > section { padding-top: 0 !important; }
+
+    h2, h3 { margin-top: 0 !important; margin-bottom: 1rem !important; }
+
+    h4 { margin-top: 0 !important; margin-bottom: 0.8rem !important; font-size: 1.1rem !important; color: #fff !important; }
+
+    .section-title { font-size: 1.5rem !important; font-weight: 700 !important; color: #ffffff !important; margin: 0 0 0.8rem 0 !important; padding: 0 !important; }
+
+    .action-card { background: transparent; padding: 0; border-radius: 0; margin-bottom: 0.5rem; border: none; }
+
+    .warning-card { background: transparent; padding: 0; border-radius: 0; margin-bottom: 0.5rem; border: none; }
+
+    .info-card { background: transparent; padding: 0; border-radius: 0; margin-bottom: 0.5rem; border: none; }
+
+    /* hero section reuses .mstat-card — no extra classes needed */
+
+    /* Recommendations tab styling */
+
+    .rec-section { background: transparent; padding: 0; border-radius: 0; margin-bottom: 1rem; border: none; }
+
+    .rec-title { font-size: 1.1rem !important; font-weight: 700 !important; color: #ffffff !important; margin: 0 !important; padding: 0 !important; }
+
+    /* Ensure recommendation section titles have no bottom spacing */
+
+    .rec-section .rec-title, .rec-section h3, .rec-section h4 {
+
+        margin-bottom: 0 !important;
+
+        padding-bottom: 0 !important;
+
+    }
+
+    .rec-good { background: transparent; padding: 0; border-radius: 0; border: none; margin-bottom: 0.5rem; }
+
+    .rec-warning { background: transparent; padding: 0; border-radius: 0; border: none; margin-bottom: 0.5rem; }
+
+    .rec-bad { background: transparent; padding: 0; border-radius: 0; border: none; margin-bottom: 0.5rem; }
+
+    /* Signal analysis styling */
+
+    .signal-card { background: transparent; padding: 0; border-radius: 0; margin-bottom: 1rem; border: none; }
+
+    .success-high { color: #26A69A; font-weight: 700; }
+
+    .success-medium { color: #FFC107; font-weight: 700; }
+
+    .success-low { color: #FF6B6B; font-weight: 700; }
+
+    .metric-box { background: transparent; padding: 0; border-radius: 0; text-align: center; }
+
+    .big-number { font-size: 2rem; font-weight: 700; margin: 0.5rem 0; }
+
+    /* Control layout styling */
+
+    .stButton > button[kind="primary"] {
+
+        background-color: #050505 !important;
+
+        color: white !important;
+
+        border: none !important;
+
+        font-weight: 600 !important;
+
+    }
+
+    .stButton > button[kind="primary"]:hover {
+
+        background-color: #303030 !important;
+
+    }
+
+    .stTextInput > div > div > input {
+
+        background-color: #212121 !important;
+
+        color: #fff !important;
+
+        border: 1px solid #303030 !important;
+
+        border-radius: 0 !important;
+
+    }
+
+    .stDateInput > div > div > input {
+
+        background-color: #212121 !important;
+
+        color: #fff !important;
+
+        border: 1px solid #303030 !important;
+
+        border-radius: 0 !important;
+
+    }
+
+    .stSlider > div > div > div > div {
+
+        color: #888 !important;
+
+    }
+
+    .stMultiSelect > div > div > div {
+
+        background-color: #212121 !important;
+
+        border: 1px solid #303030 !important;
+
+        border-radius: 0 !important;
+
+    }
+
+    /* ?? Tab nav - Box Style ?? */
+
+    div[role="tablist"] {
+
+        display: flex !important;
+
+        gap: 0.5rem !important;
+
+        padding: 0.35rem !important;
+
+        background: #212121 !important;
+
+        border: 1px solid #303030 !important;
+
+        border-radius: 10px !important;
+
+        margin-top: 1.5rem !important;
+
+        margin-bottom: 0.5rem !important;
+
+        width: 100% !important;
+
+        position: sticky !important;
+
+        top: 0 !important;
+
+        z-index: 9999 !important;
+
+        backdrop-filter: blur(12px) !important;
+
+        -webkit-backdrop-filter: blur(12px) !important;
+
+        flex-wrap: wrap !important;
+
+    }
+
+    div[role="tablist"] button {
+
+        position: relative !important;
+
+        flex: 0 0 auto !important;
+
+        color: #9e9e9e !important;
+
+        background: transparent !important;
+
+        border: none !important;
+
+        border-radius: 8px !important;
+
+        padding: 0.45rem 0.6rem !important;
+
+        font-size: 0.72rem !important;
+
+        font-weight: 500 !important;
+
+        letter-spacing: 0 !important;
+
+        box-shadow: none !important;
+
+        transition: all 0.15s ease !important;
+
+        white-space: nowrap !important;
+
+        text-transform: none !important;
+
+        text-align: center !important;
+
+    }
+
+    div[role="tablist"] button:hover {
+
+        color: #ffffff !important;
+
+        background: #303030 !important;
+
+    }
+
+    div[role="tablist"] button[aria-selected="true"] {
+
+        color: #ffffff !important;
+
+        background: #303030 !important;
+
+        border: none !important;
+
+        font-weight: 600 !important;
+
+    }
+
+    div[role="tablist"] button[aria-selected="true"]::before {
+
+        display: none !important;
+
+    }
+
+    div[role="tablist"] button[aria-selected="true"]::after,
+
+    div[role="tablist"] button::after { display: none !important; }
+
+    div[data-baseweb="tab-highlight"] { display: none !important; }
+
+    div[data-baseweb="tab-border"]    { display: none !important; }
+
+    /* ── Save-button footer panels (attached to indicator/combo cards) ── */
+
+    /* Remove the gap/margin on the element container that wraps the save button container */
+    [class*="st-key-ind_save_wrap_"],
+    [class*="st-key-ind-save-wrap-"],
+    [class*="st-key-combo_save_wrap_"],
+    [class*="st-key-combo-save-wrap-"] {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+
+    [class*="st-key-ind_save_wrap_"] > div[data-testid="stVerticalBlock"],
+    [class*="st-key-ind-save-wrap-"] > div[data-testid="stVerticalBlock"] {
+
+        background: #181818 !important;
+
+        border: 1px solid #2d2d2d !important;
+
+        border-top: none !important;
+
+        border-radius: 0 0 14px 14px !important;
+
+        padding: 0.35rem 1.4rem 0.6rem !important;
+
+        margin-top: 0 !important;
+
+        margin-bottom: 1.2rem !important;
+
+    }
+
+    [class*="st-key-ind_save_wrap_"] > div[data-testid="stVerticalBlock"] > [data-testid="stElementContainer"],
+    [class*="st-key-ind-save-wrap-"] > div[data-testid="stVerticalBlock"] > [data-testid="stElementContainer"],
+    [class*="st-key-combo_save_wrap_"] > div[data-testid="stVerticalBlock"] > [data-testid="stElementContainer"],
+    [class*="st-key-combo-save-wrap-"] > div[data-testid="stVerticalBlock"] > [data-testid="stElementContainer"] {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Full-width button inside save wrappers */
+    [class*="st-key-ind_save_wrap_"] .stButton > button,
+    [class*="st-key-ind-save-wrap-"] .stButton > button,
+    [class*="st-key-combo_save_wrap_"] .stButton > button,
+    [class*="st-key-combo-save-wrap-"] .stButton > button {
+        width: 100% !important;
+        border-radius: 0 0 14px 14px !important;
+        background: #0f1214 !important;
+        border: none !important;
+        border-top: 1px solid #252b2e !important;
+        color: #5a6470 !important;
+        font-size: 0.82rem !important;
+        font-weight: 600 !important;
+        padding: 0.6rem 1rem !important;
+        letter-spacing: 0.3px !important;
+        transition: background 0.15s ease, color 0.15s ease !important;
+    }
+
+    [class*="st-key-ind_save_wrap_"] .stButton > button:hover,
+    [class*="st-key-ind-save-wrap-"] .stButton > button:hover,
+    [class*="st-key-combo_save_wrap_"] .stButton > button:hover,
+    [class*="st-key-combo-save-wrap-"] .stButton > button:hover {
+        background: #26A69A !important;
+        color: #fff !important;
+        border-top-color: #26A69A !important;
+    }
+
+    [class*="st-key-combo_save_wrap_"] > div[data-testid="stVerticalBlock"],
+    [class*="st-key-combo-save-wrap-"] > div[data-testid="stVerticalBlock"] {
+
+        background: #1a1a1a !important;
+
+        border: 1px solid #2d2d2d !important;
+
+        border-top: none !important;
+
+        border-radius: 0 0 14px 14px !important;
+
+        padding: 0 !important;
+
+        margin-top: 0 !important;
+
+        margin-bottom: 1rem !important;
+
+    }
+
+    /* ─────────────────────────────────────────────────────────────────
+       UNIFIED THEME — ChatGPT-style dark palette
+       Palette: bg #181818, panels #1b1b1b, borders #272727
+       ───────────────────────────────────────────────────────────── */
+
+    /* Reusable card classes */
+    .premium-card {
+        background: #161616;
+        border: 1px solid #272727;
+        border-radius: 14px;
+        padding: 1rem 1.1rem;
+    }
+    .premium-wrap {
+        background: #1b1b1b;
+        border: 1px solid #272727;
+        border-radius: 18px;
+        padding: 1.4rem 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    /* ── Tabs — ChatGPT-style ── */
+    [data-testid="stTabs"] [data-baseweb="tab-list"] {
+        background: #1b1b1b !important;
+        border-radius: 14px !important;
+        padding: 0.3rem !important;
+        gap: 0 !important;
+        border: 1px solid #272727 !important;
+        margin-bottom: 1.2rem !important;
+        min-height: auto !important;
+    }
+    [data-testid="stTabs"] [data-baseweb="tab"] {
+        background: transparent !important;
+        color: #555 !important;
+        border-radius: 10px !important;
+        font-size: 0.8rem !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.3px !important;
+        padding: 0.55rem 1.15rem !important;
+        border: 1px solid transparent !important;
+        margin: 0.15rem 0.12rem !important;
+        transition: all 0.18s ease !important;
+    }
+    [data-testid="stTabs"] [data-baseweb="tab"]:hover {
+        color: #b0b0b0 !important;
+        background: rgba(255,255,255,0.03) !important;
+    }
+    [data-testid="stTabs"] [aria-selected="true"] {
+        background: #272727 !important;
+        color: #f0f0f0 !important;
+        border: 1px solid #3a3a3a !important;
+        font-weight: 800 !important;
+    }
+    [data-testid="stTabs"] [data-baseweb="tab-border"],
+    [data-testid="stTabs"] [data-baseweb="tab-highlight"] {
+        display: none !important;
+    }
+    [data-testid="stTabs"] [data-baseweb="tab-panel"] {
+        padding: 0 !important;
+    }
+
+    /* ── Buttons ── */
+    .stButton > button {
+        background: #1b1b1b !important;
+        border: 1px solid #272727 !important;
+        color: #b0b0b0 !important;
+        border-radius: 10px !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.2px !important;
+        transition: all 0.18s ease !important;
+    }
+    .stButton > button:hover {
+        border-color: #3a3a3a !important;
+        color: #f0f0f0 !important;
+        background: #232323 !important;
+    }
+
+    /* ── Inputs / selects ── */
+    [data-testid="stTextInput"] input,
+    [data-testid="stNumberInput"] input,
+    [data-testid="stDateInput"] input,
+    [data-baseweb="select"] > div,
+    [data-baseweb="input"] > div {
+        background: #1b1b1b !important;
+        border: 1px solid #272727 !important;
+        border-radius: 10px !important;
+        color: #e0e0e0 !important;
+    }
+
+    /* ── Expanders ── */
+    [data-testid="stExpander"] {
+        background: #161616 !important;
+        border: 1px solid #272727 !important;
+        border-radius: 14px !important;
+    }
+    [data-testid="stExpander"] summary { color: #b0b0b0 !important; font-weight: 700 !important; }
+
+    /* ── Dividers ── */
+    hr { border-color: #272727 !important; }
+
+    /* ── Sidebar premium nav ── */
+    [data-testid="stSidebar"] {
+        background: #0d1013 !important;
+        border-right: 1px solid #1a1f23 !important;
+        min-width: 210px !important;
+        max-width: 210px !important;
+    }
+    [data-testid="stSidebar"] > div:first-child {
+        padding: 1.4rem 0.85rem 1.4rem 0.85rem !important;
+    }
+    [data-testid="stSidebar"] [data-testid="stRadio"] > label {
+        display: none !important;
+    }
+    [data-testid="stSidebar"] [data-testid="stRadio"] > div {
+        gap: 4px !important;
+        flex-direction: column !important;
+        display: flex !important;
+    }
+    [data-testid="stSidebar"] [data-testid="stRadio"] [data-testid="stMarkdownContainer"] p {
+        font-size: 0.82rem !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.2px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    [data-testid="stSidebar"] [data-testid="stRadio"] label {
+        background: transparent !important;
+        color: #5a6470 !important;
+        border-radius: 10px !important;
+        padding: 0.6rem 0.9rem !important;
+        cursor: pointer !important;
+        transition: background 0.12s, color 0.12s !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        border: 1px solid transparent !important;
+    }
+    [data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
+        background: #1a1f23 !important;
+        color: #c8cdd2 !important;
+    }
+    [data-testid="stSidebar"] [data-testid="stRadio"] label[data-checked="true"],
+    [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked),
+    [data-testid="stSidebar"] [data-testid="stRadio"] input:checked ~ div {
+        background: #26A69A !important;
+        color: #fff !important;
+        border-color: #26A69A !important;
+    }
+    [data-testid="stSidebar"] [data-testid="stRadio"] [data-baseweb="radio"] {
+        display: none !important;
+    }
+    /* hide actual radio circle indicator */
+    [data-testid="stSidebar"] [data-testid="stRadio"] span[data-baseweb="radio"] {
+        display: none !important;
+    }
+
+</style>
+
+""", unsafe_allow_html=True)
+
+
+
+
+
+
+
+def main():
+
+    """Main application."""
+
+
+
+    if 'show_results' not in st.session_state:
+
+        st.session_state.show_results = False
+
+    if 'show_market_results' not in st.session_state:
+
+        st.session_state.show_market_results = False
+
+    if 'show_market_pulse' not in st.session_state:
+
+        st.session_state.show_market_pulse = False
+
+    if 'show_macro' not in st.session_state:
+
+        st.session_state.show_macro = False
+
+    if 'show_champions_vault' not in st.session_state:
+        st.session_state.show_champions_vault = False
+
+    if 'show_trade_journal' not in st.session_state:
+        st.session_state.show_trade_journal = False
+
+
+
+    apply_ui_theme()
+
+    # ── Arabic Language Toggle (Google Translate) ──────────────────────────
+    components.html("""
+    <script>
+    (function() {
+        var doc = window.parent.document;
+        if (doc.getElementById('translate-fab-btn')) return;
+
+        var style = doc.createElement('style');
+        style.textContent = `
+            .goog-te-banner-frame { display: none !important; }
+            #goog-gt-tt, .goog-te-balloon-frame, .goog-tooltip { display: none !important; }
+            body { top: 0 !important; }
+            .skiptranslate { display: none !important; }
+            #google_translate_element { display: none !important; }
+
+            #translate-fab-btn {
+                position: fixed;
+                bottom: 24px;
+                left: 24px;
+                z-index: 999999;
+                height: 40px;
+                border-radius: 10px;
+                background: rgba(255,255,255,0.03);
+                border: 1px solid #252b2e;
+                color: #6b7a86;
+                font-size: 0.77rem;
+                font-weight: 600;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 0 16px;
+                transition: all 0.2s ease;
+                line-height: 1;
+                letter-spacing: 0.2px;
+                white-space: nowrap;
+            }
+            #translate-fab-btn:hover {
+                background: rgba(38,166,154,0.1);
+                border-color: rgba(38,166,154,0.3);
+                color: #26A69A;
+            }
+            #translate-fab-btn.active {
+                background: rgba(38,166,154,0.07);
+                border-color: rgba(38,166,154,0.2);
+                color: #26A69A;
+            }
+            #translate-fab-btn .fab-icon {
+                font-size: 16px;
+                font-weight: 700;
+                line-height: 1;
+            }
+            #translate-fab-btn .fab-dot {
+                width: 5px;
+                height: 5px;
+                border-radius: 50%;
+                background: #333;
+                transition: background 0.2s;
+            }
+            #translate-fab-btn.active .fab-dot {
+                background: #26A69A;
+                box-shadow: 0 0 6px rgba(38,166,154,0.5);
+            }
+        `;
+        doc.head.appendChild(style);
+
+        var gtDiv = doc.createElement('div');
+        gtDiv.id = 'google_translate_element';
+        doc.body.appendChild(gtDiv);
+
+        var btn = doc.createElement('button');
+        btn.id = 'translate-fab-btn';
+        btn.title = 'عربي / English';
+        btn.setAttribute('aria-label', 'Translate to Arabic');
+        btn.innerHTML = '<span style="font-size:0.72rem;">العربية</span><span class="fab-dot"></span>';
+        doc.body.appendChild(btn);
+
+        var isArabic = false;
+        var gtLoaded = false;
+
+        window.parent.googleTranslateElementInit = function() {
+            new window.parent.google.translate.TranslateElement({
+                pageLanguage: 'en',
+                includedLanguages: 'ar,en',
+                autoDisplay: false
+            }, 'google_translate_element');
+            gtLoaded = true;
+        };
+
+        // Pre-load Google Translate script immediately so first click is instant
+        (function() {
+            var s = doc.createElement('script');
+            s.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+            doc.body.appendChild(s);
+        })();
+
+        function _doTranslate() {
+            var sel = doc.querySelector('.goog-te-combo');
+            if (!sel) {
+                // Widget not ready yet — retry in 200ms
+                setTimeout(_doTranslate, 200);
+                return;
+            }
+            if (isArabic) {
+                sel.value = 'en';
+                sel.dispatchEvent(new Event('change'));
+                isArabic = false;
+                btn.classList.remove('active');
+                btn.children[0].textContent = 'العربية';
+            } else {
+                sel.value = 'ar';
+                sel.dispatchEvent(new Event('change'));
+                isArabic = true;
+                btn.classList.add('active');
+                btn.children[0].textContent = 'English';
+            }
+        }
+
+        btn.addEventListener('click', function() {
+            _doTranslate();
+        });
+    })();
+    // ── Icons on original tabs + ghost sticky bar ──
+    (function() {
+        var doc = window.parent.document;
+        var win = window.parent;
+        var GHO = 'sqnb_ghost';
+        var NH  = 'auto';
+        var cssOk = false, moOk = false, scrollOk = false;
+        var tabsTop = 9999;
+
+        var TABS = [
+            {l:'Decision',
+             v:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>'},
+            {l:'Regime',
+             v:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>'},
+            {l:'Signals',
+             v:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>'},
+            {l:'Patterns',
+             v:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>'},
+            {l:'Volume',
+             v:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="14" x2="12" y2="14"/><line x1="4" y1="18" x2="18" y2="18"/></svg>'},
+            {l:'SMC',
+             v:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>'},
+            {l:'Elliott Wave',
+             v:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 17 6 9 10 13 14 5 18 11 22 3"/></svg>',
+             badge:'NEW'},
+            {l:'Strategy Lab',
+             v:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v4H4z"/><path d="M4 11h16v8H4z"/><path d="M8 15h3"/><path d="M13 15h3"/></svg>',
+             badge:'NEW'},
+        ];
+
+        function getTL() {
+            var tls = doc.querySelectorAll('div[role="tablist"]');
+            for (var i = 0; i < tls.length; i++) {
+                if (tls[i].querySelectorAll('button').length >= 6) return tls[i];
+            }
+            return null;
+        }
+        function getActiveIdx() {
+            var tl = getTL(); if (!tl) return 0;
+            var bs = tl.querySelectorAll('button');
+            for (var i = 0; i < bs.length; i++) {
+                if (bs[i].getAttribute('aria-selected') === 'true') return i;
+            }
+            return 0;
+        }
+
+        function makeButtons(ai) {
+            var h = '';
+            TABS.forEach(function(tab, i) {
+                var on = (i === ai);
+                var bg  = on
+                    ? 'linear-gradient(135deg,rgba(38,166,154,0.22),rgba(33,150,243,0.12))'
+                    : 'transparent';
+                var bdr = on
+                    ? '1px solid rgba(38,166,154,0.4)'
+                    : '1px solid transparent';
+                var col = on ? '#e2e8f0' : '#4a5568';
+                var fw  = on ? '650' : '500';
+                h += '<button class="sqnb-btn" data-i="' + i + '" style="' +
+                    'display:flex;align-items:center;gap:5px;padding:0 0.75rem;margin:0 2px;' +
+                    'background:' + bg + ';' +
+                    'border:' + bdr + ';' +
+                    'border-radius:10px;' +
+                    'color:' + col + ';' +
+                    'font-size:.72rem;font-weight:' + fw + ';' +
+                    'cursor:pointer;white-space:nowrap;' +
+                    'height:calc(100% - 16px);align-self:center;flex-shrink:0;letter-spacing:.2px;' +
+                    'transition:color .2s,background .2s,border-color .2s,transform .15s;">' +
+                    '<span class="sqnb-ico" style="display:inline-flex;align-items:center;opacity:' + (on ? '1' : '.45') + ';transition:opacity .2s;pointer-events:none;">' + tab.v + '</span>' +
+                    '<span>' + tab.l + '</span>' +
+                    (tab.badge ? '<span style="margin-left:5px;padding:1px 6px;border-radius:8px;font-size:0.5rem;font-weight:800;letter-spacing:0.5px;background:rgba(76,175,80,0.15);color:#4caf50;border:1px solid rgba(76,175,80,0.35);text-transform:uppercase;line-height:1.4;">' + tab.badge + '</span>' : '') +
+                    '</button>';
+            });
+            return h;
+        }
+
+        // Inject SVG icons into Streamlit's own buttons (re-added after React re-renders via MO)
+        function addIcons() {
+            var tl = getTL(); if (!tl) return;
+            tl.querySelectorAll('button').forEach(function(b, i) {
+                if (i >= TABS.length) return;
+                if (b.querySelector('.sqnb-ico')) return;
+                var sp = doc.createElement('span');
+                sp.className = 'sqnb-ico';
+                sp.innerHTML = TABS[i].v;
+                var isOn = b.getAttribute('aria-selected') === 'true';
+                sp.style.cssText = 'display:inline-flex;align-items:center;margin-right:6px;' +
+                    'vertical-align:middle;pointer-events:none;opacity:' + (isOn ? '1' : '.45') + ';transition:opacity .2s;';
+                b.insertBefore(sp, b.firstChild);
+                // NEW badge
+                if (TABS[i].badge && !b.querySelector('.sqnb-badge')) {
+                    var bd = doc.createElement('span');
+                    bd.className = 'sqnb-badge';
+                    bd.textContent = TABS[i].badge;
+                    bd.style.cssText = 'display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;' +
+                        'border-radius:8px;font-size:0.5rem;font-weight:800;letter-spacing:0.5px;' +
+                        'background:rgba(76,175,80,0.15);color:#4caf50;border:1px solid rgba(76,175,80,0.35);' +
+                        'text-transform:uppercase;line-height:1.4;pointer-events:none;';
+                    b.appendChild(bd);
+                }
+            });
+        }
+
+        function injectCSS() {
+            if (cssOk) return; cssOk = true;
+            var s = doc.createElement('style');
+            s.textContent =
+                '#' + GHO + '::-webkit-scrollbar{display:none}' +
+                '.sqnb-btn:hover{color:#a0aec0 !important;background:rgba(255,255,255,0.05) !important;transform:translateY(-1px)}' +
+                '.sqnb-btn:hover .sqnb-ico{opacity:.8 !important}' +
+                '.sqnb-btn{transition:color .2s,background .2s,border-color .2s,transform .15s !important}';
+            doc.head.appendChild(s);
+        }
+
+        function buildGhost() {
+            if (doc.getElementById(GHO)) return;
+            injectCSS();
+            var g = doc.createElement('div');
+            g.id = GHO;
+            g.style.cssText =
+                'position:fixed;top:0;left:0;right:0;z-index:999999;' +
+                'background:rgba(14,17,22,.97);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);' +
+                'border-bottom:1px solid rgba(38,166,154,0.12);' +
+                'box-shadow:0 1px 0 rgba(38,166,154,0.08),0 8px 32px rgba(0,0,0,.6);' +
+                'display:flex;align-items:center;padding:0.4rem 0.75rem;gap:4px;' +
+                'flex-wrap:wrap;' +
+                'opacity:0;pointer-events:none;transition:opacity .22s cubic-bezier(.4,0,.2,1),transform .22s cubic-bezier(.4,0,.2,1);' +
+                'transform:translateY(-6px);';
+            g.innerHTML = makeButtons(getActiveIdx());
+            g.querySelectorAll('.sqnb-btn').forEach(function(b) {
+                b.addEventListener('click', function() {
+                    var idx = parseInt(b.getAttribute('data-i'));
+                    var tl = getTL();
+                    if (tl) { var ob = tl.querySelectorAll('button')[idx]; if (ob) ob.click(); }
+                });
+            });
+            doc.body.appendChild(g);
+        }
+
+        function showGhost(show) {
+            var g = doc.getElementById(GHO); if (!g) return;
+            g.style.opacity       = show ? '1' : '0';
+            g.style.pointerEvents = show ? 'auto' : 'none';
+            g.style.transform     = show ? 'translateY(0)' : 'translateY(-6px)';
+        }
+
+        function syncAll() {
+            var ai = getActiveIdx();
+            var g = doc.getElementById(GHO);
+            if (g) {
+                g.querySelectorAll('.sqnb-btn').forEach(function(b, i) {
+                    var on = (i === ai);
+                    b.style.background   = on
+                        ? 'linear-gradient(135deg,rgba(38,166,154,0.22),rgba(33,150,243,0.12))'
+                        : 'transparent';
+                    b.style.border       = on
+                        ? '1px solid rgba(38,166,154,0.4)'
+                        : '1px solid transparent';
+                    b.style.color        = on ? '#e2e8f0' : '#4a5568';
+                    b.style.fontWeight   = on ? '650' : '500';
+                    var ic = b.querySelector('.sqnb-ico');
+                    if (ic) ic.style.opacity = on ? '1' : '.45';
+                });
+            }
+            var tl = getTL();
+            if (tl) {
+                tl.querySelectorAll('button').forEach(function(b, i) {
+                    var ic = b.querySelector('.sqnb-ico');
+                    if (ic) ic.style.opacity = (i === ai) ? '1' : '.45';
+                });
+            }
+        }
+
+        function recordTabsTop() {
+            var tl = getTL(); if (!tl) return;
+            var rect = tl.getBoundingClientRect();
+            var measured = rect.top + (win.pageYOffset || win.scrollY || 0);
+            if (measured > 50) tabsTop = measured;
+        }
+
+        function setupScroll() {
+            if (scrollOk) return; scrollOk = true;
+            win.addEventListener('scroll', function() {
+                var scrolled = win.pageYOffset || win.scrollY || 0;
+                showGhost(scrolled > tabsTop - 20);
+            }, {passive: true});
+        }
+
+        function setupMO() {
+            if (moOk) return; moOk = true;
+            new MutationObserver(function() {
+                addIcons();
+                syncAll();
+            }).observe(doc.body, {subtree:true, childList:true, attributes:true, attributeFilter:['aria-selected']});
+        }
+
+        function run() {
+            addIcons();
+            buildGhost();
+            recordTabsTop();
+            setupScroll();
+            setupMO();
+            syncAll();
+        }
+
+        run();
+        [200, 500, 1000, 2000, 4000].forEach(function(t) { setTimeout(run, t); });
+
+        var iv = setInterval(function() { addIcons(); syncAll(); }, 900);
+        setTimeout(function() { clearInterval(iv); }, 120000);
+    })();
+    </script>
+    """, height=0)
+
+    if not st.session_state.show_results and not st.session_state.show_market_results and not st.session_state.show_market_pulse and not st.session_state.show_macro and not st.session_state.show_champions_vault and not st.session_state.show_trade_journal:
+
+        # CONTROLS PAGE
+
+        control_palette = st.session_state.get('theme_palette', {})
+
+        c_text  = control_palette.get('text',  '#e6edf7')
+
+        c_muted = control_palette.get('muted', '#97a8bf')
+
+        current_theme = st.session_state.get("ui_theme", "dark")
+
+        is_dark_cp = current_theme == "dark"
+
+        cp_bg      = "rgba(9,13,21,0.96)"      if is_dark_cp else "rgba(246,249,255,0.96)"
+
+        cp_border  = "rgba(255,255,255,0.08)"  if is_dark_cp else "rgba(0,0,0,0.09)"
+
+        cp_shadow  = "0 8px 32px rgba(0,0,0,0.45), 0 1px 0 rgba(255,255,255,0.04)" if is_dark_cp else "0 8px 32px rgba(0,0,0,0.12), 0 1px 0 rgba(255,255,255,0.9)"
+
+        cp_inner   = "rgba(255,255,255,0.033)" if is_dark_cp else "rgba(0,0,0,0.025)"
+
+        cp_inner_b = "rgba(255,255,255,0.065)" if is_dark_cp else "rgba(0,0,0,0.08)"
+
+        accent     = "#26A69A"
+
+        # ?? Solid surface palette ??
+
+        cp_s1    = "#212121"  if is_dark_cp else "#f8fafc"
+
+        cp_s2    = "#303030"  if is_dark_cp else "#f1f5f9"
+
+        cp_s3    = "#303030"  if is_dark_cp else "#e9eef5"
+
+        cp_b1    = "#404040"  if is_dark_cp else "#dde3ec"
+
+        cp_b2    = "#303030"  if is_dark_cp else "#edf2f7"
+
+        cp_text1 = "#ffffff"  if is_dark_cp else "#0f172a"
+
+        cp_text2 = "#9e9e9e"  if is_dark_cp else "#64748b"
+
+        cp_text3 = "#757575"  if is_dark_cp else "#94a3b8"
+
+
+
+        st.markdown(f"""<style>
+
+        /* ?? Layout ?? */
+
+        html, body {{ overflow: auto !important; }}
+
+        .main .block-container, div.block-container {{
+
+            max-width: 88% !important;
+
+            margin-left: auto !important;
+
+            margin-right: auto !important;
+
+            padding-left: 0 !important;
+
+            padding-right: 0 !important;
+
+            padding-top: 0 !important;
+
+            padding-bottom: 3rem !important;
+
+        }}
+
+
+
+        /* ?? Panel grid ?? */
+
+        .st-key-panel_row {{ margin-top: 1.5rem !important; }}
+
+        .st-key-panel_row [data-testid="stHorizontalBlock"] {{
+
+            align-items: flex-start !important;
+
+            gap: 1.25rem !important;
+
+        }}
+
+        .st-key-panel_row [data-testid="stHorizontalBlock"] > [data-testid="column"] {{
+
+            padding: 0 !important;
+
+        }}
+
+
+
+        /* ?? Panel cards - Box Style ?? */
+
+        .st-key-stock_analysis_panel, .st-key-market_analysis_panel {{
+
+            background: #212121 !important;
+
+            border: 1px solid #303030 !important;
+
+            border-radius: 16px !important;
+
+            padding: 1.75rem !important;
+
+            box-sizing: border-box !important;
+
+        }}
+
+        .st-key-stock_analysis_panel > div,
+
+        .st-key-market_analysis_panel > div,
+
+        .st-key-stock_analysis_panel [data-testid="stVerticalBlockBorderWrapper"],
+
+        .st-key-market_analysis_panel [data-testid="stVerticalBlockBorderWrapper"],
+
+        .st-key-stock_analysis_panel [data-testid="stVerticalBlock"],
+
+        .st-key-market_analysis_panel [data-testid="stVerticalBlock"] {{
+
+            background: transparent !important;
+
+            background-color: transparent !important;
+
+            border: none !important;
+
+            box-shadow: none !important;
+
+            padding: 0 !important;
+
+        }}
+
+        
+
+        .st-key-left_panel, .st-key-right_panel {{
+
+            background: #212121 !important;
+
+            border: 1px solid #303030 !important;
+
+            border-radius: 16px !important;
+
+            padding: 1.75rem !important;
+
+            box-sizing: border-box !important;
+
+            height: 100% !important;
+
+        }}
+
+        .st-key-left_panel > div,
+
+        .st-key-right_panel > div,
+
+        .st-key-left_panel [data-testid="stVerticalBlockBorderWrapper"],
+
+        .st-key-right_panel [data-testid="stVerticalBlockBorderWrapper"],
+
+        .st-key-left_panel [data-testid="stVerticalBlock"],
+
+        .st-key-right_panel [data-testid="stVerticalBlock"] {{
+
+            background: transparent !important;
+
+            background-color: transparent !important;
+
+            border: none !important;
+
+            box-shadow: none !important;
+
+            padding: 0 !important;
+
+        }}
+
+
+
+        /* ?? Panel section header - Box Style ?? */
+
+        .cp-panel-header {{
+
+            display: flex;
+
+            align-items: flex-start;
+
+            gap: 1rem;
+
+            margin-bottom: 1.5rem;
+
+            padding: 0;
+
+            background: transparent;
+
+            border: none;
+
+            border-radius: 0;
+
+        }}
+
+        .cp-panel-text {{ flex: 1; min-width: 0; }}
+
+        .cp-section-title {{
+
+            font-size: 1.1rem;
+
+            font-weight: 600;
+
+            color: #ffffff;
+
+            margin: 0 0 0.25rem 0;
+
+            letter-spacing: -0.3px;
+
+        }}
+
+        .cp-section-sub {{
+
+            font-size: 0.75rem;
+
+            color: #757575;
+
+            margin: 0;
+
+            line-height: 1.4;
+
+            font-weight: 400;
+
+        }}
+
+
+
+        /* ?? Strategy Dashboard cards ?? */
+
+        .sdash-empty {{
+
+            display: flex; flex-direction: column;
+
+            align-items: center; justify-content: center;
+
+            gap: 0.8rem; padding: 3.5rem 1rem; text-align: center;
+
+        }}
+
+        .sdash-empty-title {{ font-size: 0.90rem; font-weight: 700; color: {cp_text2}; letter-spacing: 0.2px; }}
+
+        .sdash-empty-sub   {{ font-size: 0.75rem; color: {cp_text3}; line-height: 1.7; max-width: 24rem; }}
+
+
+
+        .sdash-card {{
+
+            border: 1px solid #303030;
+
+            border-radius: 14px;
+
+            overflow: hidden;
+
+            margin-bottom: 1rem;
+
+            background: {cp_s1};
+
+            box-shadow: 0 4px 18px rgba(0,0,0,0.30);
+
+        }}
+
+        .sdash-card:last-child {{ margin-bottom: 0; }}
+
+
+
+        /* stock header row */
+
+        .sdash-card-head {{
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            padding: 1rem 1.3rem;
+
+            background: #212121;
+
+            border-bottom: 2px solid #303030;
+
+        }}
+
+        .sdash-card-head-left {{
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 0.18rem;
+
+            min-width: 0;
+
+        }}
+
+        .sdash-card-sym {{
+
+            font-size: 1.30rem;
+
+            font-weight: 900;
+
+            color: {accent};
+
+            letter-spacing: 0.5px;
+
+            line-height: 1;
+
+        }}
+
+        .sdash-card-sname {{
+
+            font-size: 0.85rem;
+
+            font-weight: 500;
+
+            color: {cp_text2};
+
+            white-space: nowrap;
+
+            overflow: hidden;
+
+            text-overflow: ellipsis;
+
+            max-width: 240px;
+
+            line-height: 1;
+
+        }}
+
+        .sdash-card-dot {{
+
+            display: none;
+
+        }}
+
+        .sdash-card-regime {{
+
+            flex-shrink: 0;
+
+            font-size: 0.72rem; font-weight: 700;
+
+            text-transform: uppercase; letter-spacing: 0.9px;
+
+            border: 1px solid; border-radius: 20px;
+
+            padding: 0.25rem 0.80rem; white-space: nowrap;
+
+            opacity: 0.90;
+
+        }}
+
+        .sdash-card-tag {{
+
+            font-size: 0.80rem; font-weight: 700;
+
+            color: {accent};
+
+            background: rgba(38,166,154,0.10);
+
+            border: 1px solid rgba(38,166,154,0.25);
+
+            border-radius: 5px;
+
+            padding: 0.18rem 0.60rem;
+
+            white-space: nowrap;
+
+        }}
+
+        .sdash-card-plus {{ font-size: 0.76rem; color: {cp_text3}; font-weight: 600; }}
+
+
+
+        /* per-strategy sub-section */
+
+        .sdash-strat {{ border-top: 1px solid #303030; }}
+
+        .sdash-strat-head {{
+
+            display: flex; align-items: center; gap: 0.5rem;
+
+            padding: 0.6rem 1.3rem;
+
+            border-bottom: 1px solid {cp_b2};
+
+            background: {cp_s2};
+
+            flex-wrap: wrap;
+
+        }}
+
+
+
+        /* stats grid */
+
+        .sdash-card-body {{
+
+            display: grid;
+
+            grid-template-columns: repeat(3, 1fr);
+
+            background: {cp_s1};
+
+        }}
+
+        .sdash-stat {{
+
+            display: flex; flex-direction: column;
+
+            align-items: flex-start;
+
+            padding: 0.85rem 1rem 0.80rem 1rem;
+
+            border-right: 1px solid {cp_b2};
+
+            border-bottom: 1px solid {cp_b2};
+
+            gap: 0.18rem;
+
+            position: relative;
+
+        }}
+
+        .sdash-stat:nth-child(3n) {{ border-right: none; }}
+
+        .sdash-stat:nth-child(4),
+
+        .sdash-stat:nth-child(5),
+
+        .sdash-stat:nth-child(6) {{ border-bottom: none; }}
+
+        /* coloured top-edge accent per stat type */
+
+        .sdash-stat--wr    {{ border-top: 2px solid {accent}; }}
+
+        .sdash-stat--entry {{ border-top: 2px solid #22c55e; }}
+
+        .sdash-stat--exit  {{ border-top: 2px solid {accent}; }}
+
+        .sdash-stat--sig   {{ border-top: 2px solid {cp_b1}; }}
+
+        .sdash-stat--stop  {{ border-top: 2px solid #ef5350; }}
+
+        .sdash-stat--profit{{ border-top: 2px solid #22c55e; }}
+
+        .sdash-stat-lbl {{
+
+            font-size: 0.68rem; font-weight: 700;
+
+            text-transform: uppercase; letter-spacing: 0.9px;
+
+            color: {cp_text3}; opacity: 0.85;
+
+        }}
+
+        .sdash-stat-val {{
+
+            font-size: 1.05rem; font-weight: 800;
+
+            color: {cp_text1}; line-height: 1;
+
+            white-space: nowrap;
+
+        }}
+
+        /* win-rate progress bar */
+
+        .sdash-wr-bar-wrap {{
+
+            width: 100%; height: 3px;
+
+            background: rgba(255,255,255,0.07);
+
+            border-radius: 2px; margin-top: 0.32rem;
+
+        }}
+
+        .sdash-wr-bar {{
+
+            height: 100%; border-radius: 2px;
+
+            transition: width 0.4s ease;
+
+        }}
+
+
+
+        /* ?? Form labels - Box Style ?? */
+
+        .cp-input-label {{
+
+            font-size: 0.75rem;
+
+            color: #9e9e9e;
+
+            text-transform: none;
+
+            letter-spacing: 0;
+
+            margin-bottom: 0.4rem;
+
+            font-weight: 500;
+
+            display: block;
+
+        }}
+
+
+
+        /* ?? Indicators section header - Box Style ?? */
+
+        .cp-ind-hdr {{
+
+            font-size: 0.75rem;
+
+            font-weight: 600;
+
+            text-transform: none;
+
+            letter-spacing: 0;
+
+            color: #ffffff;
+
+            margin: 1.25rem 0 0.75rem 0;
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 0;
+
+        }}
+
+        .cp-ind-hdr::before {{
+
+            display: none;
+
+        }}
+
+        .cp-ind-hdr::after {{
+
+            content: '';
+
+            flex: 1;
+
+            height: 1px;
+
+            background: {cp_b2};
+
+        }}
+
+
+
+        /* ?? Category rows ?? */
+
+        .cp-cat {{
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 0.4rem;
+
+            font-size: 0.62rem;
+
+            font-weight: 600;
+
+            text-transform: uppercase;
+
+            letter-spacing: 0.5px;
+
+            margin: 0.8rem 0 0.4rem 0;
+
+            color: #757575;
+
+        }}
+
+        .cp-cat-dot {{
+
+            width: 5px; height: 5px;
+
+            border-radius: 50%;
+
+            flex-shrink: 0;
+
+        }}
+
+
+
+        /* ── Indicator chips: hide native Streamlit checkboxes visually ── */
+
+        .st-key-ind_panel {{
+            position: absolute !important;
+            width: 1px !important;
+            height: 1px !important;
+            overflow: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }}
+
+        /* ── Indicator chip pill ── */
+        .ind-chip {{
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.38rem 0.65rem;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: #222;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+            user-select: none;
+            white-space: nowrap;
+        }}
+        .ind-chip:hover {{ border-color: #26A69A; background: #2a2a2a; }}
+        .ind-chip.active {{
+            background: rgba(38,166,154,0.14);
+            border-color: #26A69A;
+            box-shadow: 0 0 0 1px #26A69A22;
+        }}
+        .ind-chip span.ic-lbl {{
+            font-size: 0.73rem;
+            font-weight: 600;
+            color: #888;
+            line-height: 1;
+        }}
+        .ind-chip.active span.ic-lbl {{ color: #26A69A; font-weight: 700; }}
+        .ind-chip span.ic-new {{
+            display: inline-flex;
+            align-items: center;
+            padding: 0.1rem 0.35rem;
+            border-radius: 20px;
+            background: #16a34a;
+            border: 1px solid #22c55e;
+            font-size: 0.5rem;
+            font-weight: 800;
+            color: #ffffff;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            line-height: 1;
+            flex-shrink: 0;
+        }}
+
+        /* ── Indicator ? tooltip bubble ── */
+        .ind-tip {{
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            font-size: 0.56rem;
+            font-weight: 900;
+            color: #555;
+            cursor: help;
+            flex-shrink: 0;
+            line-height: 1;
+        }}
+        .ind-tip:hover {{ border-color: #26A69A; color: #26A69A; }}
+        .ind-tip .ind-tt {{
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 6px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: 230px;
+            background: #1c1c1c;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 0.55rem 0.7rem;
+            font-size: 0.67rem;
+            color: #ccc;
+            line-height: 1.55;
+            z-index: 9999;
+            pointer-events: none;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.7);
+            white-space: normal;
+        }}
+        .ind-tip:hover .ind-tt {{ display: block; }}
+
+        /* ── Chip row wrap ── */
+        .ind-row {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.42rem;
+            margin: 0.3rem 0 0.6rem;
+        }}
+
+
+
+        /* ?? Inputs - Box Style ?? */
+
+        .stTextInput > div > div > input,
+
+        .stDateInput input,
+
+        .stDateInput [data-baseweb="input"] {{
+
+            background-color: #303030 !important;
+
+            border: 1px solid #404040 !important;
+
+            color: #ffffff !important;
+
+            border-radius: 8px !important;
+
+            min-height: 2.5rem !important;
+
+            font-size: 0.85rem !important;
+
+            padding: 0 0.875rem !important;
+
+        }}
+
+        .stTextInput > div > div > input:focus {{
+
+            background-color: #303030 !important;
+
+            border-color: #26A69A !important;
+
+            box-shadow: none !important;
+
+            outline: none !important;
+
+        }}
+
+
+
+        /* ?? Run button - Box Style ?? */
+
+        .cp-run-wrap {{ margin-top: 1.5rem; }}
+
+        .cp-run-wrap .stButton > button {{
+
+            background: #26A69A !important;
+
+            color: #ffffff !important;
+
+            border: none !important;
+
+            border-radius: 8px !important;
+
+            min-height: 44px !important;
+
+            font-size: 0.85rem !important;
+
+            font-weight: 600 !important;
+
+            letter-spacing: 0 !important;
+
+            transition: all 0.15s ease !important;
+
+            width: 100% !important;
+
+        }}
+
+        .cp-run-wrap .stButton > button:hover {{
+
+            background: #2bbc9e !important;
+
+        }}
+
+        .cp-run-wrap .stButton > button:active {{
+
+            background: #219686 !important;
+
+        }}
+
+
+
+        /* ??????????????????????????????????????????????????????????????
+
+           DASHBOARD - COMPLETE PREMIUM REDESIGN
+
+           Modern glassmorphism + monochrome + accent colors
+
+           ?????????????????????????????????????????????????????????????? */
+
+        
+
+        /* Main wrapper */
+
+        .dash-main {{
+
+            padding: 0;
+
+        }}
+
+        
+
+        /* Hero Stats Row - Box Style */
+
+        .dash-hero {{
+
+            display: grid;
+
+            grid-template-columns: repeat(4, 1fr);
+
+            gap: 1rem;
+
+            margin-bottom: 2rem;
+
+        }}
+
+        .dash-stat-card {{
+
+            background: #212121;
+
+            border: 1px solid #303030;
+
+            border-radius: 12px;
+
+            padding: 1.25rem 1rem;
+
+            transition: all 0.15s ease;
+
+        }}
+
+        .dash-stat-card:hover {{
+
+            background: #2a2a2a;
+
+            border-color: #404040;
+
+        }}
+
+        
+
+        .dash-stat-label {{
+
+            font-size: 0.7rem;
+
+            font-weight: 500;
+
+            color: #9e9e9e;
+
+            margin-bottom: 0.5rem;
+
+            letter-spacing: 0.1px;
+
+        }}
+
+        .dash-stat-value {{
+
+            font-size: 1.75rem;
+
+            font-weight: 600;
+
+            letter-spacing: -1px;
+
+            line-height: 1;
+
+            margin-bottom: 0.3rem;
+
+        }}
+
+        .dash-stat-value.gain {{ color: #4caf50; }}
+
+        .dash-stat-value.loss {{ color: #f44336; }}
+
+        .dash-stat-value.neutral {{ color: #9e9e9e; }}
+
+        .dash-stat-value.info {{ color: #2196f3; }}
+
+        .dash-stat-sub {{
+
+            font-size: 0.68rem;
+
+            color: #757575;
+
+            font-weight: 400;
+
+        }}
+
+        
+
+        /* Spacer for clean layout */
+
+        .dash-spacer {{
+
+            margin-bottom: 2rem;
+
+        }}
+
+        
+
+        /* Period Tabs - Apple Segmented Control */
+
+        .st-key-dash_period_row [data-testid="stHorizontalBlock"] {{
+
+            gap: 0 !important;
+
+            background: rgba(255,255,255,0.06) !important;
+
+            padding: 0.25rem !important;
+
+            border-radius: 12px !important;
+
+            border: none !important;
+
+            width: fit-content !important;
+
+            margin: 0 auto 2rem auto !important;
+
+        }}
+
+        .st-key-dash_period_row .stButton > button {{
+
+            background: transparent !important;
+
+            border: none !important;
+
+            border-radius: 10px !important;
+
+            color: rgba(255,255,255,0.5) !important;
+
+            font-size: 0.75rem !important;
+
+            font-weight: 500 !important;
+
+            padding: 0.6rem 1.25rem !important;
+
+            min-height: 0 !important;
+
+            letter-spacing: 0 !important;
+
+            transition: all 0.12s ease !important;
+
+        }}
+
+        .st-key-dash_period_row .stButton > button:hover {{
+
+            background: rgba(255,255,255,0.04) !important;
+
+            color: rgba(255,255,255,0.8) !important;
+
+        }}
+
+        [class*="st-key-dash_p_active"] .stButton > button {{
+
+            background: rgba(255,255,255,0.1) !important;
+
+            color: rgba(255,255,255,0.95) !important;
+
+            font-weight: 600 !important;
+
+        }}
+
+        
+
+        /* Status Indicator - Box Style */
+
+        .dash-status {{
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 6px;
+
+            font-size: 0.72rem;
+
+            font-weight: 500;
+
+            letter-spacing: 0.3px;
+
+            padding: 0.45rem 1rem;
+
+            border-radius: 8px;
+
+            background: #212121;
+
+            border: 1px solid #303030;
+
+        }}
+
+        .dash-status.open {{
+
+            color: #4caf50;
+
+        }}
+
+        .dash-status.closed {{
+
+            color: #f44336;
+
+        }}
+
+        .dash-status-dot {{
+
+            width: 6px;
+
+            height: 6px;
+
+            border-radius: 50%;
+
+        }}
+
+        .dash-status.open .dash-status-dot {{ 
+
+            background: #4caf50;
+
+            animation: pulse-dot 2s ease-in-out infinite;
+
+        }}
+
+        .dash-status.closed .dash-status-dot {{ 
+
+            background: #f44336;
+
+        }}
+
+        @keyframes pulse-dot {{
+
+            0%, 100% {{ opacity: 1; }}
+
+            50% {{ opacity: 0.4; }}
+
+        }}
+
+        
+
+        /* Header Bar - Box Style */
+
+        .dash-header {{
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            margin-bottom: 1.5rem;
+
+            padding: 1.25rem 1.5rem;
+
+            background: #212121;
+
+            border: 1px solid #303030;
+
+            border-radius: 12px;
+
+        }}
+
+        .dash-header-left {{
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 0.2rem;
+
+        }}
+
+        .dash-title {{
+
+            font-size: 1.25rem;
+
+            font-weight: 600;
+
+            color: #ffffff;
+
+            letter-spacing: -0.3px;
+
+            line-height: 1.2;
+
+        }}
+
+        .dash-subtitle {{
+
+            font-size: 0.75rem;
+
+            color: #9e9e9e;
+
+            font-weight: 400;
+
+        }}
+
+        .dash-header-right {{
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 1rem;
+
+        }}
+
+        .dash-time {{
+
+            font-size: 0.8rem;
+
+            color: #757575;
+
+            font-weight: 400;
+
+        }}
+
+        
+
+        /* Loading State - Box Style */
+
+        .dash-loading {{
+
+            display: flex;
+
+            flex-direction: column;
+
+            align-items: center;
+
+            justify-content: center;
+
+            padding: 4rem 2rem;
+
+            text-align: center;
+
+            background: #212121;
+
+            border: 1px solid #303030;
+
+            border-radius: 12px;
+
+        }}
+
+        .dash-loading-spinner {{
+
+            width: 28px;
+
+            height: 28px;
+
+            border: 2px solid #303030;
+
+            border-top-color: #26A69A;
+
+            border-radius: 50%;
+
+            animation: spin 0.8s linear infinite;
+
+            margin-bottom: 1rem;
+
+        }}
+
+        @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
+
+        .dash-loading-text {{
+
+            font-size: 0.85rem;
+
+            color: #ffffff;
+
+            font-weight: 500;
+
+        }}
+
+        .dash-loading-sub {{
+
+            font-size: 0.72rem;
+
+            color: #757575;
+
+            margin-top: 0.3rem;
+
+        }}
+
+        
+
+        /* Legacy styles - keep for other parts */
+
+        .mkt-wrap {{ display: none; }}
+
+        
+
+        /* Market Analysis Tool CSS */
+
+        .ma-results {{
+
+            margin-top: 1rem;
+
+        }}
+
+        .ma-section {{
+
+            background: #212121;
+
+            border: 1px solid #303030;
+
+            border-radius: 10px;
+
+            margin-bottom: 1rem;
+
+            overflow: hidden;
+
+        }}
+
+        .ma-section-header {{
+
+            padding: 1rem 1.2rem;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+        }}
+
+        .ma-section-header.buy {{
+
+            background: rgba(38,166,154,0.1);
+
+            border-bottom: 1px solid #303030;
+
+        }}
+
+        .ma-section-header.sell {{
+
+            background: rgba(239,83,80,0.08);
+
+            border-bottom: 1px solid #303030;
+
+        }}
+
+        .ma-section-header.hold {{
+
+            background: rgba(255,193,7,0.08);
+
+            border-bottom: 1px solid #303030;
+
+        }}
+
+        .ma-section-title {{
+
+            font-size: 0.85rem;
+
+            font-weight: 700;
+
+            text-transform: uppercase;
+
+            letter-spacing: 0.5px;
+
+        }}
+
+        .ma-section-title.buy {{ color: #4caf50; }}
+
+        .ma-section-title.sell {{ color: #f44336; }}
+
+        .ma-section-title.hold {{ color: #ff9800; }}
+
+        .ma-section-count {{
+
+            font-size: 0.7rem;
+
+            font-weight: 600;
+
+            padding: 0.25rem 0.6rem;
+
+            border-radius: 6px;
+
+            background: #303030;
+
+            color: #9e9e9e;
+
+        }}
+
+        .ma-stock {{
+
+            padding: 1rem 1.2rem;
+
+            border-bottom: 1px solid #303030;
+
+        }}
+
+        .ma-stock:last-child {{ border-bottom: none; }}
+
+        .ma-stock-top {{
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            margin-bottom: 0.6rem;
+
+        }}
+
+        .ma-stock-info {{
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 1rem;
+
+        }}
+
+        .ma-stock-ticker {{
+
+            font-size: 0.95rem;
+
+            font-weight: 700;
+
+            color: #2196f3;
+
+        }}
+
+        .ma-stock-price {{
+
+            font-size: 0.85rem;
+
+            font-weight: 600;
+
+            color: #ffffff;
+
+        }}
+
+        .ma-stock-score {{
+
+            font-size: 0.72rem;
+
+            font-weight: 600;
+
+            padding: 0.3rem 0.75rem;
+
+            border-radius: 6px;
+
+        }}
+
+        .ma-stock-score.buy {{
+
+            background: rgba(76,175,80,0.15);
+
+            color: #4caf50;
+
+        }}
+
+        .ma-stock-score.sell {{
+
+            background: rgba(244,67,54,0.12);
+
+            color: #f44336;
+
+        }}
+
+        .ma-signals {{
+
+            display: flex;
+
+            flex-wrap: wrap;
+
+            gap: 0.4rem;
+
+            margin-bottom: 0.8rem;
+
+        }}
+
+        .ma-signal {{
+
+            font-size: 0.62rem;
+
+            font-weight: 600;
+
+            padding: 0.25rem 0.5rem;
+
+            background: #303030;
+
+            border: 1px solid #404040;
+
+            border-radius: 4px;
+
+            color: #9e9e9e;
+
+        }}
+
+        .ma-levels {{
+
+            display: grid;
+
+            grid-template-columns: repeat(4, 1fr);
+
+            gap: 0.5rem;
+
+        }}
+
+        .ma-level {{
+
+            text-align: center;
+
+            padding: 0.5rem;
+
+            background: #303030;
+
+            border-radius: 6px;
+
+        }}
+
+        .ma-level-val {{
+
+            font-size: 0.82rem;
+
+            font-weight: 600;
+
+            color: #ffffff;
+
+        }}
+
+        .ma-level-val.entry {{ color: #2196f3; }}
+
+        .ma-level-val.stop {{ color: #f44336; }}
+
+        .ma-level-val.target {{ color: #4caf50; }}
+
+        .ma-level-val.pot {{ color: #ff9800; }}
+
+        .ma-level-lbl {{
+
+            font-size: 0.55rem;
+
+            font-weight: 600;
+
+            color: #757575;
+
+            text-transform: uppercase;
+
+            margin-top: 0.2rem;
+
+        }}
+
+        
+
+        /* All Stocks Grid */
+
+        .mkt-stocks-header {{
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            margin-bottom: 0.75rem;
+
+        }}
+
+        .mkt-stocks-title {{
+
+            font-size: 0.8rem;
+
+            font-weight: 700;
+
+            color: {cp_text1};
+
+        }}
+
+        .mkt-stocks-info {{
+
+            font-size: 0.65rem;
+
+            color: {cp_text3};
+
+        }}
+
+        .mkt-grid {{
+
+            display: grid;
+
+            grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+
+            gap: 0.5rem;
+
+            max-height: 400px;
+
+            overflow-y: auto;
+
+            padding-right: 0.25rem;
+
+        }}
+
+        .mkt-grid::-webkit-scrollbar {{ width: 4px; }}
+
+        .mkt-grid::-webkit-scrollbar-track {{ background: {cp_b1}; border-radius: 2px; }}
+
+        .mkt-grid::-webkit-scrollbar-thumb {{ background: {cp_b2}; border-radius: 2px; }}
+
+        .mkt-card {{
+
+            background: {cp_s2};
+
+            border: 1px solid {cp_b2};
+
+            border-radius: 6px;
+
+            padding: 0.6rem 0.7rem;
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            transition: border-color 0.12s, transform 0.1s;
+
+        }}
+
+        .mkt-card:hover {{
+
+            border-color: rgba(74,158,255,0.4);
+
+            transform: translateY(-1px);
+
+        }}
+
+        .mkt-card-ticker {{
+
+            font-size: 0.78rem;
+
+            font-weight: 800;
+
+            color: #4A9EFF;
+
+        }}
+
+        .mkt-card-name {{
+
+            font-size: 0.58rem;
+
+            color: {cp_text3};
+
+            margin-top: 1px;
+
+        }}
+
+        .mkt-card-price {{
+
+            font-size: 0.72rem;
+
+            font-weight: 700;
+
+            color: {cp_text1};
+
+            text-align: right;
+
+        }}
+
+        .mkt-card-chg {{
+
+            font-size: 0.68rem;
+
+            font-weight: 700;
+
+            text-align: right;
+
+        }}
+
+        .mkt-card-chg.up {{ color: #26A69A; }}
+
+        .mkt-card-chg.down {{ color: #ef5350; }}
+
+        </style>""", unsafe_allow_html=True)
+
+        # ══════════════════════════════════════════════════════════════════════
+        # MARKET DATA — session-state guard prevents re-download on every rerun
+        # (cache_data TTL=1800 handles server-level; session_state handles this
+        #  browser session so period-changes are the only thing that re-fetches)
+        # ══════════════════════════════════════════════════════════════════════
+        if 'mkt_period' not in st.session_state:
+            st.session_state.mkt_period = '1d'
+        _mkt_p = st.session_state.mkt_period
+        _ss_mkt_key  = f'_mkt_{_mkt_p}'
+        _ss_stat_key = f'_mstat_{_mkt_p}'
+        _ss_ts_key   = f'_mkt_ts_{_mkt_p}'
+
+        # auto-refresh every 10 min so Market Status + Breadth stay current
+        try:
+            from streamlit_autorefresh import st_autorefresh as _sar
+            _sar(interval=600_000, limit=None, key="mkt_autorefresh")
+        except Exception:
+            pass
+
+        import time as _t
+        _now_ts  = _t.time()
+        _SESS_TTL = 600  # 10 min
+
+        # Each period has its own timestamp: a period that was never loaded in this
+        # session (e.g. 1W clicked right after opening the page) is fetched now
+        # instead of reading a key that doesn't exist yet.
+        _stale_period = (
+            _ss_mkt_key not in st.session_state
+            or _ss_stat_key not in st.session_state
+            or (_now_ts - st.session_state.get(_ss_ts_key, 0)) > _SESS_TTL
+        )
+        if _stale_period:
+            st.session_state[_ss_stat_key] = get_saudi_market_status()
+            st.session_state[_ss_mkt_key]  = get_saudi_market_data(period=_mkt_p)
+            st.session_state[_ss_ts_key]   = _now_ts
+
+        market_status = st.session_state[_ss_stat_key]
+        market_data   = st.session_state[_ss_mkt_key]
+
+        # ══════════════════════════════════════════════════════════════════════
+        # CONTROL PANEL - Clean toolbar + Market Cards
+        # ══════════════════════════════════════════════════════════════════════
+        market_time = market_status.get('saudi_time', '--:--') if market_status else '--:--'
+        is_open = market_status.get('is_open', False) if market_status else False
+        status_detail = market_status.get('status_detail', '') if market_status else ''
+        gainers = market_data.get('gainers', 0) if market_data else 0
+        losers = market_data.get('losers', 0) if market_data else 0
+        unchanged = market_data.get('unchanged', 0) if market_data else 0
+        avg_change = market_data.get('avg_change', 0) if market_data else 0
+        sentiment = market_data.get('sentiment', 'NEUTRAL') if market_data else 'NEUTRAL'
+        tasi_price = market_data.get('tasi_price', 0) if market_data else 0
+        tasi_change = market_data.get('tasi_change', 0) if market_data else 0
+        market_is_stale = market_data.get('is_stale', False) if market_data else True
+        live_movers = market_data.get('live_movers', 0) if market_data else 0
+
+        # Colours tuned for the light home page (apple_home.py).
+        perf_color = "#1B7A36" if avg_change >= 0 else "#C1121F"
+        perf_sign = "+" if avg_change >= 0 else ""
+        sent_colors = {"STRONG BUY": "#1B7A36", "BULLISH": "#1B7A36", "NEUTRAL": "#A34800", "BEARISH": "#C1121F", "STRONG SELL": "#C1121F"}
+        sent_color = sent_colors.get(sentiment, "#9e9e9e")
+        status_class = "open" if is_open else "closed"
+        username = st.session_state.auth_username
+        
+        # User panel toggle
+        if 'show_user_panel' not in st.session_state:
+            st.session_state.show_user_panel = False
+
+        # Load favorites from DB once per session
+        if 'favorites' not in st.session_state:
+            from auth import load_favorites
+            st.session_state.favorites = load_favorites(st.session_state.auth_username)
+        
+        st.markdown(f"""
+        <style>
+        header[data-testid="stHeader"] {{ display: none !important; }}
+
+        /* ── Two-panel layout ─────────────────────────────────────────────── */
+        .st-key-cp_row > div:first-child > [data-testid="stHorizontalBlock"] {{
+            align-items: stretch !important;
+            gap: 1.4rem !important;
+        }}
+        .st-key-cp_row > div:first-child > [data-testid="stHorizontalBlock"]
+            > [data-testid="column"] {{
+            padding: 0 !important;
+        }}
+
+        /* ── Left panel (status + buttons) ───────────────────────────────── */
+        .st-key-left_panel > div > [data-testid="stVerticalBlockBorderWrapper"],
+        .st-key-left_panel > div > [data-testid="stVerticalBlock"] {{
+            background: transparent !important;
+            border: none !important; box-shadow: none !important; padding: 0 !important;
+        }}
+        .st-key-left_panel > div:first-child {{
+            background: transparent !important;
+            border: none !important;
+            border-radius: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            height: 100% !important;
+            box-sizing: border-box !important;
+        }}
+
+        /* ── Right panel (tabs) ───────────────────────────────────────────── */
+        .st-key-right_panel > div > [data-testid="stVerticalBlockBorderWrapper"],
+        .st-key-right_panel > div > [data-testid="stVerticalBlock"] {{
+            background: transparent !important;
+            border: none !important; box-shadow: none !important; padding: 0 !important;
+        }}
+        .st-key-right_panel > div:first-child {{
+            background: #181818 !important;
+            border: 1px solid #282828 !important;
+            border-radius: 20px !important;
+            padding: 1.8rem !important;
+            height: 100% !important;
+            box-sizing: border-box !important;
+        }}
+
+        /* ── Tab strip ────────────────────────────────────────────────────── */
+        .st-key-right_panel .stTabs [data-baseweb="tab-list"] {{
+            background: #111111 !important;
+            border-radius: 12px !important;
+            padding: 4px !important;
+            gap: 2px !important;
+            border: 1px solid #282828 !important;
+            margin-bottom: 1.4rem !important;
+        }}
+        .st-key-right_panel .stTabs [data-baseweb="tab"] {{
+            background: transparent !important;
+            color: #5a6470 !important;
+            border-radius: 9px !important;
+            font-size: 0.78rem !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.3px !important;
+            padding: 0.45rem 1.1rem !important;
+            border: none !important;
+            flex: 1 !important;
+            justify-content: center !important;
+        }}
+        .st-key-right_panel .stTabs [aria-selected="true"] {{
+            background: #26A69A !important;
+            color: #fff !important;
+        }}
+        .st-key-right_panel .stTabs [data-baseweb="tab-border"] {{
+            display: none !important;
+        }}
+        .st-key-right_panel .stTabs [data-baseweb="tab-panel"] {{
+            padding: 0 !important;
+        }}
+
+        /* ── Left panel: zero out inner column padding so buttons stay inside card ── */
+        .st-key-left_panel [data-testid="stHorizontalBlock"] {{
+            gap: 0.45rem !important;
+            margin-top: 1rem !important;
+            margin-bottom: 0.25rem !important;
+        }}
+        .st-key-left_panel [data-testid="column"] {{
+            padding: 0 !important;
+            min-width: 0 !important;
+        }}
+
+        /* ── Action buttons ─────────────────────────────────────────────────── */
+        .st-key-btn_saved .stButton > button,
+        .st-key-btn_user .stButton > button,
+        .st-key-btn_champions .stButton > button {{
+            background: #181818 !important;
+            border: 1px solid #282828 !important;
+            border-radius: 10px !important;
+            color: #8a9bb0 !important;
+            font-size: 0.72rem !important; font-weight: 700 !important;
+            width: 100% !important; padding: 0.52rem 0.3rem !important;
+            height: auto !important; white-space: nowrap !important;
+            letter-spacing: 0.3px !important; text-transform: uppercase !important;
+            transition: all 0.15s ease !important;
+        }}
+        .st-key-btn_saved .stButton > button:hover,
+        .st-key-btn_user .stButton > button:hover,
+        .st-key-btn_champions .stButton > button:hover {{
+            background: #1e2530 !important;
+            border-color: #3d5060 !important;
+            color: #c8d6e5 !important;
+        }}
+        /* Active state for scanner button */
+        .st-key-btn_champions_active .stButton > button {{
+            background: rgba(38,166,154,0.1) !important;
+            border: 1px solid rgba(38,166,154,0.35) !important;
+            border-radius: 10px !important;
+            color: #26A69A !important;
+            font-size: 0.72rem !important; font-weight: 700 !important;
+            width: 100% !important; padding: 0.52rem 0.3rem !important;
+            height: auto !important; white-space: nowrap !important;
+            letter-spacing: 0.3px !important; text-transform: uppercase !important;
+        }}
+        .st-key-btn_journal_active .stButton > button {{
+            background: rgba(74,158,255,0.1) !important;
+            border: 1px solid rgba(74,158,255,0.35) !important;
+            border-radius: 10px !important;
+            color: #4A9EFF !important;
+            font-size: 0.72rem !important; font-weight: 700 !important;
+            width: 100% !important; padding: 0.52rem 0.3rem !important;
+            height: auto !important; white-space: nowrap !important;
+            letter-spacing: 0.3px !important; text-transform: uppercase !important;
+        }}
+        [class*="st-key-rcbtn_u_"] .stButton > button {{
+            width: 100% !important;
+            border-radius: 0 0 14px 14px !important;
+            background: #111111 !important;
+            border: none !important;
+            border-top: 1px solid #222222 !important;
+            color: #3a4550 !important;
+            font-size: 0.76rem !important; font-weight: 700 !important;
+            padding: 0.55rem 1rem !important;
+            transition: all 0.18s ease !important;
+            letter-spacing: 0.3px !important;
+        }}
+        [class*="st-key-rcbtn_u_"] .stButton > button:hover {{
+            background: rgba(38,166,154,0.07) !important;
+            color: #26A69A !important;
+            border-top-color: rgba(38,166,154,0.3) !important;
+        }}
+        [class*="st-key-rcbtn_s_"] .stButton > button {{
+            width: 100% !important;
+            border-radius: 0 0 14px 14px !important;
+            background: rgba(38,166,154,0.07) !important;
+            border: none !important;
+            border-top: 1px solid rgba(38,166,154,0.25) !important;
+            color: #26A69A !important;
+            font-size: 0.76rem !important; font-weight: 800 !important;
+            padding: 0.55rem 1rem !important;
+            transition: all 0.18s ease !important;
+            letter-spacing: 0.3px !important;
+        }}
+        [class*="st-key-rcbtn_s_"] .stButton > button:hover {{
+            background: rgba(239,83,80,0.08) !important;
+            color: #ef5350 !important;
+            border-top-color: rgba(239,83,80,0.3) !important;
+        }}
+        .st-key-btn_pulse .stButton > button,
+        .st-key-btn_journal .stButton > button {{
+            background: #181818 !important;
+            border: 1px solid #282828 !important;
+            border-radius: 10px !important;
+            color: #8a9bb0 !important;
+            font-size: 0.72rem !important; font-weight: 700 !important;
+            width: 100% !important; padding: 0.52rem 0.3rem !important;
+            height: auto !important; white-space: nowrap !important;
+            letter-spacing: 0.3px !important; text-transform: uppercase !important;
+            transition: all 0.15s ease !important;
+        }}
+        .st-key-btn_pulse .stButton > button:hover,
+        .st-key-btn_journal .stButton > button:hover {{
+            background: #1e2530 !important;
+            border-color: #3d5060 !important;
+            color: #c8d6e5 !important;
+        }}
+
+        /* ── User panel ───────────────────────────────────────────────────── */
+        .st-key-user_panel_wrap > div:first-child {{
+            background: #181818 !important;
+            border: 1px solid #282828 !important;
+            border-radius: 16px !important;
+            padding: 1.1rem !important;
+            margin-bottom: 0.75rem !important;
+        }}
+        .user-panel-hdr {{ display:flex; align-items:center; gap:0.8rem;
+           padding-bottom:0.8rem; border-bottom:1px solid #222222; margin-bottom:0.8rem; }}
+        .user-avatar {{ width:38px; height:38px; border-radius:10px;
+           background:linear-gradient(135deg,#26A69A,#00897b);
+           display:flex; align-items:center; justify-content:center;
+           font-size:1rem; font-weight:700; color:#fff; flex-shrink:0; }}
+        .user-info-name {{ font-size:0.88rem; font-weight:700; color:#e8e8e8; }}
+        .user-info-role {{ font-size:0.62rem; color:#606060; margin-top:2px; text-transform:uppercase; letter-spacing:0.5px; }}
+        .user-panel-stats {{ display:flex; gap:0.5rem; margin-bottom:0.8rem; }}
+        .user-stat {{ flex:1; text-align:center; padding:0.55rem 0.3rem;
+           background:#1e1e1e; border:1px solid #282828; border-radius:9px; }}
+        .user-stat-value {{ font-size:0.95rem; font-weight:800; color:#26A69A; }}
+        .user-stat-label {{ font-size:0.55rem; color:#606060; text-transform:uppercase;
+           letter-spacing:0.5px; margin-top:2px; }}
+        .st-key-logout_btn .stButton > button {{
+            background: rgba(239,83,80,0.07) !important;
+            border: 1px solid rgba(239,83,80,0.22) !important;
+            border-radius: 9px !important; color: #ef5350 !important;
+            font-size:0.75rem !important; font-weight:700 !important;
+            width:100% !important; padding:0.5rem !important;
+            text-transform:uppercase !important; letter-spacing:0.3px !important;
+        }}
+
+        /* ── Market stat cards ─────────────────────────────────────────────── */
+        /* ── Unified Market Pulse card ─────────────────────────────────── */
+        .mpulse-card {{
+            background: #181818;
+            border: 1px solid #282828;
+            border-radius: 16px;
+            padding: 1rem 1.1rem 0.85rem;
+            margin-top: 0.75rem;
+            position: relative;
+            overflow: hidden;
+        }}
+        .mpulse-card::before {{
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            border-radius: 16px 16px 0 0;
+        }}
+        .mpulse-card.is-open::before  {{ background: linear-gradient(90deg,#26A69A,#26A69A55,transparent); }}
+        .mpulse-card.is-closed::before {{ background: linear-gradient(90deg,#ef5350,#ef535055,transparent); }}
+        .mpulse-top {{ display:flex; align-items:center; justify-content:space-between; margin-bottom:0.15rem; }}
+        .mpulse-time {{ font-size:1.5rem; font-weight:900; color:#e8e8e8; letter-spacing:-0.5px; line-height:1; }}
+        .mpulse-badge-open {{
+            display:inline-flex; align-items:center; gap:5px;
+            padding:4px 11px; border-radius:999px; font-size:0.58rem; font-weight:800;
+            letter-spacing:0.8px; text-transform:uppercase;
+            background:rgba(38,166,154,0.13); color:#26A69A;
+            border:1px solid rgba(38,166,154,0.3);
+            box-shadow:0 0 12px rgba(38,166,154,0.15);
+        }}
+        .mpulse-badge-closed {{
+            display:inline-flex; align-items:center; gap:5px;
+            padding:4px 11px; border-radius:999px; font-size:0.58rem; font-weight:800;
+            letter-spacing:0.8px; text-transform:uppercase;
+            background:rgba(239,83,80,0.1); color:#ef5350;
+            border:1px solid rgba(239,83,80,0.25);
+        }}
+        .mpulse-dot {{ width:6px; height:6px; border-radius:50%; flex-shrink:0; }}
+        .mpulse-badge-open  .mpulse-dot {{ background:#26A69A; animation:mpulse-ping 1.8s ease-in-out infinite; }}
+        .mpulse-badge-closed .mpulse-dot {{ background:#ef5350; }}
+        @keyframes mpulse-ping {{ 0%,100%{{opacity:1;transform:scale(1)}} 50%{{opacity:0.3;transform:scale(0.65)}} }}
+        .mpulse-sub {{ font-size:0.6rem; color:#888888; margin-bottom:0.7rem; font-weight:500; }}
+        .mpulse-div {{ height:1px; background:#222222; margin:0.6rem 0; }}
+        .mpulse-row {{ display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem; }}
+        .mpulse-row-label {{ font-size:0.58rem; font-weight:700; color:#606060; text-transform:uppercase; letter-spacing:0.7px; }}
+        .mpulse-tasi-val {{ font-size:1.05rem; font-weight:900; letter-spacing:-0.3px; line-height:1; }}
+        .mpulse-perf-right {{ display:flex; align-items:center; gap:0.45rem; }}
+        .mpulse-perf-val {{ font-size:1.05rem; font-weight:900; letter-spacing:-0.3px; line-height:1; }}
+        .mpulse-sent {{
+            font-size:0.54rem; font-weight:800; padding:3px 8px;
+            border-radius:6px; text-transform:uppercase; letter-spacing:0.5px; white-space:nowrap;
+        }}
+        .mpulse-bar {{
+            display:flex; border-radius:5px; overflow:hidden;
+            height:8px; gap:2px; margin-bottom:0.45rem;
+        }}
+        .mpulse-bar-up   {{ background:#26A69A; border-radius:5px; }}
+        .mpulse-bar-down {{ background:#ef5350; border-radius:5px; }}
+        .mpulse-bar-flat {{ background:#252f3a; border-radius:5px; }}
+        .mpulse-pills {{ display:flex; gap:0.35rem; align-items:center; flex-wrap:wrap; }}
+        .mpulse-pill {{
+            display:inline-flex; align-items:center; gap:3px;
+            padding:3px 9px; border-radius:999px;
+            font-size:0.7rem; font-weight:800; line-height:1;
+        }}
+        .mpulse-pill-up   {{ background:rgba(38,166,154,0.12); color:#26A69A; border:1px solid rgba(38,166,154,0.28); }}
+        .mpulse-pill-down {{ background:rgba(239,83,80,0.12);  color:#ef5350; border:1px solid rgba(239,83,80,0.28); }}
+        .mpulse-pill-flat {{ background:rgba(42,52,64,0.7);    color:#888888; border:1px solid #282828; }}
+        .mpulse-ratio {{ margin-left:auto; font-size:0.58rem; font-weight:700; color:#888888;
+            background:#1e1e1e; border:1px solid #282828; border-radius:6px; padding:2px 7px; }}
+        /* keep mstat-card alias for tomorrow-forecast card */
+        .mstat-card {{
+            background:#181818; border:1px solid #282828;
+            border-radius:14px; padding:1rem 1.1rem; margin-top:0.75rem;
+        }}
+        .mstat-label {{ font-size:0.6rem; font-weight:700; text-transform:uppercase;
+            letter-spacing:0.8px; color:#3a4550; margin-bottom:0.5rem; }}
+        .mstat-value {{ font-size:1.55rem; font-weight:800; line-height:1;
+            letter-spacing:-0.5px; color:#e8e8e8; }}
+        .mstat-sub {{ font-size:0.65rem; color:#3a4550; margin-top:0.35rem; }}
+        .mstat-row {{ display:flex; align-items:center; justify-content:space-between; gap:0.5rem; }}
+        .mstat-breadth {{ margin-top:0.6rem; }}
+        .mstat-bar {{ display:flex; border-radius:6px; overflow:hidden; height:6px; margin-bottom:0.65rem; gap:2px; }}
+        .mstat-bar-up   {{ background:#26A69A; border-radius:6px; }}
+        .mstat-bar-down {{ background:#ef5350; border-radius:6px; }}
+        .mstat-bar-flat {{ background:#2a3240; border-radius:6px; }}
+        .mstat-bcells {{ display:flex; gap:0.5rem; }}
+        .mstat-badge-open  {{ display:inline-flex; align-items:center; gap:5px;
+            padding:3px 10px; border-radius:999px; font-size:0.6rem; font-weight:700;
+            letter-spacing:0.5px; text-transform:uppercase;
+            background:rgba(38,166,154,0.12); color:#26A69A; }}
+        .mstat-badge-closed {{ display:inline-flex; align-items:center; gap:5px;
+            padding:3px 10px; border-radius:999px; font-size:0.6rem; font-weight:700;
+            letter-spacing:0.5px; text-transform:uppercase;
+            background:rgba(239,83,80,0.12); color:#ef5350; }}
+        .mstat-dot {{ width:6px; height:6px; border-radius:50%;
+            animation:mstat-pulse 2s ease-in-out infinite; }}
+        .mstat-badge-open  .mstat-dot {{ background:#26A69A; }}
+        .mstat-badge-closed .mstat-dot {{ background:#ef5350; }}
+        @keyframes mstat-pulse {{ 0%,100%{{opacity:1}} 50%{{opacity:0.3}} }}
+
+        /* ── Period selector pills ─────────────────────────────────────────── */
+        .st-key-prd_row [data-testid="stHorizontalBlock"] {{ gap:0.18rem !important; margin-top:0.55rem !important; margin-bottom:0.2rem !important; }}
+        .st-key-prd_row [data-testid="column"] {{ padding:0 !important; min-width:0 !important; }}
+        .st-key-mkt_p_1d .stButton > button,
+        .st-key-mkt_p_1w .stButton > button,
+        .st-key-mkt_p_1m .stButton > button,
+        .st-key-mkt_p_3m .stButton > button,
+        .st-key-mkt_p_6m .stButton > button,
+        .st-key-mkt_p_1y .stButton > button {{
+            background: #181818 !important;
+            border: 1px solid #282828 !important;
+            color: #606060 !important;
+            font-size: 0.62rem !important;
+            font-weight: 700 !important;
+            padding: 0.25rem 0 !important;
+            width: 100% !important;
+            border-radius: 7px !important;
+            letter-spacing: 0.05em !important;
+            min-height: 0 !important;
+            transition: all 0.15s ease !important;
+        }}
+        .st-key-mkt_p_1d .stButton > button:hover,
+        .st-key-mkt_p_1w .stButton > button:hover,
+        .st-key-mkt_p_1m .stButton > button:hover,
+        .st-key-mkt_p_3m .stButton > button:hover,
+        .st-key-mkt_p_6m .stButton > button:hover,
+        .st-key-mkt_p_1y .stButton > button:hover {{
+            border-color: #26A69A !important;
+            color: #26A69A !important;
+            background: rgba(38,166,154,0.08) !important;
+        }}
+        .mstat-bcell {{ flex:1; text-align:center; padding:0.55rem 0.3rem;
+            background:#0a0d0f; border:1px solid #1e2428; border-radius:10px; }}
+        .mstat-bv {{ font-size:1.15rem; font-weight:800; line-height:1; }}
+        .mstat-bl {{ font-size:0.5rem; font-weight:700; color:#3a4550;
+            text-transform:uppercase; letter-spacing:0.6px; margin-top:3px; }}
+
+        /* ── Run button ────────────────────────────────────────────────────── */
+        .cp-run-wrap {{ margin-top: 1.2rem !important; }}
+        .st-key-right_panel .stButton > button[kind="secondary"] {{
+            background: transparent !important;
+            border: 1px solid #26A69A !important;
+            color: #26A69A !important;
+            border-radius: 10px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.3px !important;
+            padding: 0.65rem 1rem !important;
+            transition: all 0.2s !important;
+        }}
+        .st-key-right_panel .stButton > button[kind="secondary"]:hover {{
+            background: rgba(38,166,154,0.1) !important;
+        }}
+
+        /* ── Form inputs ───────────────────────────────────────────────────── */
+        .cp-input-label {{
+            font-size: 0.68rem; font-weight: 600; color: #4a5568;
+            text-transform: uppercase; letter-spacing: 0.6px;
+            margin-bottom: 0.3rem; margin-top: 0.85rem;
+        }}
+        .cp-ind-hdr {{
+            font-size: 0.68rem; font-weight: 600; color: #4a5568;
+            text-transform: uppercase; letter-spacing: 0.6px;
+            margin-top: 1rem; margin-bottom: 0.6rem;
+            border-top: 1px solid #1e2428; padding-top: 0.85rem;
+        }}
+        .cp-cat {{ font-size: 0.72rem; font-weight: 600; margin: 0.5rem 0 0.25rem; display:flex; align-items:center; gap:0.4rem; }}
+        .cp-cat-dot {{ width:7px; height:7px; border-radius:50%; display:inline-block; }}
+
+        /* ── Toolbar wrap (no-op — layout handled by left_panel column CSS) ── */
+        .st-key-btn_saved, .st-key-btn_user, .st-key-btn_champions {{ width: 100% !important; }}
+        /* Active state: user button when panel open */
+        .st-key-btn_user_active .stButton > button {{
+            background: rgba(38,166,154,0.1) !important;
+            border: 1px solid rgba(38,166,154,0.35) !important;
+            border-radius: 10px !important;
+            color: #26A69A !important;
+            font-size: 0.72rem !important; font-weight: 700 !important;
+            width: 100% !important; padding: 0.52rem 0.3rem !important;
+            height: auto !important; white-space: nowrap !important;
+            letter-spacing: 0.3px !important; text-transform: uppercase !important;
+        }}
+        
+        /* ═══════════════════════════════════════════════════════════════════
+           USER PANEL DROPDOWN - Matches app panel style
+           ═══════════════════════════════════════════════════════════════════ */
+        .st-key-user_panel_wrap {{
+            margin-bottom: 0.75rem !important;
+        }}
+        .st-key-logout_btn .stButton > button:hover {{
+            background: rgba(239,83,80,0.15) !important;
+            border-color: rgba(239,83,80,0.4) !important;
+        }}
+        .st-key-disconnect_btn .stButton > button {{
+            background: transparent !important;
+            border: 1px solid #282828 !important;
+            border-radius: 10px !important;
+            color: #3a4550 !important;
+            font-size: 0.72rem !important;
+            font-weight: 700 !important;
+            width: 100% !important;
+            padding: 0.5rem !important;
+            margin-top: 0.4rem !important;
+            letter-spacing: 0.3px !important;
+            text-transform: uppercase !important;
+            transition: all 0.15s ease !important;
+        }}
+        .st-key-disconnect_btn .stButton > button:hover {{
+            background: rgba(239,83,80,0.06) !important;
+            border-color: rgba(239,83,80,0.3) !important;
+            color: #ef5350 !important;
+        }}
+
+        /* ═══════════════════════════════════════════════════════════════════
+           MARKET CARDS - Matching mpulse design language
+           ═══════════════════════════════════════════════════════════════════ */
+        .st-key-market_row {{
+            margin-bottom: 1.5rem !important;
+        }}
+        .st-key-market_row [data-testid="stHorizontalBlock"] {{
+            gap: 1rem !important;
+        }}
+        .st-key-mcard_status > div:first-child,
+        .st-key-mcard_perf > div:first-child,
+        .st-key-mcard_breadth > div:first-child {{
+            background: #181818 !important;
+            border: 1px solid #282828 !important;
+            border-radius: 16px !important;
+            padding: 1.1rem !important;
+        }}
+        .mkt-title {{
+            font-size: 0.58rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #606060;
+            margin-bottom: 0.65rem;
+        }}
+        .mkt-main-row {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+        }}
+        .mkt-value {{
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #e8e8e8;
+            letter-spacing: -0.5px;
+            line-height: 1;
+        }}
+        .mkt-sub {{
+            font-size: 0.6rem;
+            color: #888888;
+            margin-top: 0.4rem;
+        }}
+        .mkt-badge {{
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 11px;
+            border-radius: 999px;
+            font-size: 0.58rem;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }}
+        .mkt-badge.open {{
+            background: rgba(38,166,154,0.13);
+            color: #26A69A;
+            border: 1px solid rgba(38,166,154,0.3);
+            box-shadow: 0 0 12px rgba(38,166,154,0.15);
+        }}
+        .mkt-badge.closed {{
+            background: rgba(239,83,80,0.1);
+            color: #ef5350;
+            border: 1px solid rgba(239,83,80,0.25);
+        }}
+        .mkt-dot {{
+            width: 6px; height: 6px;
+            border-radius: 50%;
+        }}
+        .mkt-badge.open .mkt-dot {{ background: #26A69A; animation: mpulse-ping 1.8s ease-in-out infinite; }}
+        .mkt-badge.closed .mkt-dot {{ background: #ef5350; }}
+        .mkt-sent {{
+            padding: 3px 9px;
+            border-radius: 6px;
+            font-size: 0.54rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }}
+        .mkt-breadth-grid {{
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.25rem;
+        }}
+        .mkt-breadth-box {{
+            flex: 1;
+            text-align: center;
+            padding: 0.55rem 0.3rem;
+            background: #1e1e1e;
+            border: 1px solid #282828;
+            border-radius: 9px;
+        }}
+        .mkt-breadth-num {{
+            font-size: 1.15rem;
+            font-weight: 900;
+            line-height: 1;
+        }}
+        .mkt-breadth-num.up {{ color: #26A69A; }}
+        .mkt-breadth-num.down {{ color: #ef5350; }}
+        .mkt-breadth-num.flat {{ color: #888888; }}
+        .mkt-breadth-lbl {{
+            font-size: 0.55rem;
+            color: #606060;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 3px;
+        }}.mstat-bcell {{ flex:1; text-align:center; padding:0.55rem 0.3rem;
+            background:#1e1e1e; border:1px solid #282828; border-radius:10px; }}
+        </style>
+        """, unsafe_allow_html=True)
+
+        # ── User panel toggle init ─────────────────────────────────────────
+        if 'show_user_panel' not in st.session_state:
+            st.session_state.show_user_panel = False
+
+        # ═══════════════════════════════════════════════════════════════════
+        # TWO-PANEL LAYOUT
+        # ═══════════════════════════════════════════════════════════════════
+        # ── Handle ?goto=TICKER from card "Open Analysis" anchor links ────
+        _qp_goto = st.query_params.get("goto", "")
+        if _qp_goto:
+            _qp_sym = str(_qp_goto).replace(".SR", "")
+            # Carry over scan context if passed in query params
+            _qp_score  = st.query_params.get("sc", "")
+            _qp_conv   = st.query_params.get("cv", "")
+            _qp_setup  = st.query_params.get("st", "")
+            st.query_params.clear()
+            st.session_state["symbol_input"] = _qp_sym
+            st.session_state["screener_auto_analyze"] = True
+            if _qp_score:
+                st.session_state["scan_context"] = {
+                    "score": _qp_score, "conviction": _qp_conv, "setup": _qp_setup
+                }
+            st.rerun()
+
+        # ── Screener auto-navigate: pre-fill symbol_input before widgets render ──
+        if st.session_state.get("screener_goto"):
+            _goto = st.session_state.pop("screener_goto")
+            _clean = _goto.replace(".SR", "") if str(_goto).endswith(".SR") else str(_goto)
+            st.session_state["symbol_input"] = _clean
+            st.session_state["screener_auto_analyze"] = True
+
+        # Light, Apple-style layer on top of the CSS above (same design tokens
+        # as the Strategy Scanner page). Emitted before the layout so the
+        # per-run "active period" highlight below still wins over it.
+        from apple_home import apply_home_apple_theme, sec_html, step_html
+        apply_home_apple_theme()
+
+        with st.container(key="cp_row"):
+            left_col, right_col = st.columns([1, 1.6], gap="large")
+
+            # ── LEFT PANEL: buttons + market stats ────────────────────────
+            with left_col:
+                with st.container(key="left_panel"):
+
+                    # Period state + labels (used throughout left panel)
+                    _ap = st.session_state.get('mkt_period', '1d')
+                    _period_names = {"1d":"Today","1w":"This Week","1m":"1 Month","3m":"3 Months","6m":"6 Months","1y":"1 Year"}
+                    _perf_subtitle = _period_names.get(_ap, "Today")
+
+
+                    # Active period highlight (injected dynamically so only selected pill is teal)
+                    st.markdown(
+                        f"<style>.st-key-mkt_p_{_ap} .stButton > button "
+                        f"{{ background: #FFFFFF !important; color: #111114 !important; "
+                        f"font-weight: 600 !important; "
+                        f"box-shadow: 0 1px 4px rgba(0,0,0,0.14), 0 0 0 0.5px rgba(0,0,0,0.06) !important; }}</style>",
+                        unsafe_allow_html=True)
+
+                    st.markdown(sec_html("Market", "All Saudi stocks"), unsafe_allow_html=True)
+
+                    # Period selector — 6 pill buttons
+                    with st.container(key="prd_row"):
+                        _pp = st.columns(6, gap="small")
+                        for _i, (_pk, _pl) in enumerate({"1d":"1D","1w":"1W","1m":"1M","3m":"3M","6m":"6M","1y":"1Y"}.items()):
+                            with _pp[_i]:
+                                with st.container(key=f"mkt_p_{_pk}"):
+                                    if st.button(_pl, key=f"mkt_prd_{_pk}", width="stretch"):
+                                        st.session_state.mkt_period = _pk
+                                        st.rerun()
+
+                    # ── Unified Market Pulse card ─────────────────────────
+                    _total_b    = max(gainers + losers + unchanged, 1)
+                    _up_pct     = gainers   / _total_b * 100
+                    _dn_pct     = losers    / _total_b * 100
+                    _fl_pct     = unchanged / _total_b * 100
+                    _tasi_color = '#1B7A36' if tasi_change >= 0 else '#C1121F'
+                    _tasi_sign  = '+' if tasi_change >= 0 else ''
+                    _ad_ratio   = gainers / max(losers, 1)
+                    _ad_label   = (f'{_ad_ratio:.1f}:1 bulls' if gainers >= losers
+                                   else f'{1/_ad_ratio:.1f}:1 bears')
+                    _open_cls   = 'is-open' if is_open else 'is-closed'
+                    _badge_cls  = 'mpulse-badge-open' if is_open else 'mpulse-badge-closed'
+                    _badge_txt  = 'OPEN' if is_open else 'CLOSED'
+                    st.markdown(
+                        f'<div class="mpulse-card {_open_cls}">'
+
+                        # ── Row 1: time + open/closed badge
+                        f'<div class="mpulse-top">'
+                        f'<div class="mpulse-time">{market_time}</div>'
+                        f'<span class="{_badge_cls}"><span class="mpulse-dot"></span>{_badge_txt}</span>'
+                        f'</div>'
+                        f'<div class="mpulse-sub">{status_detail}</div>'
+
+                        f'<div class="mpulse-div"></div>'
+
+                        # ── Row 2: TASI
+                        f'<div class="mpulse-row">'
+                        f'<span class="mpulse-row-label" title="Not the official TASI index (Yahoo Finance does not provide it). Simple average of the daily change of Aramco, Al Rajhi, SABIC, STC, Almarai and SNB.">Blue chips (6)</span>'
+                        f'<span class="mpulse-tasi-val" style="color:{_tasi_color};">'
+                        f'{_tasi_sign}{tasi_change:.2f}%</span>'
+                        f'</div>'
+
+                        # ── Row 3: Avg performance + sentiment
+                        f'<div class="mpulse-row">'
+                        f'<span class="mpulse-row-label">Avg move · {_perf_subtitle}</span>'
+                        f'<div class="mpulse-perf-right">'
+                        f'<span class="mpulse-perf-val" style="color:{perf_color};">'
+                        f'{perf_sign}{avg_change:.2f}%</span>'
+                        f'<span class="mpulse-sent" style="background:{sent_color}15;color:{sent_color};'
+                        f'border:1px solid {sent_color}25;">{sentiment}</span>'
+                        f'</div>'
+                        f'</div>'
+
+                        f'<div class="mpulse-div"></div>'
+
+                        # ── Breadth bar
+                        f'<div class="mpulse-bar">'
+                        f'<div class="mpulse-bar-up"   style="width:{_up_pct:.1f}%;"></div>'
+                        f'<div class="mpulse-bar-down" style="width:{_dn_pct:.1f}%;"></div>'
+                        f'<div class="mpulse-bar-flat" style="width:{_fl_pct:.1f}%;"></div>'
+                        f'</div>'
+
+                        # ── Breadth pills + A/D ratio
+                        f'<div class="mpulse-pills">'
+                        f'<span class="mpulse-pill mpulse-pill-up">▲ {gainers}</span>'
+                        f'<span class="mpulse-pill mpulse-pill-down">▼ {losers}</span>'
+                        f'<span class="mpulse-pill mpulse-pill-flat">— {unchanged}</span>'
+                        f'<span class="mpulse-ratio">{_ad_label}</span>'
+                        f'</div>'
+
+                        f'</div>',
+                        unsafe_allow_html=True)
+
+                    st.markdown(sec_html("Tools", gap=True), unsafe_allow_html=True)
+                    # Action button — Strategy Scanner only
+                    _cv_is_active = st.session_state.get('show_champions_vault', False)
+                    _scanner_key = "btn_champions_active" if _cv_is_active else "btn_champions"
+                    with st.container(key=_scanner_key):
+                        _cv_lbl = "Close" if _cv_is_active else "Strategy Scanner"
+                        if st.button(_cv_lbl, key="toolbar_champions", icon=":material/radar:", use_container_width=True):
+                            st.session_state.show_champions_vault = not _cv_is_active
+                            if not _cv_is_active:
+                                st.session_state.show_user_panel = False
+                                st.session_state.show_trade_journal = False
+                            st.rerun()
+            # ── RIGHT PANEL: 3-tab scanner ─────────────────────────────────
+            with right_col:
+                with st.container(key="right_panel"):
+
+                    cp_tab0, cp_tab1 = st.tabs([
+                        "Stock Symbol",
+                        "Scan Market",
+                    ])
+
+                    # ── shared indicator block (reused in stock tab) ────────
+                    def _render_indicators():
+                        # ── master indicator registry ──────────────────────────────────────
+                        # (label, key, default_on, is_new, mapped_name, tooltip)
+                        _ALL_CATS = [
+                            ("#4A9EFF", "Trend", [
+                                ("SMA",        "ind_sma",        True,  False, "SMA",           "Simple Moving Average: the plain average of closing prices. Best for identifying the overall trend direction at a glance."),
+                                ("EMA",        "ind_ema",        True,  False, "EMA",           "Exponential Moving Average: weights recent prices more heavily than SMA. Reacts faster to new price moves — great for dynamic support/resistance."),
+                                ("WMA",        "ind_wma",        True,  False, "WMA",           "Weighted Moving Average: linearly decays weight for older bars. Faster than SMA, smoother than EMA. Useful in trending markets."),
+                                ("Par.SAR",    "ind_psar",       True,  False, "Parabolic SAR", "Parabolic SAR: dots above price = downtrend, dots below = uptrend. Flips instantly on trend change — great as a trailing stop guide."),
+                                ("Ichimoku",   "ind_ichimoku",   True,  False, "Ichimoku",      "Ichimoku Cloud: all-in-one indicator showing trend, support, resistance, and momentum in one view. Price above cloud = bullish bias."),
+                                ("MACD",       "ind_macd",       True,  False, "MACD",          "MACD: difference between 12 and 26 EMA. Histogram above zero = bullish momentum. Crossover of signal line = entry/exit trigger."),
+                                ("SuperTrend", "ind_supertrend", True,  False, "SuperTrend",    "SuperTrend: ATR-based line that flips green (uptrend) / red (downtrend). The single clearest trend-following signal available."),
+                                ("Hull MA",    "ind_hma",        True,  True,  "Hull MA",       "Hull MA: much smoother and faster than SMA/EMA. Dramatically reduces lag so you catch trend changes before they become obvious."),
+                            ]),
+                            ("#F59E0B", "Momentum", [
+                                ("RSI",        "ind_rsi",       True,  False, "RSI",           "RSI: measures speed of price change. Above 70 = overbought, below 30 = oversold. Most widely used momentum indicator worldwide."),
+                                ("Stoch",      "ind_stoch",     True,  False, "Stochastic",    "Stochastic Oscillator: compares closing price to its range. %K crossing %D from below 20 = strong buy signal."),
+                                ("ROC",        "ind_roc",       True,  False, "ROC",           "Rate of Change: % change over N bars. Rising above zero = acceleration. Useful for spotting momentum shifts before price confirms."),
+                                ("CCI",        "ind_cci",       True,  False, "CCI",           "CCI: measures how far price is from its average. Above +100 = strong uptrend. Below -100 = oversold bounce zone."),
+                                ("Wm.%R",      "ind_willr",     True,  False, "Williams %R",   "Williams %R: inverted stochastic. Above -20 = overbought. Below -80 = oversold. Faster at catching reversals than standard RSI."),
+                                ("Momentum",   "ind_momentum",  True,  True,  "Momentum",      "Raw Momentum: close minus close N bars ago. Positive & rising = acceleration. Simpler and faster than ROC for pure momentum reads."),
+                                ("TSI",        "ind_tsi",       True,  True,  "TSI",           "True Strength Index: double-smoothed momentum. Stays flat in sideways markets, spikes sharply on real trend moves. Cross above zero = bullish."),
+                                ("PPO",        "ind_ppo",       True,  True,  "PPO",           "Percentage Price Oscillator: MACD expressed as a %. Comparable across different-priced stocks — great for relative strength analysis."),
+                                ("Elder Ray",  "ind_elderray",  True,  True,  "Elder Ray",     "Elder Ray: Bull Power (high vs EMA) and Bear Power (low vs EMA). Positive bull power + rising EMA = buyers in structural control."),
+                            ]),
+                            ("#34D399", "Volume", [
+                                ("OBV",       "ind_obv",      True,  False, "OBV",          "On-Balance Volume: cumulative volume flowing in/out. If OBV rises while price is flat, institutions are accumulating — breakout likely."),
+                                ("MFI",       "ind_mfi",      True,  False, "MFI",          "Money Flow Index: RSI applied to volume-weighted prices. Below 20 = oversold with volume confirmation. More reliable than RSI alone."),
+                                ("CMF",       "ind_cmf",      True,  False, "CMF",          "Chaikin Money Flow: measures buying/selling pressure over 20 bars. Above zero = net accumulation. Below zero = distribution."),
+                                ("VWAP",      "ind_vwap",     True,  False, "VWAP",         "Volume-Weighted Average Price: the price institutions benchmark their orders to. Price above VWAP = buyers in control intraday."),
+                                ("A/D Line",  "ind_adline",   True,  True,  "A/D Line",     "Accumulation/Distribution: if price rises but A/D falls, institutions are selling into the rally. Classic early distribution warning."),
+                                ("Vol MA",    "ind_volma",    True,  True,  "Volume MA",    "Volume Moving Average: 20-bar average on volume panel. Bars above it = above-average participation. Bars below = weak, low-conviction move."),
+                                ("Force Idx", "ind_forceidx", True,  True,  "Force Index",  "Force Index: price change × volume. Positive spikes = strong institutional buying. Negative spikes = heavy selling pressure confirmed."),
+                                ("Vol RSI",   "ind_volrsi",   True,  True,  "Volume RSI",   "Volume RSI: RSI applied to volume itself. Spikes above 70 = climax volume — either breakout confirmation or exhaustion top."),
+                            ]),
+                            ("#A78BFA", "Volatility", [
+                                ("Bol.Bands",  "ind_bb",         True,  False, "Bollinger Bands",      "Bollinger Bands: 2 standard deviation envelope around 20 MA. Price touching lower band + reversal candle = high-probability bounce zone."),
+                                ("ATR",        "ind_atr",        True,  False, "ATR",                  "ATR: average of the last 14 candles' true ranges. Use it to set your stop loss — 1.5× ATR below entry is the standard method."),
+                                ("Keltner",    "ind_keltner",    True,  False, "Keltner Channel",      "Keltner Channel: EMA ± 2× ATR. When Bollinger Bands are inside Keltner = squeeze. When they expand out = breakout trigger."),
+                                ("Donchian",   "ind_donchian",   True,  False, "Donchian Channel",     "Donchian Channel: highest high and lowest low over N bars. Break above upper band = new momentum high. Used in turtle trading systems."),
+                                ("Squeeze",    "ind_squeeze",    True,  False, "Squeeze Momentum",     "Squeeze: Bollinger Bands inside Keltner = stock is coiling. When BBands expand outside Keltner = explosive breakout trigger. Most powerful pre-move signal."),
+                                ("Hist.Vol %", "ind_histvol",    True,  True,  "Historical Volatility","Historical Volatility %: realized vol over 20 bars normalized. Low after a flat period = compression before a big move."),
+                                ("Std.Dev",    "ind_stddev",     True,  True,  "Standard Deviation",   "Standard Deviation channel: wide bands = volatile market. Narrow bands = compression phase. Watch for breakout when bands squeeze to multi-month lows."),
+                                ("Chandelier", "ind_chandelier", True,  True,  "Chandelier Exit",      "Chandelier Exit: ATR trailing stop anchored to the highest high. Trails the trend upward and only exits on a genuine reversal — not random noise."),
+                            ]),
+                            ("#60A5FA", "Support &amp; Resistance", [
+                                ("Pivot Pts",   "ind_pivots",    True,  False, "Pivot Points",     "Pivot Points: daily/weekly S1, S2, R1, R2 auto-calculated. The most widely-watched levels by institutional trading desks globally."),
+                                ("Fib Levels",  "ind_fib",       True,  False, "Fibonacci Levels", "Fibonacci Retracement: 38.2%, 50%, 61.8% from swing high/low. The 61.8% golden ratio is the strongest pullback re-entry level in any uptrend."),
+                                ("ADX",         "ind_adx",       True,  False, "ADX",              "ADX: measures trend strength, not direction. Above 25 = strong trend. +DI above -DI = bulls in control. Filter out weak sideways signals."),
+                                ("VWAP Bands",  "ind_vwapbands", True,  True,  "VWAP Bands",       "VWAP ±1σ/2σ bands. Price reverting to VWAP from the 1σ band with a bullish candle = high-probability institutional re-entry zone."),
+                                ("Prev Hi/Lo",  "ind_prevhilo",  True,  True,  "Prev High/Low",    "Previous Day/Week High & Low: breaks above prev high = momentum confirmed. Holding above prev low = support intact. Clean binary levels."),
+                                ("Swing Hi/Lo", "ind_swinghl",   True,  True,  "Swing High/Low",   "Auto-detected swing highs and lows. Building blocks of market structure — HH+HL = uptrend, LH+LL = downtrend."),
+                            ]),
+                            ("#F87171", "Mean Reversion", [
+                                ("RSI Ext.",   "ind_rsiext",   True,  False, "RSI Extremes",         "RSI Extremes: colored zones below 30 (oversold) and above 70 (overbought). Best entry zone = RSI under 30 with a reversal candle pattern."),
+                                ("BB Z-Score", "ind_bbzscore", True,  True,  "BB Z-Score",           "BB Z-Score: how many standard deviations price is from the mean. Above +2 = dangerously extended. Below -2 = deeply oversold bargain zone."),
+                                ("Dist. MA",   "ind_distma",   True,  True,  "Distance from MA",     "Distance from MA %: how far price is above/below the 20/50 MA. Over 8% above = likely reversion. Great for the anti-chaser filter."),
+                                ("Stoch Ext.", "ind_stochext", True,  True,  "Stochastic Extreme",   "Stochastic Extremes: below 20 = deep oversold bounce zone. Above 80 = deep overbought. Cleaner signals than raw Stochastic in volatile markets."),
+                                ("CCI Ext.",   "ind_cciext",   True,  True,  "CCI Extreme",          "CCI Extremes: below -100 = extreme oversold, above +100 = extreme overbought. Faster at catching Saudi stock reversals than RSI."),
+                            ]),
+                            ("#F97316", "Market Regime", [
+                                ("TASI Filter",   "ind_tasifilter",   True,  False, "TASI Filter",      "TASI Filter: only take long setups when TASI index is above its 50 EMA. Trading with the market dramatically improves win rate."),
+                                ("Sector Filter", "ind_sectorfilter", True,  True,  "Sector Filter",    "Sector Filter: compares the stock's sector index against its 50 EMA. Only buy stocks in sectors that are themselves in uptrends."),
+                                ("RS vs TASI",    "ind_rstasi",       True,  True,  "RS vs TASI",       "Relative Strength vs TASI: is this stock outperforming the market? Rising RS line = market leader. Buy the leaders, avoid the laggards."),
+                                ("RS vs Sector",  "ind_rssector",     True,  True,  "RS vs Sector",     "Relative Strength vs Sector: is this stock leading its sector peers? Best setups = strong sector + stock leading within that sector."),
+                                ("Adv/Decline",   "ind_advdecline",   True,  True,  "Advance/Decline",  "Advance/Decline Line: advancing minus declining stocks across TASI. Falling while TASI rises = weak breadth — major warning sign."),
+                                ("New Hi/Lo",     "ind_newhilo",      True,  True,  "New High/Low",     "New 52-Week Highs vs Lows: new highs dominating = market expansion. New lows dominating = distribution. Check before opening new positions."),
+                            ]),
+                        ]
+
+                        # ── init session state defaults ─────────────────────────────────────
+                        # bump _IND_VER whenever defaults change to force a reset
+                        _IND_VER = "v3"
+                        if st.session_state.get("_ind_ver") != _IND_VER:
+                            for _color, _cat_lbl, _items in _ALL_CATS:
+                                for _lbl, _key, _dflt, _is_new, _mapped, _tip in _items:
+                                    st.session_state[_key] = _dflt
+                            st.session_state["_ind_ver"] = _IND_VER
+
+                        # ── one pill group per category (the pills hold the state) ───────────
+                        # The ind_* booleans stay the source of truth between runs; each
+                        # pill group is seeded from them and writes them back.
+                        def _pill_key(_ci):
+                            return f"indp_{_ci}"
+
+                        def _set_all(_on):
+                            for _ci, (_c, _cl, _its) in enumerate(_ALL_CATS):
+                                st.session_state[_pill_key(_ci)] = [i[0] for i in _its] if _on else []
+
+                        for _ci, (_c, _cl, _its) in enumerate(_ALL_CATS):
+                            if _pill_key(_ci) not in st.session_state:
+                                st.session_state[_pill_key(_ci)] = [i[0] for i in _its if st.session_state.get(i[1], i[2])]
+
+                        _n_on  = sum(len(st.session_state[_pill_key(_ci)]) for _ci in range(len(_ALL_CATS)))
+                        _n_all = sum(len(_its) for _c, _cl, _its in _ALL_CATS)
+                        st.markdown("<div class='ah-hr'></div>", unsafe_allow_html=True)
+                        _h1, _h2 = st.columns([3, 1], vertical_alignment="bottom")
+                        with _h1:
+                            st.markdown(step_html(3, "Indicators",
+                                                  f"{_n_on} of {_n_all} on. Tap one to turn it off or on.",
+                                                  rule=False),
+                                        unsafe_allow_html=True)
+                        with _h2, st.container(key="ind_bulk"):
+                            _b1, _b2 = st.columns(2)
+                            with _b1:
+                                st.button("All", key="ind_all", on_click=_set_all, args=(True,))
+                            with _b2:
+                                st.button("None", key="ind_none", on_click=_set_all, args=(False,))
+
+                        selected = []
+                        _layout = ([0, 2, 4, 6], [1, 3, 5])          # Trend/Volume/S&R/Regime | Momentum/Volatility/MeanRev
+                        with st.container(key="ind_grid"):
+                            _gc = st.columns(2)
+                            for _col, _idxs in zip(_gc, _layout):
+                                with _col:
+                                    for _ci in _idxs:
+                                        _c, _cat_lbl, _items = _ALL_CATS[_ci]
+                                        with st.container(key=f"indcat_{_ci}"):
+                                            _tips = "".join(f"<p><b>{_l}</b> — {_t}</p>"
+                                                            for _l, _k, _d, _n, _m, _t in _items)
+                                            _on = len(st.session_state[_pill_key(_ci)])
+                                            st.markdown(
+                                                f"<div class='ah-cat-h'><b>{_cat_lbl}"
+                                                f"<span class='ind-tip'>?<span class='ind-tt'>{_tips}</span></span></b>"
+                                                f"<span class='c'>{_on}/{len(_items)}</span></div>",
+                                                unsafe_allow_html=True)
+                                            _picked = st.pills(_cat_lbl, [i[0] for i in _items],
+                                                               selection_mode="multi", key=_pill_key(_ci),
+                                                               label_visibility="collapsed") or []
+                                        for _lbl, _key, _dflt, _is_new, _mapped, _tip in _items:
+                                            st.session_state[_key] = _lbl in _picked
+                                            if _lbl in _picked:
+                                                selected.append(_mapped)
+
+                        return selected
+
+                    # ── Scan parameter block ────────────────────────────────
+                    def _render_scan_params(suffix=""):
+                        _d1, _d2 = st.columns(2)
+                        with _d1:
+                            st.markdown("<div class='cp-input-label'>From</div>", unsafe_allow_html=True)
+                            sd = st.date_input("From",
+                                               value=(datetime.now() - timedelta(days=365)).date(),
+                                               min_value=datetime(2002, 1, 1).date(),
+                                               key=f"ma_start{suffix}",
+                                               label_visibility="collapsed")
+                        with _d2:
+                            st.markdown("<div class='cp-input-label'>To</div>", unsafe_allow_html=True)
+                            ed = st.date_input("To",
+                                               value=datetime.now().date(),
+                                               min_value=datetime(2002, 1, 1).date(),
+                                               key=f"ma_end{suffix}",
+                                               label_visibility="collapsed")
+                        return sd, ed
+
+                    # ── TAB 0: Stock Symbol ─────────────────────────────────
+                    with cp_tab0:
+                        st.markdown(step_html(1, "Stock",
+                                              "A Tadawul code such as 1120, or a global ticker such as AAPL."),
+                                    unsafe_allow_html=True)
+                        st.markdown("<div class='cp-input-label'>Symbol</div>", unsafe_allow_html=True)
+                        if "symbol_input" not in st.session_state:
+                            st.session_state["symbol_input"] = "1120"
+                        user_symbol = st.text_input(
+                            "Stock Symbol", key="symbol_input",
+                            label_visibility="collapsed", placeholder="e.g., 4190 or AAPL")
+                        symbol_input = (user_symbol.strip() + ".SR"
+                                        if user_symbol.strip().isdigit()
+                                        else user_symbol.strip())
+
+                        # ── Date range ─────────────────────────────────────
+                        st.markdown(step_html(2, "Date range",
+                                              "Two years by default, enough history for the regime model to settle."),
+                                    unsafe_allow_html=True)
+                        _dr1, _dr2 = st.columns(2)
+                        with _dr1:
+                            st.markdown("<div class='cp-input-label'>From</div>", unsafe_allow_html=True)
+                            start_date = st.date_input("From",
+                                                       value=(datetime.now() - timedelta(days=730)).date(),
+                                                       min_value=datetime(2002, 1, 1).date(),
+                                                       key="sa_start_date",
+                                                       label_visibility="collapsed")
+                        with _dr2:
+                            st.markdown("<div class='cp-input-label'>To</div>", unsafe_allow_html=True)
+                            end_date = st.date_input("To",
+                                                     value=datetime.now().date(),
+                                                     min_value=datetime(2002, 1, 1).date(),
+                                                     key="sa_end_date",
+                                                     label_visibility="collapsed")
+
+                        selected_indicators = _render_indicators()
+                        st.session_state.selected_indicators = selected_indicators
+
+                        lookback_period = 30
+
+                        def run_analysis_callback():
+                            with st.spinner(f"Analyzing {symbol_input}..."):
+                                try:
+                                    analyzer = RegimeAnalyzer(
+                                        symbol_input,
+                                        start_date.strftime('%Y-%m-%d'),
+                                        end_date.strftime('%Y-%m-%d'),
+                                        selected_indicators)
+                                    df = analyzer.download_data()
+                                    if df is None:
+                                        st.info(f"No price data was found for '{symbol_input}'.")
+                                    else:
+                                        df = analyzer.classify_regimes(
+                                            lookback=lookback_period, adx_threshold=25, atr_threshold=0.03)
+                                        if df is None or len(df) == 0:
+                                            st.info("No usable market bars were available for the selected dates.")
+                                        else:
+                                            st.session_state.df = df
+                                            st.session_state.analyzed_symbol = symbol_input
+                                            st.session_state.additional_charts = ['ADX','RSI','MACD']
+
+                                            # Pre-warm ML cache in background so Strategy Lab is instant
+                                            import threading as _threading
+                                            def _prewarm_ml(_df=df):
+                                                try:
+                                                    from gemini_tab import _ml_predict
+                                                    _ml_predict(_df, horizon=10)
+                                                except Exception:
+                                                    pass
+                                            _threading.Thread(target=_prewarm_ml, daemon=True).start()
+
+                                            st.session_state.show_results = True
+                                except Exception as e:
+                                    st.warning(f"Analysis could not complete: {str(e)}")
+
+                        # ── Auto-analyze when navigated from screener ─────
+                        if st.session_state.pop("screener_auto_analyze", False):
+                            run_analysis_callback()
+
+                        st.markdown("<div class='ah-run-gap'></div>", unsafe_allow_html=True)
+                        st.button("Analyze Stock", type="secondary", width="stretch",
+                                  on_click=run_analysis_callback)
+                        st.markdown("</div>", unsafe_allow_html=True)
+
+                    # ── TAB 1: Scan Market ──────────────────────────────────
+                    with cp_tab1:
+
+                        from market_data import SCAN_STRATEGIES, run_strategy_scan
+
+                        # ── How the scan works (short, always visible) ──────────
+                        st.markdown(
+                            "<div class='sm-how'>"
+                            "<div class='sm-how-h'>How it works</div>"
+                            "<div class='sm-how-sub'>Fixed rules, the same for every stock.</div>"
+                            "<div class='sm-how-steps'>"
+                            "<div class='sm-how-s'><b>1</b><div><span>Load prices</span>283 Saudi stocks, daily.</div></div>"
+                            "<div class='sm-how-s'><b>2</b><div><span>Drop the untradeable</span>Low liquidity, wild swings, short history.</div></div>"
+                            "<div class='sm-how-s'><b>3</b><div><span>Apply the rules</span>Must-have condition + confirming signals.</div></div>"
+                            "<div class='sm-how-s'><b>4</b><div><span>Plan and rank</span>Stop, entry, 2 targets. Top 8 shown.</div></div>"
+                            "</div></div>",
+                            unsafe_allow_html=True,
+                        )
+
+                        # ── Scope ────────────────────────────────────────────
+                        st.markdown(step_html(1, "Stocks", "Whole market or your own list."), unsafe_allow_html=True)
+                        st.markdown("<div class='ah-run-gap'></div>", unsafe_allow_html=True)
+                        _scan_mode = st.radio(
+                            "Stocks",
+                            ["Full Market", "Custom Symbols"],
+                            horizontal=True,
+                            key="scan_mode",
+                            label_visibility="collapsed",
+                        )
+
+                        if _scan_mode == "Custom Symbols":
+                            st.markdown("<div class='cp-input-label'>Symbols</div>", unsafe_allow_html=True)
+                            _sym_input = st.text_input(
+                                "Symbols",
+                                value="1120, 2222, 4190, 2010, 1180",
+                                key="ma_symbols_input",
+                                label_visibility="collapsed",
+                                placeholder="e.g. 1120, 2222, 4190",
+                            )
+                            _scan_tickers = [
+                                s.strip() + ".SR" if s.strip().isdigit() else s.strip()
+                                for s in _sym_input.split(",") if s.strip()
+                            ]
+                        else:
+                            all_tadawul   = get_all_tadawul_tickers()
+                            _scan_tickers = list(all_tadawul.keys())
+
+                        # ── Strategy ─────────────────────────────────────────
+                        st.markdown(step_html(2, "Strategy", "What kind of opportunity to find."), unsafe_allow_html=True)
+                        st.markdown("<div class='ah-run-gap'></div>", unsafe_allow_html=True)
+                        _strat_keys    = list(SCAN_STRATEGIES.keys())
+                        _strat_options = ["All Strategies"] + [v["label"] for v in SCAN_STRATEGIES.values()]
+                        _strat_sel     = st.selectbox(
+                            "Strategy",
+                            _strat_options,
+                            key="scan_strategy_sel",
+                            label_visibility="collapsed",
+                        )
+
+                        # One-line description per strategy (rules: market_data.run_strategy_scan)
+                        _STRAT_PLAIN = {
+                            "All Strategies":  ("All five setups at once; each stock shown once.",
+                                                "Any strategy's condition.",
+                                                "Best first look at the market.", "Any market"),
+                            "Trend Breakout":  ("Uptrend stock breaking to new highs on volume.",
+                                                "Price above its 20 and 50-day averages.",
+                                                "Breakouts inside an uptrend tend to continue.", "Rising market · 3 signals"),
+                            "Oversold Bounce": ("Stock sold too hard, likely to bounce.",
+                                                "RSI below 38.",
+                                                "Extreme selling usually snaps back.", "Correction · 2 signals"),
+                            "Momentum Surge":  ("Stock accelerating up right now.",
+                                                "MACD turned up.",
+                                                "Strong stocks tend to keep running short-term.", "Bull market · 2 signals"),
+                            "Squeeze Setup":   ("Unusually quiet stock before a big move.",
+                                                "Volatility squeeze (Bollinger inside Keltner).",
+                                                "Tight ranges usually end with a strong move.", "Any market · 2 signals"),
+                            "Smart Money":     ("Big buyers quietly accumulating.",
+                                                "Money flow (OBV) rising for 20 days.",
+                                                "Volume moves before price.", "Any market · 2 signals"),
+                        }
+                        _lk, _mh, _wy, _bt = _STRAT_PLAIN.get(_strat_sel, _STRAT_PLAIN["All Strategies"])
+                        st.markdown(
+                            f"<div class='sm-strat'>"
+                            f"<div class='sm-strat-top'><span class='sm-strat-name'>{_strat_sel}</span>"
+                            f"<span class='sm-pill'>{_bt}</span></div>"
+                            f"<div class='sm-row'><span>Looks for</span><div>{_lk}</div></div>"
+                            f"<div class='sm-row'><span>Must have</span><div>{_mh}</div></div>"
+                            f"<div class='sm-row'><span>Why</span><div>{_wy}</div></div>"
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+
+                        # ── Filters ──────────────────────────────────────────
+                        st.markdown(step_html(3, "Filters", "Optional — they only trim the results."),
+                                    unsafe_allow_html=True)
+                        _sc1, _sc2 = st.columns(2)
+                        with _sc1:
+                            st.markdown("<div class='cp-input-label'>Sector</div>", unsafe_allow_html=True)
+                            _scan_sector = st.selectbox(
+                                "Sector",
+                                ["All Sectors", "Banks", "Petrochemicals", "Utilities",
+                                 "Telecom & Tech", "Insurance", "Cement", "Food & Agri",
+                                 "REITs", "Other"],
+                                key="scan_sector",
+                                label_visibility="collapsed",
+                            )
+                            st.markdown("<div class='sm-hint'>One industry only.</div>", unsafe_allow_html=True)
+                        with _sc2:
+                            st.markdown("<div class='cp-input-label'>Min Signal Score</div>", unsafe_allow_html=True)
+                            _scan_min_score = st.selectbox(
+                                "Min Score",
+                                [1, 2, 3, 4, 5],
+                                index=1,
+                                key="scan_min_score",
+                                label_visibility="collapsed",
+                            )
+                            st.markdown("<div class='sm-hint'>Higher = fewer, stronger picks.</div>", unsafe_allow_html=True)
+
+                        _ff1, _ff2 = st.columns([3, 2])
+                        with _ff1:
+                            st.markdown("<div class='cp-input-label'>Fresh Setups Only</div>", unsafe_allow_html=True)
+                            _fresh_only = st.checkbox(
+                                "Hide stocks that already ran up",
+                                value=st.session_state.get("scan_fresh_only", True),
+                                key="scan_fresh_only",
+                            )
+                        with _ff2:
+                            st.markdown("<div class='cp-input-label'>Strictness</div>", unsafe_allow_html=True)
+                            _fresh_mode = st.selectbox(
+                                "Strictness",
+                                ["Strict", "Loose"],
+                                index=0 if st.session_state.get("scan_fresh_mode", "Strict") == "Strict" else 1,
+                                key="scan_fresh_mode",
+                                label_visibility="collapsed",
+                                disabled=not st.session_state.get("scan_fresh_only", True),
+                            )
+
+                        st.markdown("<div class='cp-input-label'>Data Period</div>", unsafe_allow_html=True)
+                        _period_labels  = ["3 Months", "6 Months", "1 Year", "2 Years"]
+                        _period_values  = ["3mo", "6mo", "1y", "2y"]
+                        _saved_period   = st.session_state.get("scan_period", "1y")
+                        _period_default = _period_values.index(_saved_period) if _saved_period in _period_values else 2
+                        _period_sel     = st.selectbox(
+                            "Data Period",
+                            _period_labels,
+                            index=_period_default,
+                            key="scan_period_label",
+                            label_visibility="collapsed",
+                        )
+                        _scan_period = _period_values[_period_labels.index(_period_sel)]
+                        st.session_state["scan_period"] = _scan_period
+                        st.markdown("<div class='sm-hint'>1 Year = most accurate.</div>", unsafe_allow_html=True)
+
+                        if "ma_results" not in st.session_state:
+                            st.session_state.ma_results = None
+
+                        st.session_state["_scan_tickers_snap"] = _scan_tickers
+
+                        st.markdown("<div class='ah-run-gap'></div>", unsafe_allow_html=True)
+                        _do_scan = st.button(
+                            "Scan Market",
+                            type="secondary",
+                            width="stretch",
+                            key="ma_run_btn_strat",
+                        )
+                        st.markdown("</div>", unsafe_allow_html=True)
+
+                        if _do_scan:
+                            from market_data import _fetch_market_data, _fetch_tasi_baseline
+                            _tickers   = st.session_state.get("_scan_tickers_snap", [])
+                            _strat_sel = st.session_state.get("scan_strategy_sel", "All Strategies")
+                            _sector    = st.session_state.get("scan_sector", "All Sectors")
+                            _min_score = st.session_state.get("scan_min_score", 2)
+                            _fo        = st.session_state.get("scan_fresh_only", True)
+                            _fm        = "strict" if st.session_state.get("scan_fresh_mode", "Strict") == "Strict" else "loose"
+                            _scan_period = st.session_state.get("scan_period", "1y")
+
+                            if _strat_sel == "All Strategies":
+                                _run_keys = list(SCAN_STRATEGIES.keys())
+                                _lbl      = "Full Market"
+                                _col      = "#26A69A"
+                            else:
+                                _run_keys = [k for k, v in SCAN_STRATEGIES.items() if v["label"] == _strat_sel]
+                                _lbl      = _strat_sel
+                                _col      = SCAN_STRATEGIES[_run_keys[0]]["color"] if _run_keys else "#26A69A"
+
+                            with st.spinner(f"Scanning {len(_tickers)} stocks..."):
+                                _prefetched = _fetch_market_data(_tickers, period=_scan_period)
+                                _tasi_base  = _fetch_tasi_baseline()
+                                _all_buy, _all_sell, _all_hold = [], [], []
+                                for _sk in _run_keys:
+                                    try:
+                                        _res = run_strategy_scan(
+                                            _tickers,
+                                            strategy_key=_sk,
+                                            period=_scan_period,
+                                            fresh_only=_fo, fresh_mode=_fm,
+                                            _prefetched_data=_prefetched,
+                                            _tasi_baseline=_tasi_base,
+                                        )
+                                        _all_buy  += _res.get("buy",  [])
+                                        _all_sell += _res.get("sell", [])
+                                        _all_hold += _res.get("hold", [])
+                                    except Exception:
+                                        pass
+
+                            def _dedup(lst):
+                                seen, out = {}, []
+                                for s in sorted(lst, key=lambda x: x.get("consensus", 0), reverse=True):
+                                    if s["ticker"] not in seen:
+                                        seen[s["ticker"]] = True
+                                        out.append(s)
+                                return out
+
+                            _buy_all  = _dedup(_all_buy)
+                            _sell_all = _dedup(_all_sell)
+                            _hold_all = _dedup(_all_hold)
+
+                            if _sector and _sector != "All Sectors":
+                                _buy_all  = [s for s in _buy_all  if s.get("sector", "") == _sector]
+                                _sell_all = [s for s in _sell_all if s.get("sector", "") == _sector]
+                                _hold_all = [s for s in _hold_all if s.get("sector", "") == _sector]
+
+                            _buy_all  = [s for s in _buy_all  if s.get("score", 0) >= _min_score]
+                            _sell_all = [s for s in _sell_all if s.get("score", 0) >= _min_score]
+                            _hold_all = [s for s in _hold_all if s.get("score", 0) >= _min_score]
+
+                            st.session_state.ma_results          = {"buy": _buy_all, "sell": _sell_all, "hold": _hold_all}
+                            st.session_state.ma_scanned_count    = len(_tickers)
+                            st.session_state.ma_scan_params      = {"strategy_label": _lbl, "strategy_color": _col}
+                            st.session_state.show_market_results = True
+                            st.rerun()
+
+    elif st.session_state.show_champions_vault:
+
+        apply_ui_theme()
+        from favorites_tab import render_auto_scanner_page
+        render_auto_scanner_page()
+
+    elif st.session_state.show_trade_journal:
+
+        apply_ui_theme()
+        from trade_journal import render_trade_journal_page
+        render_trade_journal_page()
+
+    elif st.session_state.show_market_results:
+
+        apply_ui_theme()
+
+        results     = st.session_state.get('ma_results', {}) or {}
+        buy_stocks  = results.get('buy',  [])
+        sell_stocks = results.get('sell', [])
+        hold_stocks = results.get('hold', [])
+        scanned     = st.session_state.get('ma_scanned_count', 0)
+        params      = st.session_state.get('ma_scan_params', {})
+        all_stocks  = buy_stocks + sell_stocks + hold_stocks
+
+        # ── Light Apple design ────────────────────────────────────────────────
+        # Shared tokens + generic widget styling (apple_theme), plus this page's
+        # own classes below. Old neon accents (including the colours returned by
+        # macro_data, which the Macro page still uses) are mapped to the palette.
+        import html as _html
+        from apple_theme import (apply_results_apple_theme, T1 as _T1, T2 as _T2, T3 as _T3,
+                                 FILL as _FILL, BLUE as _BLUE, GREEN as _GREEN, RED as _RED,
+                                 AMBER as _AMBER, ORANGE as _ORANGE, PURPLE as _PURPLE)
+        apply_results_apple_theme()
+
+        _OLD2NEW = {}
+        for _olds, _new in (
+            (('#10a37f', '#26a69a', '#4caf50', '#34d399', '#22c55e', '#00e676'), _GREEN),
+            (('#ef4444', '#ef5350', '#f87171', '#ff5252', '#ff6b6b'), _RED),
+            (('#4a9eff', '#60a5fa', '#38bdf8', '#3b82f6', '#2196f3', '#6366f1'), _BLUE),
+            (('#fbbf24', '#ffc107', '#f59e0b', '#ffd700', '#eab308'), _AMBER),
+            (('#f97316', '#fb923c', '#ff9800'), _ORANGE),
+            (('#a78bfa', '#e879f9', '#b388ff', '#9b87c2', '#8b5cf6'), _PURPLE),
+            (('#888', '#888888', '#94a3b8', '#484848', '#555', '#555555', '#666', '#666666'), _T3),
+        ):
+            for _o in _olds:
+                _OLD2NEW[_o] = _new
+
+        def _apc(c):
+            """Old dark-theme accent -> light palette colour (unknown values pass through)."""
+            return _OLD2NEW.get(str(c or '').strip().lower(), c or _T3)
+
+        # Palette colour -> ap-pill tint class
+        _PILL_CLS = {_GREEN: 'green', _RED: 'red', _BLUE: 'blue', _AMBER: 'amber',
+                     _ORANGE: 'amber', _PURPLE: 'purple'}
+
+        def _pill(text, colour_or_cls=''):
+            cls = _PILL_CLS.get(colour_or_cls, colour_or_cls)
+            return f"<span class='ap-pill {cls}'>{text}</span>"
+
+        st.markdown("""
+        <style>
+        /* header */
+        .mr-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1.2rem;flex-wrap:wrap;margin:0.9rem 0 1.4rem;}
+        .mr-eyebrow{font-size:0.8rem;font-weight:600;color:var(--t3);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0.3rem;}
+        .mr-title{font-size:2.3rem;font-weight:700;color:var(--t1);letter-spacing:-0.035em;line-height:1.12;}
+        .mr-sub{font-size:1rem;color:var(--t3);margin-top:0.4rem;}
+        .mr-mood{text-align:right;}
+        .mr-mood .ap-pill{font-size:0.92rem;padding:0.42rem 1rem;}
+        .mr-mood-sub{font-size:0.8rem;color:var(--t3);margin-top:0.4rem;}
+        /* KPI row */
+        .mr-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0.8rem;margin-bottom:1.1rem;}
+        .mr-kpi{background:var(--card);border:1px solid var(--hair);border-radius:16px;padding:1rem 1.15rem;box-shadow:var(--shadow-sm);}
+        .mr-kpi .l{font-size:0.8rem;font-weight:600;color:var(--t3);}
+        .mr-kpi .v{font-size:1.8rem;font-weight:700;color:var(--t1);letter-spacing:-0.03em;line-height:1.1;margin-top:0.3rem;font-variant-numeric:tabular-nums;}
+        .mr-kpi .s{font-size:0.78rem;color:var(--t3);margin-top:0.3rem;line-height:1.4;}
+        /* market conditions */
+        .mr-card{background:var(--card);border:1px solid var(--hair);border-radius:20px;box-shadow:var(--shadow);padding:1.5rem 1.6rem;margin-bottom:0.4rem;}
+        .mr-cond{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:2rem;align-items:start;}
+        @media (max-width:1000px){.mr-cond{grid-template-columns:1fr;}}
+        .mr-zone{font-size:1.55rem;font-weight:700;letter-spacing:-0.02em;margin:0.3rem 0 0.5rem;}
+        .mr-desc{font-size:0.93rem;color:var(--t2);line-height:1.6;}
+        .mr-play{margin-top:0.95rem;font-size:0.9rem;color:var(--t2);background:var(--inset);border:1px solid var(--hair);
+                 border-radius:12px;padding:0.75rem 0.95rem;line-height:1.5;}
+        .mr-play b{color:var(--t1);}
+        .mr-segs{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:1.3rem;}
+        .mr-seg{height:8px;border-radius:4px;}
+        .mr-seglbl{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:0.5rem;}
+        .mr-seglbl span{font-size:0.78rem;color:var(--t3);text-align:center;}
+        .mr-seglbl span.on{font-weight:700;}
+        .mr-insts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0.7rem;}
+        .mr-inst{background:var(--inset);border:1px solid var(--hair);border-radius:14px;padding:0.85rem 1rem;}
+        .mr-inst .l{font-size:0.8rem;font-weight:600;color:var(--t3);}
+        .mr-inst .v{font-size:1.4rem;font-weight:700;color:var(--t1);letter-spacing:-0.02em;margin:0.2rem 0 0.35rem;font-variant-numeric:tabular-nums;}
+        .mr-inst .c{display:flex;gap:1rem;font-size:0.8rem;color:var(--t3);}
+        .mr-inst .c b{font-weight:600;font-variant-numeric:tabular-nums;}
+        .mr-note{font-size:0.78rem;color:var(--t3);margin-top:0.6rem;}
+        details.mr-more{margin-top:1.2rem;border-top:1px solid var(--hair);padding-top:0.9rem;}
+        details.mr-more > summary{cursor:pointer;list-style:none;font-size:0.9rem;font-weight:600;color:var(--blue);
+                 display:flex;align-items:center;gap:0.45rem;}
+        details.mr-more > summary::-webkit-details-marker{display:none;}
+        details.mr-more > summary::before{content:'›';display:inline-block;font-size:1.15rem;line-height:1;transition:transform .15s;}
+        details.mr-more[open] > summary::before{transform:rotate(90deg);}
+        .mr-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.6rem;margin-top:0.8rem;}
+        @media (max-width:1000px){.mr-cols{grid-template-columns:1fr;}}
+        .mr-h{font-size:0.95rem;font-weight:700;color:var(--t1);margin-bottom:0.3rem;}
+        .mr-row{padding:0.7rem 0;border-bottom:1px solid var(--hair);}
+        .mr-row:last-child{border-bottom:none;}
+        .mr-row .m{display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.35rem;font-size:0.78rem;color:var(--t3);}
+        .mr-row .t{font-size:0.9rem;font-weight:600;color:var(--t1);line-height:1.45;}
+        .mr-row .d{font-size:0.85rem;color:var(--t2);line-height:1.55;margin-top:0.2rem;}
+        a.mr-link{text-decoration:none!important;color:inherit!important;display:block;}
+        a.mr-link:hover .t{color:var(--blue);}
+        /* section header */
+        .mr-sec{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin:2.2rem 0 1rem;}
+        .mr-sec .t{font-size:1.45rem;font-weight:700;color:var(--t1);letter-spacing:-0.02em;}
+        .mr-sec .s{font-size:0.9rem;color:var(--t3);margin-top:0.25rem;max-width:64rem;line-height:1.5;}
+        .mr-filters{display:flex;flex-wrap:wrap;gap:0.4rem;margin:-0.3rem 0 1rem;}
+        /* stock card = the keyed container, so the button sits inside it */
+        [class*="st-key-mr_card_"]{background:var(--card)!important;border:1px solid var(--hair)!important;border-radius:20px!important;
+            box-shadow:var(--shadow)!important;padding:1.4rem 1.6rem 1.1rem!important;margin-bottom:1.1rem!important;gap:0.4rem!important;}
+        [class*="st-key-mr_card_"] .stButton > button{background:var(--blue-bg)!important;border:none!important;box-shadow:none!important;}
+        [class*="st-key-mr_card_"] .stButton > button p{color:var(--blue)!important;font-weight:600!important;}
+        [class*="st-key-mr_card_"] .stButton > button:hover{background:rgba(0,99,209,0.16)!important;}
+        .mr-top{display:flex;gap:1.2rem;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;}
+        .mr-id{display:flex;gap:0.95rem;align-items:flex-start;min-width:0;flex:1 1 420px;}
+        .mr-rank{flex:0 0 2.6rem;height:2.6rem;border-radius:50%;display:flex;align-items:center;justify-content:center;
+                 font-size:1rem;font-weight:700;background:var(--fill);color:var(--t1);}
+        .mr-rank.r1{background:var(--blue);color:#FFFFFF;}
+        .mr-rank.r2{background:var(--blue-bg);color:var(--blue);}
+        .mr-symline{display:flex;align-items:baseline;gap:0.55rem;flex-wrap:wrap;}
+        .mr-sym{font-size:1.45rem;font-weight:700;color:var(--t1);letter-spacing:-0.02em;}
+        .mr-name{font-size:1.1rem;font-weight:500;color:var(--t3);}
+        .mr-pills{display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.6rem;}
+        .mr-chips{display:flex;flex-wrap:wrap;gap:0.35rem;margin-top:0.7rem;}
+        .mr-chip{font-size:0.78rem;color:var(--t2);background:var(--inset);border:1px solid var(--hair);border-radius:8px;padding:0.2rem 0.55rem;}
+        .mr-stats{display:flex;gap:0.6rem;flex-wrap:wrap;}
+        .mr-stat{background:var(--inset);border:1px solid var(--hair);border-radius:14px;padding:0.7rem 1rem;min-width:7rem;text-align:right;}
+        .mr-stat .l{font-size:0.78rem;font-weight:600;color:var(--t3);white-space:nowrap;display:flex;gap:0.3rem;justify-content:flex-end;align-items:center;}
+        .mr-stat .v{font-size:1.5rem;font-weight:700;color:var(--t1);letter-spacing:-0.02em;margin-top:0.2rem;font-variant-numeric:tabular-nums;white-space:nowrap;}
+        .mr-stat .v small{font-size:0.8rem;font-weight:600;color:var(--t3);margin-left:0.15rem;}
+        .mr-tip{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;
+                background:var(--fill);color:var(--t3);font-size:0.7rem;font-weight:700;cursor:help;}
+        .mr-blk{margin-top:1.2rem;padding-top:1.1rem;border-top:1px solid var(--hair);}
+        .mr-blk-h{font-size:0.93rem;font-weight:700;color:var(--t1);margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem;}
+        .mr-plan{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0.6rem;}
+        @media (max-width:900px){.mr-plan{grid-template-columns:repeat(2,minmax(0,1fr));}}
+        .mr-lv{background:var(--inset);border:1px solid var(--hair);border-radius:14px;padding:0.8rem 0.95rem;}
+        .mr-lv .l{font-size:0.8rem;font-weight:600;}
+        .mr-lv .v{font-size:1.35rem;font-weight:700;color:var(--t1);letter-spacing:-0.02em;margin-top:0.25rem;font-variant-numeric:tabular-nums;}
+        .mr-lv .s{font-size:0.8rem;font-weight:600;margin-top:0.15rem;}
+        .mr-struct{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:1.4rem;align-items:center;}
+        @media (max-width:900px){.mr-struct{grid-template-columns:1fr;}}
+        .mr-lvl{background:var(--inset);border:1px solid var(--hair);border-radius:14px;padding:0.7rem 1rem;min-width:8.5rem;}
+        .mr-lvl .l{font-size:0.8rem;font-weight:600;}
+        .mr-lvl .v{font-size:1.3rem;font-weight:700;color:var(--t1);letter-spacing:-0.02em;margin-top:0.2rem;font-variant-numeric:tabular-nums;}
+        .mr-lvl .s{font-size:0.78rem;color:var(--t3);margin-top:0.1rem;}
+        .mr-range{position:relative;padding-top:1.7rem;}
+        .mr-track{position:relative;height:8px;border-radius:4px;background:var(--fill);}
+        .mr-fill{position:absolute;left:0;top:0;height:100%;border-radius:4px;background:rgba(0,99,209,0.22);}
+        .mr-dot{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;background:#FFFFFF;border:3px solid var(--blue);
+                transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(17,17,20,0.2);}
+        .mr-plbl{position:absolute;top:0;transform:translateX(-50%);font-size:0.82rem;font-weight:700;color:var(--t1);white-space:nowrap;font-variant-numeric:tabular-nums;}
+        .mr-ends{display:flex;justify-content:space-between;align-items:center;gap:0.6rem;margin-top:0.6rem;font-size:0.78rem;color:var(--t3);}
+        .mr-why{margin:0.6rem 0 0;padding-left:1.15rem;}
+        .mr-why li{font-size:0.88rem;color:var(--t2);line-height:1.6;margin-bottom:0.2rem;}
+        .mr-empty{background:var(--card);border:1px solid var(--hair);border-radius:20px;padding:2.6rem 1.5rem;text-align:center;box-shadow:var(--shadow-sm);}
+        .mr-empty .t{font-size:1.2rem;font-weight:700;color:var(--t1);}
+        .mr-empty .s{font-size:0.93rem;color:var(--t3);margin-top:0.45rem;line-height:1.55;}
+        header[data-testid="stHeader"], [data-testid="stToolbar"]{display:none!important;}
+        </style>""", unsafe_allow_html=True)
+
+        # ── Back button ──────────────────────────────────────────────────────
+        _bk1, _bk2 = st.columns([1, 6])
+        with _bk1:
+            if st.button("← New scan", key="ma_back_btn", use_container_width=True):
+                st.session_state.show_market_results = False
+                st.rerun()
+
+        # ── Stats ────────────────────────────────────────────────────────────
+        tf_lbl        = params.get('timeframe', '6mo')
+        sec_lbl       = params.get('sector', 'All Sectors')
+        ms_lbl        = params.get('min_score', 2)
+
+        # Pre-compute all_buy early — require real quality gates so count is meaningful
+        # Score >= 3 (not just any spark), conviction >= 25, R:R >= 0.8
+        # Only the BUY list: the hold list holds stocks whose strategy core condition
+        # failed, or that "Fresh setups only" demoted because the move already happened.
+        all_buy = sorted(
+            [s for s in buy_stocks
+             if s.get('score', 0) >= 3
+             and s.get('conviction', 0) >= 25
+             and s.get('rr_ratio', 0) >= 0.8],
+            key=lambda x: x.get('priority_score', 0), reverse=True)
+
+        avg_rr        = (sum(s.get('rr_ratio', 0) for s in all_buy) / len(all_buy)) if all_buy else 0
+        best_conv     = max((s.get('conviction', 0) for s in all_buy), default=0)
+
+        # ── Hero card matching single-stock analysis style ───────────────────
+        _period_info    = params.get('period', params.get('start', ''))
+        _period_disp    = f"Period: {_period_info}" if _period_info else ""
+        _strat_lbl_hdr  = params.get('strategy_label', '')
+        _strat_col_hdr  = params.get('strategy_color', '')
+        _scan_title     = f"{_strat_lbl_hdr} Scan Results" if _strat_lbl_hdr else "Market Scan Results"
+
+        def _msr_tile(label, value, accent, sub="", val_color=None):
+            vc = val_color or "#ffffff"
+            return (
+                f"<div style='background:#181818;border:1px solid #303030;border-top:2px solid {accent};"
+                f"border-radius:8px;padding:1rem 1.1rem;'>"
+                f"<div style='font-size:0.68rem;color:#9e9e9e;text-transform:uppercase;"
+                f"letter-spacing:0.8px;font-weight:600;margin-bottom:0.4rem;'>{label}</div>"
+                f"<div style='font-size:1.15rem;font-weight:700;color:{vc};line-height:1.1;'>{value}</div>"
+                f"<div style='font-size:0.72rem;color:#9e9e9e;margin-top:0.35rem;font-weight:600;'>{sub}</div>"
+                f"</div>"
+            )
+
+        _perfect_list = sorted(
+            [s for s in all_buy
+             if s.get('score', 0) >= 6
+             and s.get('rr_ratio', 0) >= 1.0
+             and s.get('conviction', 0) >= 30
+             and s.get('entry_quality', 'Good') != 'Poor'],
+            key=lambda x: (
+                x.get('score', 0) * 4          # signal score is king
+                + x.get('rr_ratio', 0) * 8     # reward-to-risk matters
+                + x.get('conviction', 0) * 0.3  # conviction as tiebreaker
+            ), reverse=True)[:8]
+
+        # Override entry strategy for Perfect Setups — they passed all filters, always ENTER NOW
+        for _ps in _perfect_list:
+            # Reward:risk to target 1 — the same figure the card's trading plan shows.
+            _pe, _pst = _ps.get('entry', _ps['price']), _ps.get('stop_loss', _ps['price'])
+            _rr = ((_ps.get('target1', _ps['price']) - _pe) / (_pe - _pst)) if (_pe - _pst) > 0 else _ps.get('rr_ratio', 0)
+            _sc = _ps.get('score', 0)
+            _ps['entry_strategy'] = (f"ENTER NOW — Perfect Setup · Score {_sc} pts · "
+                                     f"reward : risk 1 : {_rr:.1f} to target 1. All filters passed, enter at market price")
+
+        _hit_rate = round(len(all_buy) / scanned * 100) if scanned > 0 else 0
+
+        # Useful stats for summary
+        _avg_rr_ps = (sum(s.get('rr_ratio', 0) for s in _perfect_list) / len(_perfect_list)) if _perfect_list else 0
+        _avg_upside_ps = (sum(abs(s.get('target1', s['price']) - s.get('entry', s['price'])) / s.get('entry', s['price']) * 100 for s in _perfect_list if s.get('entry', 0) > 0) / len(_perfect_list)) if _perfect_list else 0
+        _top_conv = max((s.get('conviction', 0) for s in _perfect_list), default=0)
+
+        # ── Market Scan Results Box — Premium Macro Intelligence ───────────────
+        try:
+            from macro_data import get_macro_snapshot, compute_macro_health, get_saudi_news_headlines
+            _msnap  = get_macro_snapshot()
+            _mscore, _mlabel, _mcolor, _mbg, _mfactors = compute_macro_health(_msnap) if _msnap else (0, "N/A", "#888", "#1a1a1a", [])
+            _news   = get_saudi_news_headlines()
+        except Exception:
+            _msnap = {}; _mscore = 0; _mlabel = "N/A"; _mcolor = "#888"; _mbg = "#1a1a1a"; _mfactors = []; _news = []
+
+        # ── plain-English score zone ──
+        if _mscore >= 7:
+            _zone_label = "IDEAL CONDITIONS"
+            _zone_desc  = "Everything is aligned in your favor. Oil is strong, global markets are calm, Saudi stocks have room to run. Buy your best setups at full size with confidence."
+            _zone_col   = '#10a37f'
+        elif _mscore >= 3:
+            _zone_label = "GOOD TIME TO BUY"
+            _zone_desc  = "Conditions are supportive. No major red flags—oil is healthy and markets are stable. Invest normally in your high-conviction setups."
+            _zone_col   = '#4A9EFF'
+        elif _mscore >= -2:
+            _zone_label = "NEUTRAL — MIXED SIGNALS"
+            _zone_desc  = "Some things look good, some look worrying. Trade normally but use tighter stop-losses and don't put all your money into one trade."
+            _zone_col   = '#fbbf24'
+        elif _mscore >= -5:
+            _zone_label = "BE CAREFUL"
+            _zone_desc  = "Markets have headwinds—oil may be falling or global fear is rising. Only trade your absolute best setups and cut your position size in half."
+            _zone_col   = '#f97316'
+        else:
+            _zone_label = "STAY OUT FOR NOW"
+            _zone_desc  = "Oil is dropping, global markets are panicking, or there is a major geopolitical shock. Do NOT open new positions. Wait for things to stabilize first."
+            _zone_col   = '#ef4444'
+
+        # ── playbook (concise action line for the bar) ──
+        _pb_lines = {
+            6:  ("Buy strong setups at full size — tailwinds are working in your favour.",      '#10a37f'),
+            2:  ("Normal position sizes — conditions are healthy with no major warning signs.", '#4A9EFF'),
+           -2:  ("Trade only your best setups — reduce each position size by 25–30%.",         '#fbbf24'),
+           -5:  ("High risk environment — max half-size positions with very tight stop-losses.",'#f97316'),
+        }
+        _pb_msg, _pb_col = next(
+            ((m, c) for thresh, (m, c) in sorted(_pb_lines.items(), reverse=True) if _mscore >= thresh),
+            ("Do not buy anything right now. Sit in cash and wait for oil and markets to recover.", '#ef4444')
+        )
+
+        # ── score bar fill 0–100% maps -10 → +10 ──
+        _bar_pct = int((_mscore + 10) / 20 * 100)
+
+        # ── instrument cards (all 8) — no emoji, label only ──
+        _INST_LABELS = {
+            'brent':  'BRENT OIL',
+            'aramco': 'ARAMCO',
+            'usd':    'USD',
+            'gold':   'GOLD',
+        }
+        _inst_html = ""
+        for _ikey in ['brent', 'aramco', 'usd', 'gold']:
+            _d = (_msnap or {}).get(_ikey)
+            if not _d:
+                continue
+            _ip, _ic1, _ic5, _ibu = _d['price'], _d['chg_1d'], _d['chg_5d'], _d['bullish_up']
+            _ic1_col = '#10a37f' if (_ic1 >= 0) == _ibu else '#ef4444'
+            _ic5_col = '#10a37f' if (_ic5 >= 0) == _ibu else '#ef4444'
+            _is1 = '+' if _ic1 >= 0 else ''
+            _is5 = '+' if _ic5 >= 0 else ''
+            _unit = _d.get('unit', '')
+            if _unit in ('$/bbl', '$/MMBtu'):
+                _ipf = f"${_ip:.1f}"
+            elif _unit == '$/oz':
+                _ipf = f"${_ip:,.0f}"
+            elif _unit == 'SAR':
+                _ipf = f"SAR {_ip:.2f}"
+            elif _unit == '$':
+                _ipf = f"${_ip:.2f}"
+            else:
+                _ipf = f"{_ip:.1f}"
+            _ilbl = _INST_LABELS.get(_ikey, _ikey.upper())
+            _card_top_col = _ic5_col
+            # colors: strong green/red for big moves, muted for small
+            _c1_bg = '#10a37f15' if _ic1 >= 0 else '#ef444415'
+            _c5_bg = '#10a37f15' if _ic5 >= 0 else '#ef444415'
+            _inst_html += (
+                f'<div style="background:#141414;border:1px solid #1e1e1e;'
+                f'border-radius:12px;flex:1 1 150px;min-width:150px;overflow:hidden;">'
+                # top: label + price
+                f'<div style="padding:0.75rem 1rem 0.6rem;">'
+                f'<div style="font-size:0.58rem;color:#555;font-weight:800;text-transform:uppercase;'
+                f'letter-spacing:1.2px;margin-bottom:0.35rem;">{_ilbl}</div>'
+                f'<div style="font-size:1.35rem;font-weight:900;color:#f0f0f0;'
+                f'letter-spacing:-0.3px;">{_ipf}</div>'
+                f'</div>'
+                # bottom: Today and 5 Days side by side
+                f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;'
+                f'padding:0 0.6rem 0.6rem;">'
+                # Today box
+                f'<div style="background:{_c1_bg};border-radius:8px 0 0 8px;'
+                f'padding:0.5rem 0.6rem;text-align:center;'
+                f'border-right:1px solid #1a1a1a;">'
+                f'<div style="font-size:0.48rem;color:#555;font-weight:700;text-transform:uppercase;'
+                f'letter-spacing:0.5px;margin-bottom:0.25rem;">Today</div>'
+                f'<div style="font-size:0.95rem;font-weight:900;color:{_ic1_col};'
+                f'">{_is1}{_ic1:.1f}%</div>'
+                f'</div>'
+                # 5 Days box
+                f'<div style="background:{_c5_bg};border-radius:0 8px 8px 0;'
+                f'padding:0.5rem 0.6rem;text-align:center;">'
+                f'<div style="font-size:0.48rem;color:#555;font-weight:700;text-transform:uppercase;'
+                f'letter-spacing:0.5px;margin-bottom:0.25rem;">5 Days</div>'
+                f'<div style="font-size:0.95rem;font-weight:900;color:{_ic5_col};'
+                f'">{_is5}{_ic5:.1f}%</div>'
+                f'</div>'
+                f'</div>'
+                f'</div>'
+            )
+
+        # ── macro factors ──
+        _factors_html = ""
+        for _fem, _ftitle, _fdetail, _fcolor in _mfactors:
+            _factors_html += (
+                f'<div style="border-left:3px solid {_fcolor};background:{_fcolor}0a;'
+                f'border-radius:0 8px 8px 0;padding:0.65rem 0.85rem;margin-bottom:0.5rem;">'
+                f'<div style="font-size:0.86rem;font-weight:800;color:{_fcolor};'
+                f'line-height:1.35;margin-bottom:0.3rem;">{_ftitle}</div>'
+                f'<div style="font-size:0.8rem;color:#909090;line-height:1.65;">{_fdetail}</div>'
+                f'</div>'
+            )
+        if not _factors_html:
+            _factors_html = (
+                '<div style="font-size:0.85rem;color:#555;padding:0.8rem 0;">'
+                'No significant macro drivers detected — markets are calm.</div>'
+            )
+
+        # ── news: filter to only market-moving headlines ──
+        # Keywords that make a headline relevant to Saudi trading decisions
+        _NEWS_CATS = [
+            # (category_label, color, keywords_in_title_lower, why_it_matters_to_you)
+            ('GEOPOLITICAL', '#ef4444',
+             ['war','attack','conflict','military','strike','hamas','hezbollah','iran','russia',
+              'ukraine','middle east','gaza','israel','missile','sanction','coup','troops',
+              'escalat','tension','nuclear','rebel','terror','bomb','explosion','oil field'],
+             'Middle East conflict or sanctions directly impact oil supply and cause market panic.'),
+            ('OIL & ENERGY', '#f97316',
+             ['oil','crude','brent','wti','opec','barrel','petroleum','energy price',
+              'gas price','lng','natural gas','fuel','refin','oil output','production cut',
+              'oil supply','oil demand','oil market','energy market'],
+             'Oil price is the #1 driver of Saudi stocks. Any oil news moves the whole market.'),
+            ('TRUMP / US', '#fbbf24',
+             ['trump','tariff','trade war','us sanction','white house','executive order',
+              'biden','us president','pentagon','washington','us economy','us trade',
+              'us policy','us market','american'],
+             'US decisions move global money flows. Tariffs or sanctions ripple into Saudi.'),
+            ('FED & RATES', '#a78bfa',
+             ['fed ','federal reserve','powell','interest rate','rate cut','rate hike',
+              'inflation','monetary','central bank','quantitative','gdp','recession'],
+             'Interest rate decisions globally redirect investment money into or out of markets like Saudi.'),
+            ('SAUDI DIRECT', '#4A9EFF',
+             ['saudi','aramco','tasi','vision 2030','riyadh','mbs','sabic','maaden',
+              'neom','kingdom','dirham','alrajhi','snb','riyad bank','saudi economy'],
+             'This directly impacts Saudi companies and investor confidence on Tadawul.'),
+            ('GLOBAL MARKET', '#10a37f',
+             ['market crash','stock market','sell-off','rally','global economy','imf',
+              'world bank','china economy','emerging market','commodity','volatility',
+              'risk-off','risk off','capital flow'],
+             'Global market moves trigger international investors to move money in or out of Saudi.'),
+        ]
+
+        _filtered_news = []
+        for _nh in (_news or []):
+            _ttl_lower = _nh['title'].lower()
+            for _cat_label, _cat_col, _cat_kws, _cat_why in _NEWS_CATS:
+                if any(_kw in _ttl_lower for _kw in _cat_kws):
+                    _filtered_news.append({**_nh, '_cat': _cat_label, '_col': _cat_col, '_why': _cat_why})
+                    break   # one category per headline
+
+        # sort: GEOPOLITICAL and OIL first, then others
+        _cat_priority = {'GEOPOLITICAL': 0, 'OIL & ENERGY': 1, 'TRUMP / US': 2,
+                         'FED & RATES': 3, 'SAUDI DIRECT': 4, 'GLOBAL MARKET': 5}
+        _filtered_news.sort(key=lambda x: _cat_priority.get(x['_cat'], 9))
+
+        _news_html = ""
+        for _nh in _filtered_news[:7]:
+            _nsc  = _nh['_col']
+            _ndt  = _nh.get('date', '')[:10]
+            _news_html += (
+                f'<a href="{_nh["link"]}" target="_blank" style="text-decoration:none;display:block;">'
+                f'<div style="border-left:3px solid {_nsc};background:{_nsc}08;'
+                f'border-radius:0 8px 8px 0;padding:0.75rem 0.9rem;margin-bottom:0.55rem;">'
+                # row 1: category badge + date + read arrow
+                f'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.35rem;">'
+                f'<span style="font-size:0.66rem;font-weight:900;text-transform:uppercase;'
+                f'letter-spacing:0.6px;padding:0.18rem 0.6rem;border-radius:4px;'
+                f'background:{_nsc}22;color:{_nsc};flex-shrink:0;">{_nh["_cat"]}</span>'
+                f'<span style="font-size:0.68rem;color:#383838;">{_ndt}</span>'
+                f'<span style="margin-left:auto;font-size:0.7rem;color:{_nsc};'
+                f'font-weight:800;flex-shrink:0;">READ &rarr;</span>'
+                f'</div>'
+                # row 2: headline
+                f'<div style="font-size:0.9rem;color:#e0e0e0;line-height:1.55;'
+                f'font-weight:600;margin-bottom:0.35rem;">{_nh["title"]}</div>'
+                # row 3: why it matters
+                f'<div style="font-size:0.74rem;color:#585858;line-height:1.5;">'
+                f'WHY IT MATTERS &rarr; {_nh["_why"]}</div>'
+                f'</div></a>'
+            )
+
+        if not _news_html:
+            _news_html = (
+                f'<div style="background:#1a1a1a;border-radius:10px;padding:1.2rem;'
+                f'text-align:center;">'
+                f'<div style="font-size:0.95rem;font-weight:700;color:#555;'
+                f'margin-bottom:0.4rem;">No Major Alerts Right Now</div>'
+                f'<div style="font-size:0.8rem;color:#3a3a3a;line-height:1.6;">'
+                f'No geopolitical events, oil shocks, or major policy news detected. '
+                f'This is actually a good sign — calm news = stable markets.</div>'
+                f'</div>'
+            )
+
+        # Arabic page guide (collapsed by default)
+        from analysis_guide import render_market_guide
+        render_market_guide()
+
+        # ── Page header, KPI row, market conditions ─────────────────────────
+        _now_riy   = datetime.now(timezone(timedelta(hours=3)))
+        _full_mkt  = scanned >= 200
+        _mood_c    = _apc(_mcolor)
+        _zone_c    = _apc(_zone_col)
+        _title_txt = ("All strategies" if _strat_lbl_hdr in ("", "Full Market") else _strat_lbl_hdr)
+
+        # "All strategies" merges five scans; a stock can sit in two buckets
+        # (e.g. buy for one strategy, hold for another). Count and show each
+        # stock once (first = best-ranked occurrence).
+        _seen_ps = set()
+        _perfect_list = [s for s in _perfect_list
+                         if not (s['ticker'] in _seen_ps or _seen_ps.add(s['ticker']))]
+        _n_buy_stocks = len({s['ticker'] for s in all_buy})
+        _hit_rate = round(_n_buy_stocks / scanned * 100) if scanned > 0 else 0
+        _ups = [abs(s.get('target1', s['price']) - s.get('entry', s['price'])) / s.get('entry', s['price']) * 100
+                for s in _perfect_list if s.get('entry', 0) > 0]
+        _avg_upside_ps = sum(_ups) / len(_ups) if _ups else 0
+        _sub_txt   = (f"{scanned:,} stocks scanned across the whole Tadawul market" if _full_mkt
+                      else f"{scanned:,} stocks scanned from your custom list")
+        if _period_disp:
+            _sub_txt += f" · {_period_disp}"
+
+        # Reward:risk to target 1 — the same definition the stock cards use.
+        _rr_t1 = []
+        for _ps in _perfect_list:
+            _pe = _ps.get('entry', _ps['price']); _pst = _ps.get('stop_loss', _ps['price'])
+            if _pe - _pst > 0:
+                _rr_t1.append((_ps.get('target1', _ps['price']) - _pe) / (_pe - _pst))
+        _avg_rr_t1 = sum(_rr_t1) / len(_rr_t1) if _rr_t1 else 0
+
+        def _kpi(label, value, sub=''):
+            return (f"<div class='mr-kpi'><div class='l'>{label}</div>"
+                    f"<div class='v'>{value}</div><div class='s'>{sub}</div></div>")
+
+        _kpis_html = (
+            _kpi("Stocks scanned", f"{scanned:,}", "whole market" if _full_mkt else "custom list")
+            + _kpi("Buy candidates", f"{_n_buy_stocks:,}",
+                   f"{_hit_rate}% of scanned stocks · score ≥ 3, confidence ≥ 25%, R:R ≥ 0.8"
+                   + (f" · {len(all_buy):,} strategy signals" if len(all_buy) != _n_buy_stocks else ""))
+            + _kpi("Perfect setups", f"{len(_perfect_list)}", "passed every quality gate (top 8 shown)")
+            + _kpi("Avg reward : risk", f"1 : {_avg_rr_t1:.1f}" if _rr_t1 else "—", "perfect setups, to target 1")
+            + _kpi("Avg upside", f"+{_avg_upside_ps:.1f}%" if _perfect_list else "—", "perfect setups, to target 1")
+        )
+
+        _zone_idx   = 4 if _mscore >= 7 else 3 if _mscore >= 3 else 2 if _mscore >= -2 else 1 if _mscore >= -5 else 0
+        _ZONE_NAMES = ["Stay out", "Be careful", "Neutral", "Good time", "Ideal"]
+        _segs_html  = "".join(
+            f"<div class='mr-seg' style='background:{_zone_c if _zi == _zone_idx else _FILL};'></div>"
+            for _zi in range(5))
+        _seglbl_html = "".join(
+            (f"<span class='on' style='color:{_zone_c};'>{_zn}</span>" if _zi == _zone_idx else f"<span>{_zn}</span>")
+            for _zi, _zn in enumerate(_ZONE_NAMES))
+
+        _INST_NAMES = {'brent': 'Brent oil', 'aramco': 'Aramco', 'usd': 'US dollar index', 'gold': 'Gold'}
+        _insts_html = ""
+        for _ikey in ['brent', 'aramco', 'usd', 'gold']:
+            _d = (_msnap or {}).get(_ikey)
+            if not _d:
+                continue
+            _ip, _ic1, _ic5, _ibu = _d['price'], _d['chg_1d'], _d['chg_5d'], _d['bullish_up']
+            _unit = _d.get('unit', '')
+            if _unit in ('$/bbl', '$/MMBtu'):
+                _ipf = f"${_ip:.1f}"
+            elif _unit == '$/oz':
+                _ipf = f"${_ip:,.0f}"
+            elif _unit == 'SAR':
+                _ipf = f"SAR {_ip:.2f}"
+            elif _unit == '$':
+                _ipf = f"${_ip:.2f}"
+            else:
+                _ipf = f"{_ip:.1f}"
+            # green = this move is good for Saudi stocks, red = bad (e.g. a falling oil price is red)
+            _c1 = _GREEN if (_ic1 >= 0) == _ibu else _RED
+            _c5 = _GREEN if (_ic5 >= 0) == _ibu else _RED
+            _insts_html += (
+                f"<div class='mr-inst'><div class='l'>{_INST_NAMES.get(_ikey, _ikey.title())}</div>"
+                f"<div class='v'>{_ipf}</div>"
+                f"<div class='c'><span>Today <b style='color:{_c1};'>{_ic1:+.1f}%</b></span>"
+                f"<span>5 days <b style='color:{_c5};'>{_ic5:+.1f}%</b></span></div></div>"
+            )
+
+        _CAT_NAMES = {'GEOPOLITICAL': 'Geopolitical', 'OIL & ENERGY': 'Oil & energy', 'TRUMP / US': 'Trump / US',
+                      'FED & RATES': 'Fed & rates', 'SAUDI DIRECT': 'Saudi', 'GLOBAL MARKET': 'Global markets'}
+        _drivers_html = "".join(
+            f"<div class='mr-row'><div class='t'><span style='color:{_apc(_fc)};'>&#9679;</span>&nbsp; {_ft}</div>"
+            f"<div class='d'>{_fd}</div></div>"
+            for _fe, _ft, _fd, _fc in (_mfactors or [])
+        ) or "<div class='mr-row'><div class='d'>No significant macro drivers right now — markets are calm.</div></div>"
+        _headlines_html = "".join(
+            f"<a class='mr-link' href='{_html.escape(_nh.get('link', ''), quote=True)}' target='_blank'>"
+            f"<div class='mr-row'><div class='m'>{_pill(_CAT_NAMES.get(_nh['_cat'], _nh['_cat'].title()), _apc(_nh['_col']))}"
+            f"<span>{_nh.get('date', '')[:10]}</span></div>"
+            f"<div class='t'>{_html.escape(_nh['title'])}</div>"
+            f"<div class='d'>Why it matters: {_nh['_why']}</div></div></a>"
+            for _nh in _filtered_news[:7]
+        ) or ("<div class='mr-row'><div class='d'>No geopolitical, oil or policy headlines that move Saudi stocks "
+              "right now — calm news usually means stable markets.</div></div>")
+        _n_more = len(_mfactors or []) + len(_filtered_news[:7])
+
+        st.markdown(
+            f"<div class='mr-head'><div>"
+            f"<div class='mr-eyebrow'>{'Full market scan' if _full_mkt else 'Custom scan'} · {_now_riy.strftime('%a %d %b, %H:%M')}</div>"
+            f"<div class='mr-title'>{_title_txt}</div>"
+            f"<div class='mr-sub'>{_sub_txt}</div></div>"
+            f"<div class='mr-mood'>{_pill(_mlabel, _mood_c)}"
+            f"<div class='mr-mood-sub'>Macro score {_mscore:+d} / 10</div></div></div>"
+            f"<div class='mr-kpis'>{_kpis_html}</div>"
+            f"<div class='mr-card'><div class='mr-cond'>"
+            f"<div><div class='ap-label'>Market conditions today</div>"
+            f"<div class='mr-zone' style='color:{_zone_c};'>{_zone_label.capitalize()}</div>"
+            f"<div class='mr-desc'>{_zone_desc}</div>"
+            f"<div class='mr-play'><b>What to do:</b> {_pb_msg}</div>"
+            f"<div class='mr-segs'>{_segs_html}</div><div class='mr-seglbl'>{_seglbl_html}</div></div>"
+            f"<div><div class='mr-insts'>{_insts_html}</div>"
+            f"<div class='mr-note'>Green = the move is good for Saudi stocks, red = it is a headwind.</div></div>"
+            f"</div>"
+            f"<details class='mr-more'><summary>What's driving the market · {_n_more} items</summary>"
+            f"<div class='mr-cols'><div><div class='mr-h'>Macro drivers</div>{_drivers_html}</div>"
+            f"<div><div class='mr-h'>Headlines that move Saudi stocks</div>{_headlines_html}</div></div>"
+            f"</details></div>",
+            unsafe_allow_html=True,
+        )
+
+
+        # ── Sort (always by priority score, no user control needed) ─────────
+        def _sorted(lst):
+            return sorted(lst, key=lambda x: x.get('priority_score', 0), reverse=True)
+
+        # ── Card renderer — full Perfect-Setup style, shared by both tabs ────
+        _SETUP_BADGE_COLORS = {
+            'Golden Cross':       ('#fbbf24', '#2a2410'),
+            'Oversold Reversal':  ('#60a5fa', '#101828'),
+            'BB Bounce':          ('#a78bfa', '#1a1228'),
+            '52W Breakout':       ('#10a37f', '#0a1f1a'),
+            'Deep Value':         ('#f97316', '#1f1208'),
+            'Trend Continuation': ('#34d399', '#0a1f14'),
+            'Stoch Reversal':     ('#e879f9', '#1f0a22'),
+            'Volume Spike':       ('#fb923c', '#1f1008'),
+        }
+        _SETUP_LABELS = {
+            'Golden Cross': 'Moving averages crossed up — bullish trend starting',
+            'Death Cross': 'Trend weakening',
+            'Oversold Reversal': 'Price was oversold — bounce expected',
+            'BB Bounce': 'Hit lower Bollinger Band — bounce expected',
+            '52W Breakout': 'Breaking above 52-week high — strong momentum',
+            'Deep Value': 'Deeply undervalued — potential recovery',
+            'Trend Continuation': 'Strong uptrend still going',
+            'Stoch Reversal': 'Stochastic oversold — reversal expected',
+            'Volume Spike': 'Unusual buying volume — big institutional interest',
+        }
+
+        def _analyse_btn(stock, btn_key_suffix):
+            """Compact 'Deep Analyse' button — navigates to single-stock view with scan context."""
+            sym    = stock['ticker'].replace('.SR', '')
+            score  = stock.get('score', '')
+            conv   = stock.get('conviction', '')
+            setup  = stock.get('setup_type', '')
+            _bcol1, _bcol2 = st.columns([5, 1.2], gap="small")
+            with _bcol2:
+                if st.button("Deep analysis →", key=f"ab_{sym}_{btn_key_suffix}",
+                             type="secondary", use_container_width=True):
+                    st.session_state["symbol_input"]      = sym
+                    st.session_state["screener_auto_analyze"] = True
+                    st.session_state["scan_context"]      = {
+                        "score": str(score), "conviction": str(conv), "setup": setup
+                    }
+                    st.session_state.show_market_results  = False
+                    st.rerun()
+
+        def _render_card(stock, side, tier_color=None, rank_num=None, is_perfect=False):
+            sym    = stock['ticker'].replace('.SR', '')
+            name   = stock.get('name', sym)
+            price  = stock['price']
+            score  = stock.get('score', 0)
+            entry  = stock.get('entry', price)
+            stop   = stock.get('stop_loss', price)
+            t1     = stock.get('target1', price)
+            t2     = stock.get('target2', price)
+            rr     = stock.get('rr_ratio', 0)
+            conv   = stock.get('conviction', 50)
+            setup  = stock.get('setup_type', '')
+            raw_why = stock.get('why_reasons') or stock.get('signals', [])
+            mtf    = stock.get('mtf_score', 0)
+            sector = stock.get('sector', 'Other')
+
+            # Technical indicator values
+            _rsi      = stock.get('rsi', 50)
+            _adx      = stock.get('adx', 20)
+            _bb_pct   = stock.get('bb_pct', 0.5)
+            _stoch_k  = stock.get('stoch_k', 50)
+            _vol_ratio = stock.get('vol_ratio', 1.0)
+            _above_ema200 = stock.get('above_ema200', False)
+            _obv_rising   = stock.get('obv_rising', False)
+
+            # Performance
+            _perf_5d  = stock.get('perf_5d', 0)
+            _perf_1m  = stock.get('perf_1m', 0)
+            _perf_3m  = stock.get('perf_3m', 0)
+            _w52_pos  = stock.get('w52_pos', 50)
+
+            # Score breakdown
+            _ind_score = stock.get('ind_score', 0)
+            _pa_score  = stock.get('pa_score', 0)
+
+            # Risk & position sizing
+            _risk_class  = stock.get('risk_class', 'Medium')
+            _pos_size    = stock.get('pos_size_pct', 3.0)
+            _entry_strat = stock.get('entry_strategy', '')
+            _regime      = stock.get('regime', 'RANGE')
+
+            ac = tier_color or {"buy": "#10a37f", "sell": "#ef4444", "hold": "#fbbf24"}.get(side, "#10a37f")
+            sc_color = "#10a37f" if score >= 12 else ("#4A9EFF" if score >= 7 else "#fbbf24")
+            cc_color = "#10a37f" if conv >= 70 else ("#4A9EFF" if conv >= 45 else "#fbbf24")
+
+            dn_pct = (entry - stop) / entry * 100 if entry > 0 else 0
+            up_pct = (t1   - entry) / entry * 100  if entry > 0 else 0
+            t2_pct = (t2   - entry) / entry * 100  if entry > 0 else 0
+            rr_val = (t1 - entry) / (entry - stop)  if (entry - stop) > 0 else rr
+
+            # ── Per-stock market context ─────────────────────────────────────
+            # Determine which macro signals and news categories matter for this stock
+            _name_lower = name.lower()
+            _sym_lower  = sym.lower()
+
+            # Sector → primary macro drivers
+            # Each entry: (news_cats_to_show, macro_snapshot_keys, sector_label, sector_color)
+            _SEC_PROFILE = {
+                'Banks': {
+                    'label': 'Banks & Finance', 'color': '#4A9EFF',
+                    'news_cats': ('FED & RATES', 'SAUDI DIRECT', 'TRUMP / US', 'GLOBAL MARKET'),
+                    'snap_keys': ('vix',),
+                    'why': 'Banks profit from interest rates and credit demand. Rate cuts squeeze margins; market panic dries up lending.',
+                },
+                'Petrochemicals': {
+                    'label': 'Petrochemicals', 'color': '#f97316',
+                    'news_cats': ('OIL & ENERGY', 'GEOPOLITICAL', 'TRUMP / US'),
+                    'snap_keys': ('brent', 'gas'),
+                    'why': 'Feedstock costs track oil and gas prices directly. Geopolitical disruption hits supply chains.',
+                },
+                'Utilities': {
+                    'label': 'Utilities', 'color': '#a78bfa',
+                    'news_cats': ('OIL & ENERGY', 'SAUDI DIRECT', 'FED & RATES'),
+                    'snap_keys': ('brent',),
+                    'why': 'Regulated revenue but fuel costs track oil/gas. Rate changes affect project financing costs.',
+                },
+                'Telecom & Tech': {
+                    'label': 'Telecom & Tech', 'color': '#60a5fa',
+                    'news_cats': ('FED & RATES', 'GLOBAL MARKET', 'TRUMP / US'),
+                    'snap_keys': ('vix', 'sp500'),
+                    'why': 'Growth stocks are rate-sensitive. Global risk-off hurts tech valuations rapidly.',
+                },
+                'Insurance': {
+                    'label': 'Insurance', 'color': '#34d399',
+                    'news_cats': ('FED & RATES', 'SAUDI DIRECT', 'GEOPOLITICAL'),
+                    'snap_keys': ('vix',),
+                    'why': 'Investment returns tie to interest rates. Geopolitical shocks can spike claims.',
+                },
+                'Cement': {
+                    'label': 'Cement', 'color': '#fbbf24',
+                    'news_cats': ('SAUDI DIRECT', 'OIL & ENERGY'),
+                    'snap_keys': ('brent',),
+                    'why': 'Cement demand driven by Saudi government spending, which depends on oil revenue.',
+                },
+                'Food & Agri': {
+                    'label': 'Food & Agriculture', 'color': '#10a37f',
+                    'news_cats': ('GEOPOLITICAL', 'SAUDI DIRECT', 'TRUMP / US'),
+                    'snap_keys': ('usd',),
+                    'why': 'Import-dependent. Trade wars and USD strength directly raise input costs.',
+                },
+                'REITs': {
+                    'label': 'REITs', 'color': '#e879f9',
+                    'news_cats': ('FED & RATES', 'SAUDI DIRECT'),
+                    'snap_keys': ('usd', 'vix'),
+                    'why': 'Real estate investment trusts are highly rate-sensitive. Higher rates reduce valuations and distribution yields.',
+                },
+                'Retail': {
+                    'label': 'Retail', 'color': '#fb923c',
+                    'news_cats': ('SAUDI DIRECT', 'GLOBAL MARKET', 'TRUMP / US'),
+                    'snap_keys': ('vix',),
+                    'why': 'Consumer spending tracks Saudi income levels, which are tied to oil revenue and government salaries.',
+                },
+                'Healthcare': {
+                    'label': 'Healthcare', 'color': '#38bdf8',
+                    'news_cats': ('SAUDI DIRECT', 'FED & RATES'),
+                    'snap_keys': ('vix',),
+                    'why': 'Defensive sector. Less oil-sensitive but affected by government healthcare contracts and Vision 2030 spending.',
+                },
+                'Transport': {
+                    'label': 'Transport', 'color': '#94a3b8',
+                    'news_cats': ('OIL & ENERGY', 'GEOPOLITICAL', 'SAUDI DIRECT'),
+                    'snap_keys': ('brent',),
+                    'why': 'Fuel costs are the biggest expense. Oil spikes squeeze margins; geopolitical conflicts disrupt routes.',
+                },
+                'Real Estate': {
+                    'label': 'Real Estate', 'color': '#e879f9',
+                    'news_cats': ('FED & RATES', 'SAUDI DIRECT'),
+                    'snap_keys': ('usd', 'vix'),
+                    'why': 'Rate-sensitive sector. Vision 2030 projects drive demand; foreign capital flows track USD and global risk.',
+                },
+            }
+
+            # Auto-detect oil/energy exposure by ticker/name even outside Petrochemicals
+            _is_oil_linked = (
+                sector in ('Petrochemicals',)
+                or any(kw in _name_lower for kw in ('aramco', 'oil', 'petro', 'chemical', 'refin', 'gas', 'energy'))
+                or any(kw in _sym_lower  for kw in ('2222', 'petro', 'sahara', 'yanbu', 'jubail'))
+            )
+            _is_bank = (
+                sector == 'Banks'
+                or any(kw in _name_lower for kw in ('bank', 'riyad', 'rajhi', 'snb', 'alinma', 'alawwal', 'bsf', 'anb'))
+            )
+
+            _sprof = _SEC_PROFILE.get(sector, {
+                'label': sector or 'General', 'color': '#888',
+                'news_cats': ('GEOPOLITICAL', 'OIL & ENERGY', 'SAUDI DIRECT', 'TRUMP / US', 'FED & RATES'),
+                'snap_keys': ('brent', 'vix'),
+                'why': 'Saudi stocks broadly track oil revenue and global market sentiment.',
+            })
+
+            # Override for oil-linked stocks in non-petrochem sectors
+            if _is_oil_linked and sector not in ('Petrochemicals',):
+                _sprof = _SEC_PROFILE['Petrochemicals']
+
+            _ctx_stock = []   # (label, color, text) rows for this card
+
+            # 1. Oil price vs breakeven — if oil-relevant
+            if _is_oil_linked or 'brent' in _sprof['snap_keys']:
+                _bs = (_msnap or {}).get('brent')
+                if _bs:
+                    try:
+                        from macro_data import _SAUDI_OIL_BREAKEVEN
+                        _op = _bs['price']; _oc5 = _bs['chg_5d']
+                        _gap = _op - _SAUDI_OIL_BREAKEVEN
+                        _os  = ('+' if _oc5 >= 0 else '') + f'{_oc5:.1f}%'
+                        _oil_metric = f'${_op:.1f}  {_os}'
+                        if _op < _SAUDI_OIL_BREAKEVEN - 10:
+                            _ctx_stock.append(("OIL CRITICAL", "#ef4444",
+                                f"Brent ${_op:.1f} — ${abs(_gap):.0f} below the ${_SAUDI_OIL_BREAKEVEN:.0f} Saudi budget breakeven ({_os} this week). "
+                                f"{'Aramco dividends and Saudi revenues are under severe pressure. Direct risk to stock.' if _is_oil_linked else 'Government spending cuts likely — sector contract flow at risk.'}",
+                                'bear', _oil_metric))
+                        elif _op < _SAUDI_OIL_BREAKEVEN:
+                            _ctx_stock.append(("OIL BELOW BREAKEVEN", "#f97316",
+                                f"Brent ${_op:.1f} ({_os} this week), ${abs(_gap):.0f} below budget breakeven. "
+                                f"{'Oil-linked product pricing under pressure — watch margins closely.' if _is_oil_linked else 'Fiscal pressure building — watch for delayed government contracts.'}",
+                                'watch', _oil_metric))
+                        elif _oc5 > 2:
+                            _ctx_stock.append(("OIL TAILWIND", "#10a37f",
+                                f"Brent ${_op:.1f}, up {_os} this week — ${_gap:.0f} above Saudi breakeven. "
+                                f"{'Strong feedstock cost environment. Aramco dividends and sector revenue supported.' if _is_oil_linked else 'Rising oil strengthens Saudi fiscal position — positive backdrop for government-linked spending.'}",
+                                'bull', _oil_metric))
+                        elif _oc5 < -3:
+                            _ctx_stock.append(("OIL DECLINING", "#f97316",
+                                f"Brent ${_op:.1f}, down {_os} this week. "
+                                f"{'Product pricing may compress even as feedstock drops — net margin impact uncertain.' if sector == 'Petrochemicals' else 'Weakening oil signals Saudi revenue headwind — monitor closely.'}",
+                                'watch', _oil_metric))
+                    except Exception:
+                        pass
+
+            # 2. VIX — global fear gauge
+            if 'vix' in _sprof['snap_keys'] or _is_bank:
+                _vs = (_msnap or {}).get('vix')
+                if _vs:
+                    _vp = _vs['price']
+                    _vix_metric = f'VIX {_vp:.0f}'
+                    if _vp > 35:
+                        _ctx_stock.append(("EXTREME FEAR", "#ef4444",
+                            f"VIX at {_vp:.0f} — panic-level volatility. Foreign capital is exiting emerging markets aggressively. "
+                            f"{'Credit demand collapses in crises — loan growth stalls, default risk rises.' if _is_bank else 'International investors are unwinding Saudi positions to cover losses elsewhere. Risk is elevated.'}",
+                            'bear', _vix_metric))
+                    elif _vp > 25:
+                        _ctx_stock.append(("ELEVATED FEAR", "#f97316",
+                            f"VIX at {_vp:.0f} — markets anxious. Risk-off flows can hit Tadawul as foreign money retreats. "
+                            f"{'Banks face wider credit spreads and tighter lending conditions.' if _is_bank else 'Reduce position sizing — volatility makes entries less reliable.'}",
+                            'watch', _vix_metric))
+                    elif _vp < 16:
+                        _ctx_stock.append(("LOW VOLATILITY", "#10a37f",
+                            f"VIX at {_vp:.0f} — market calm. Risk appetite is healthy, capital flows are supportive. "
+                            f"{'Banks can grow loan books freely; appetite for credit is strong.' if _is_bank else 'Good conditions for momentum trades — low fear means fewer sudden reversals.'}",
+                            'bull', _vix_metric))
+
+            # 3. Interest rates
+            if 'FED & RATES' in _sprof['news_cats']:
+                _rate_metric = f'Macro {_mscore:+d}'
+                if _mscore <= -3:
+                    _ctx_stock.append(("RATE HEADWIND", "#f97316",
+                        f"Rate macro score {_mscore}/10 — conditions are a headwind. "
+                        f"{'Higher-for-longer rates compress net interest margins on new loans.' if _is_bank else 'Elevated rates raise financing costs and pressure growth valuations in this sector.'}",
+                        'watch', _rate_metric))
+                elif _mscore >= 5:
+                    _ctx_stock.append(("RATES EASING", "#10a37f",
+                        f"Rate macro score {_mscore}/10 — easing conditions are a tailwind. "
+                        f"{'Lower rates stimulate credit demand and expand bank margins.' if _is_bank else 'Falling rates reduce sector financing costs and lift asset valuations.'}",
+                        'bull', _rate_metric))
+
+            # 4. Relevant news headlines
+            _news_for_stock = [n for n in _filtered_news if n.get('_cat') in _sprof['news_cats']]
+            for _ni, _nn in enumerate(_news_for_stock[:2]):
+                _ncat = _nn['_cat']
+                _nwhy = {
+                    'OIL & ENERGY':   f"Oil moves directly affect {'revenues and feedstock costs' if _is_oil_linked else 'Saudi government spending and market sentiment'}.",
+                    'GEOPOLITICAL':   "Middle East tensions can disrupt supply routes and trigger rapid selling on Tadawul.",
+                    'TRUMP / US':     "US trade and sanctions policy redirects global capital — Saudi assets included.",
+                    'FED & RATES':    f"{'Fed decisions hit bank lending margins directly.' if _is_bank else 'Rate moves shift global capital allocation — Saudi included.'}",
+                    'SAUDI DIRECT':   "This directly involves Saudi policy or companies in your sector.",
+                    'GLOBAL MARKET':  "Global risk-off events pull foreign investors out of emerging markets like Saudi Arabia.",
+                }.get(_ncat, "This event may affect your trade.")
+                _ctx_stock.append((_ncat, _nn['_col'],
+                    f"{_nn['title']} — {_nwhy}",
+                    'news', ''))
+
+            # 5. Fallback
+            if not _ctx_stock:
+                _ctx_stock.append(("NO ACTIVE ALERTS", "#484848",
+                    f"No major macro events flagged for {_sprof['label']} right now. "
+                    f"{_sprof['why']}",
+                    'neutral', ''))
+
+            # ── Context HTML builder ──────────────────────────────────────
+            _CTX_ICONS = {
+                'bull':    ('&#9650;', '#10a37f'),   # ▲
+                'bear':    ('&#9660;', '#ef4444'),   # ▼
+                'watch':   ('&#9670;', '#f97316'),   # ◆
+                'neutral': ('&#9679;', '#484848'),   # ●
+                'news':    ('&#8594;', None),        # →  (uses item color)
+            }
+            def _ctx_item_html(entry):
+                _cl, _cc, _ct = entry[0], entry[1], entry[2]
+                _imp = entry[3] if len(entry) > 3 else 'neutral'
+                _met = entry[4] if len(entry) > 4 else ''
+                _icon_char, _icon_col = _CTX_ICONS.get(_imp, ('&#9679;', _cc))
+                _ic = _icon_col if _icon_col else _cc
+                _metric_html = (
+                    f'<span style="font-size:0.65rem;font-weight:800;color:{_cc};'
+                    f'background:{_cc}18;padding:0.1rem 0.45rem;border-radius:4px;'
+                    f'font-family:monospace;white-space:nowrap;letter-spacing:0.3px;">{_met}</span>'
+                    if _met else ''
+                )
+                return (
+                    f'<div style="border-radius:8px;border:1px solid {_cc}20;'
+                    f'background:{_cc}0a;padding:0.6rem 0.8rem;margin-bottom:0.45rem;'
+                    f'border-left:3px solid {_cc};">'
+                    f'<div style="display:flex;align-items:center;'
+                    f'justify-content:space-between;margin-bottom:0.3rem;">'
+                    f'<div style="display:flex;align-items:center;gap:0.35rem;">'
+                    f'<span style="font-size:0.65rem;font-weight:900;color:{_ic};line-height:1;">{_icon_char}</span>'
+                    f'<span style="font-size:0.58rem;font-weight:900;letter-spacing:1.2px;'
+                    f'color:{_cc};text-transform:uppercase;">{_cl}</span>'
+                    f'</div>'
+                    f'{_metric_html}'
+                    f'</div>'
+                    f'<div style="font-size:0.88rem;color:#b8b8b8;line-height:1.6;'
+                    f'padding-left:1.1rem;">{_ct}</div>'
+                    f'</div>'
+                )
+            _stock_ctx_html = "".join(_ctx_item_html(e) for e in _ctx_stock)
+
+            dn_pct = (entry - stop) / entry * 100 if entry > 0 else 0
+            up_pct = (t1   - entry) / entry * 100  if entry > 0 else 0
+            t2_pct = (t2   - entry) / entry * 100  if entry > 0 else 0
+            rr_val = (t1 - entry) / (entry - stop)  if (entry - stop) > 0 else rr
+
+            # MTF badge
+            # MTF = Multi-Timeframe alignment (how many timeframes agree: Daily, Weekly, Monthly)
+            if mtf == 3:
+                mtf_badge = ('<span style="font-size:0.67rem;font-weight:700;background:#4caf5018;'
+                             'color:#4caf50;border-radius:4px;padding:3px 8px;'
+                             'border:1px solid #4caf5040;white-space:nowrap;'
+                             'title="All 3 timeframes (daily, weekly, monthly) agree — strongest signal">'
+                             '&#10003; All Timeframes Agree</span>')
+            elif mtf == 2:
+                mtf_badge = ('<span style="font-size:0.67rem;font-weight:700;background:#ff980018;'
+                             'color:#ff9800;border-radius:4px;padding:3px 8px;'
+                             'border:1px solid #ff980040;white-space:nowrap;'
+                             'title="2 of 3 timeframes agree">'
+                             '2 of 3 Timeframes Agree</span>')
+            elif mtf == 1:
+                mtf_badge = ('<span style="font-size:0.67rem;font-weight:700;background:#88888818;'
+                             'color:#888;border-radius:4px;padding:3px 8px;'
+                             'border:1px solid #88888835;white-space:nowrap;'
+                             'title="Only 1 timeframe agrees — weaker signal">'
+                             '1 of 3 Timeframes</span>')
+            else:
+                mtf_badge = ''
+
+            # ── Setup badge ──────────────────────────────────────────────
+            _sb_color, _sb_bg = _SETUP_BADGE_COLORS.get(setup, ('#10a37f', '#10a37f18'))
+
+            # ── Entry quality badge ──────────────────────────────────────
+            _eq = stock.get('entry_quality', 'Good')
+            _eq_colors = {
+                'Excellent': ('#10a37f', '#10a37f18', '#10a37f40'),
+                'Good':      ('#4A9EFF', '#4A9EFF14', '#4A9EFF38'),
+                'Fair':      ('#fbbf24', '#fbbf2414', '#fbbf2438'),
+                'Poor':      ('#ef4444', '#ef444418', '#ef444440'),
+            }
+            _eq_col, _eq_bg, _eq_bdr = _eq_colors.get(_eq, ('#888', '#88888818', '#88888840'))
+            _eq_label = {
+                'Excellent': 'Great Entry',
+                'Good':      'Good Entry',
+                'Fair':      'Fair Entry',
+                'Poor':      'Near Resistance ⚠',
+            }.get(_eq, _eq)
+            _headroom = stock.get('headroom_pct', 0)
+            _range_p  = stock.get('range_pos', 50)
+            _sup_price = stock.get('support_price', 0)
+            _res_price = stock.get('resistance_price', 0)
+            _sup_pct   = stock.get('support_pct', 0)
+
+            # ── Sector label ─────────────────────────────────────────────
+            _sprof_label = _sprof.get('label', sector) if sector and sector not in ('', 'Other') else ''
+
+            # ── Why bullets ──────────────────────────────────────────────
+            bullets = [_clean_why(r) for r in raw_why[:5] if r]
+            if not bullets and setup:
+                bullets = [_SETUP_LABELS.get(setup, setup)]
+            bullet_html = "".join(
+                f'<div style="display:flex;align-items:flex-start;gap:0.7rem;padding:0.45rem 0;'
+                f'border-bottom:1px solid rgba(255,255,255,0.04);">'
+                f'<span style="background:#10a37f18;color:#10a37f;font-size:0.6rem;font-weight:900;'
+                f'min-width:1.4rem;height:1.4rem;display:flex;align-items:center;justify-content:center;'
+                f'border-radius:6px;border:1px solid #10a37f30;flex-shrink:0;">{i+1}</span>'
+                f'<span style="font-size:0.85rem;color:#c8c8c8;line-height:1.6;">{b}</span>'
+                f'</div>'
+                for i, b in enumerate(bullets)
+            ) if bullets else '<span style="color:#484848;font-size:0.82rem;">No specific signals recorded</span>'
+
+            # ── Score / confidence colors ─────────────────────────────────
+            _sc2 = '#10a37f' if score >= 12 else ('#4A9EFF' if score >= 7 else '#fbbf24')
+            _cc2 = '#10a37f' if conv >= 70 else ('#4A9EFF' if conv >= 45 else '#fbbf24')
+
+            # ── MTF badge data ─────────────────────────────────────────
+            if mtf == 3:
+                _mtf_color, _mtf_label = '#4caf50', 'All timeframes agree'
+            elif mtf == 2:
+                _mtf_color, _mtf_label = '#ff9800', '2 of 3 timeframes'
+            elif mtf == 1:
+                _mtf_color, _mtf_label = '#666666', '1 of 3 timeframes'
+            else:
+                _mtf_color, _mtf_label = '', ''
+            _mtf_txt = _mtf_label  # kept for any legacy references
+
+            # ── Card markup (the white card itself is the keyed container) ───
+            _rk = str(rank_num).lstrip('#') if rank_num else ''
+            _rk_cls = 'r1' if _rk == '1' else ('r2' if _rk in ('2', '3') else '')
+            _eq_cls = {'Excellent': 'green', 'Good': 'blue', 'Fair': 'amber', 'Poor': 'red'}.get(_eq, '')
+            _sigs = stock.get('strategy_signals') or []
+
+            _pills_html = (
+                (_pill(_html.escape(setup), 'blue') if setup else '')
+                + _pill(_eq_label, _eq_cls)
+                + (_pill(f"{len(_sigs)} signals agree", 'green') if _sigs else '')
+                + (_pill(_mtf_label, {3: 'green', 2: 'amber'}.get(mtf, '')) if _mtf_label else '')
+                + (_pill(_html.escape(_sprof_label)) if _sprof_label else '')
+            )
+            _chips_html = "".join(f"<span class='mr-chip'>{_html.escape(str(_g))}</span>" for _g in _sigs)
+
+            _conf_tip = ("Confidence = how much of the maximum possible score this stock achieved: "
+                         "(signal score ÷ max for this market regime) × 100. Higher = more indicators agree.")
+            _stats_html = (
+                f"<div class='mr-stat'><div class='l'>Price · SAR</div><div class='v'>{price:.2f}</div></div>"
+                f"<div class='mr-stat'><div class='l'>Signal score</div><div class='v'>{score}<small>pts</small></div></div>"
+                f"<div class='mr-stat'><div class='l'>Confidence <span class='mr-tip' title='{_conf_tip}'>?</span></div>"
+                f"<div class='v'>{conv}<small>%</small></div></div>"
+            )
+
+            def _lv(label, val, sub, col):
+                return (f"<div class='mr-lv'><div class='l' style='color:{col};'>{label}</div>"
+                        f"<div class='v'>{val}</div><div class='s' style='color:{col};'>{sub}</div></div>")
+
+            _entry_sub = "at market" if abs(entry - price) < 0.005 else f"{(entry / price - 1) * 100:+.1f}% vs price"
+            _plan_html = (
+                _lv("Stop loss", f"{stop:.2f}", f"−{dn_pct:.1f}%", _RED)
+                + _lv("Entry", f"{entry:.2f}", _entry_sub, _BLUE)
+                + _lv("Target 1", f"{t1:.2f}", f"+{up_pct:.1f}%", _GREEN)
+                + _lv("Target 2", f"{t2:.2f}", f"+{t2_pct:.1f}%", _GREEN)
+                + _lv("Reward : risk", f"1 : {rr_val:.1f}", "to target 1", _T3)
+            )
+
+            _has_sup = bool(_sup_price) and float(_sup_price) > 0
+            _has_res = bool(_res_price) and float(_res_price) > 0
+            _rp = min(100.0, max(0.0, float(_range_p or 0)))
+            if _has_sup and _has_res:
+                _range_html = (
+                    f"<div class='mr-range'>"
+                    f"<div class='mr-plbl' style='left:{min(94, max(6, _rp))}%;'>{price:.2f}</div>"
+                    f"<div class='mr-track'><div class='mr-fill' style='width:{_rp}%;'></div>"
+                    f"<div class='mr-dot' style='left:{min(97, max(3, _rp))}%;'></div></div>"
+                    f"<div class='mr-ends'><span>Support</span>{_pill(_eq_label, _eq_cls)}<span>Resistance</span></div>"
+                    f"</div>"
+                )
+                _range_cap = f"Price sits {_rp:.0f}% of the way from support to resistance (20-session range)."
+            else:
+                _range_html = "<div class='mr-ends' style='justify-content:center;'>No clear 20-session range for this stock.</div>"
+                _range_cap = ""
+            _struct_html = (
+                f"<div class='mr-struct'>"
+                f"<div class='mr-lvl'><div class='l' style='color:{_GREEN};'>Support</div>"
+                f"<div class='v'>{(f'{_sup_price:.2f}' if _has_sup else '—')}</div>"
+                f"<div class='s'>{(f'{_sup_pct:.1f}% below price' if _has_sup else 'no level found')}</div></div>"
+                f"{_range_html}"
+                f"<div class='mr-lvl' style='text-align:right;'><div class='l' style='color:{_RED};'>Resistance</div>"
+                f"<div class='v'>{(f'{_res_price:.2f}' if _has_res else '—')}</div>"
+                f"<div class='s'>{(f'{_headroom:.1f}% above price' if _has_res else 'no level found')}</div></div>"
+                f"</div>"
+                + (f"<div class='mr-note'>{_range_cap}</div>" if _range_cap else "")
+            )
+
+            # Why + market context (collapsed by default)
+            _IMPACT_COL = {'bull': _GREEN, 'bear': _RED, 'watch': _AMBER, 'news': _BLUE, 'neutral': _T3}
+            _ctx_rows_html = "".join(
+                f"<div class='mr-row'><div class='m'>"
+                f"{_pill(_CAT_NAMES.get(_e[0], _e[0].capitalize()), _IMPACT_COL.get(_e[3] if len(_e) > 3 else 'neutral', _T3))}"
+                + (f"<span>{_e[4]}</span>" if len(_e) > 4 and _e[4] else "")
+                + f"</div><div class='d'>{_html.escape(str(_e[2]))}</div></div>"
+                for _e in _ctx_stock
+            )
+            _why_items = [] if _sigs else [_html.escape(b) for b in bullets]
+            _why_html = ("<ul class='mr-why'>" + "".join(f"<li>{b}</li>" for b in _why_items) + "</ul>") if _why_items else ""
+            _sec_lbl_ctx = _sprof.get('label', sector) or ''
+            _more_label = ("Market context" if _sec_lbl_ctx in ('', 'Other', 'General')
+                           else f"Market context for {_html.escape(_sec_lbl_ctx)}")
+            if _entry_strat:
+                _why_html = f"<div class='mr-row'><div class='d'><b>Entry plan:</b> {_html.escape(_entry_strat)}</div></div>" + _why_html
+
+            st.markdown(
+                f"<div class='mr-top'>"
+                f"<div class='mr-id'>"
+                + (f"<div class='mr-rank {_rk_cls}'>{_rk}</div>" if _rk else "")
+                + f"<div style='min-width:0;'><div class='mr-symline'><span class='mr-sym'>{sym}</span>"
+                f"<span class='mr-name'>{_html.escape(str(name))}</span></div>"
+                f"<div class='mr-pills'>{_pills_html}</div>"
+                + (f"<div class='mr-chips'>{_chips_html}</div>" if _chips_html else "")
+                + f"</div></div>"
+                f"<div class='mr-stats'>{_stats_html}</div>"
+                f"</div>"
+                f"<div class='mr-blk'><div class='mr-blk-h'>Your trading plan "
+                f"<span class='mr-tip' title='Entry = suggested buy price. Stop loss = exit if the trade goes wrong. "
+                f"Targets = where to take profit. Reward : risk = how much you can make for every 1 you risk (to target 1).'>?</span></div>"
+                f"<div class='mr-plan'>{_plan_html}</div></div>"
+                f"<div class='mr-blk'><div class='mr-blk-h'>Price structure "
+                f"<span class='mr-tip' title='Support = the 20-session low where buyers stepped in. Resistance = the 20-session high. "
+                f"Closer to support = a better entry.'>?</span></div>{_struct_html}</div>"
+                f"<details class='mr-more'><summary>{_more_label}</summary>{_why_html}{_ctx_rows_html}</details>",
+                unsafe_allow_html=True,
+            )
+
+        # ── Classify stocks ───────────────────────────────────────────────────
+        # all_buy already computed above for hero tiles
+
+        # Best Picks: strict multi-gate composite score, capped at 10
+        def _best_picks_score(s):
+            rr   = s.get('rr_ratio', 0)
+            conv = s.get('conviction', 0)
+            ind  = s.get('ind_score', 0)
+            pa   = s.get('pa_score', 0)
+            sc   = s.get('score', 0)
+            vr   = s.get('vol_ratio', 1)
+            rsi  = s.get('rsi', 50)
+            rsi_bonus = 0.5 if rsi < 45 else (-0.5 if rsi > 72 else 0)
+            return (rr * 2) + (conv / 20) + ind + pa + sc + min(vr, 3) + rsi_bonus
+
+        best_picks = sorted(
+            [s for s in all_stocks
+             if s.get('score', 0) >= 4
+             and s.get('rr_ratio', 0) >= 1.8
+             and s.get('conviction', 0) >= 45],
+            key=_best_picks_score, reverse=True)
+
+        _srch = ""
+
+        # Pull active filter settings saved at scan time
+        _f_sig    = st.session_state.get('ma_filter_sig',    'All')
+        _f_sector = st.session_state.get('ma_filter_sector', 'All Sectors')
+        _f_score  = st.session_state.get('ma_filter_score',  1)
+        _f_rr     = st.session_state.get('ma_filter_rr',     0.0)
+        _f_conv   = st.session_state.get('ma_filter_conv',   0)
+
+        def _filter(lst):
+            out = _sorted(lst)
+            # Text search
+            if _srch:
+                q = _srch.strip().lower()
+                out = [s for s in out if q in s['ticker'].lower() or q in s.get('name', '').lower()]
+            # Sector
+            if _f_sector and _f_sector != 'All Sectors':
+                out = [s for s in out if s.get('sector', 'Other') == _f_sector]
+            # Min score
+            if _f_score > 1:
+                out = [s for s in out if s.get('score', 0) >= _f_score]
+            # Min R:R
+            if _f_rr > 0:
+                out = [s for s in out if s.get('rr_ratio', 0) >= _f_rr]
+            # Min conviction
+            if _f_conv > 0:
+                out = [s for s in out if s.get('conviction', 0) >= _f_conv]
+            return out
+
+        # Signal-type filter splits the raw lists before tab counts
+        def _sig_filter(lst, side):
+            if _f_sig == 'Buy Only' and side != 'buy':
+                return []
+            if _f_sig == 'Sell Only' and side != 'sell':
+                return []
+            return _filter(lst)
+
+        _f_buy_stocks  = _sig_filter(buy_stocks,  'buy')
+        _f_sell_stocks = _sig_filter(sell_stocks, 'sell')
+        _f_best_picks  = _filter(best_picks) if _f_sig != 'Sell Only' else []
+        _f_all_buy     = _sig_filter(all_buy, 'buy')
+
+        # Active filter badge
+        _active_filters = []
+        if _f_sig    != 'All':          _active_filters.append(_f_sig)
+        if _f_sector != 'All Sectors':  _active_filters.append(_f_sector)
+        if _f_score  > 1:               _active_filters.append(f"Score≥{_f_score}")
+        if _f_rr     > 0:               _active_filters.append(f"R:R≥{_f_rr:.1f}×")
+        if _f_conv   > 0:               _active_filters.append(f"Conv≥{_f_conv}%")
+        _filters_html = (
+            "<div class='mr-filters'>" + "".join(_pill(f"Filter: {_html.escape(str(f))}", 'blue') for f in _active_filters) + "</div>"
+            if _active_filters else ""
+        )
+
+        # ── 3-tab results layout ──────────────────────────────────────────────
+
+        # Shared helpers — used by both Perfect Setups and Buy Signals cards
+        import re as _re
+        def _clean_why(reason):
+            r = _re.sub(r'\s*\[.*?\]', '', reason)
+            if ' \u2014 ' in r:   r = r.split(' \u2014 ', 1)[1]
+            elif ' - ' in r and len(r.split(' - ', 1)[1]) > 15: r = r.split(' - ', 1)[1]
+            r = _re.sub(r'\s*\([^)]{1,6}\)', '', r)
+            r = _re.sub(r'^Regime:\s*', '', r)
+            return r.strip().rstrip('.')
+
+        # Market context rows — built once, shared across all cards
+        _brent_snap = (_msnap or {}).get('brent')
+        _vix_snap   = (_msnap or {}).get('vix')
+        _oil_p  = _brent_snap['price']  if _brent_snap else None
+        _vix_p  = _vix_snap['price']    if _vix_snap  else None
+        _oil_c5 = _brent_snap['chg_5d'] if _brent_snap else 0
+        _ctx_rows = []
+        if _mscore <= -5:
+            _ctx_rows.append(("DANGER ZONE", "#ef4444",
+                f"Markets are in extreme distress (score {_mscore}/10). "
+                f"Even strong technical setups are failing right now. Consider staying out."))
+        elif _mscore <= -2:
+            _ctx_rows.append(("CAUTION", "#f97316",
+                f"Market headwinds are active (score {_mscore}/10). "
+                f"Use half your normal position size and keep stops tight."))
+        elif _mscore >= 6:
+            _ctx_rows.append(("IDEAL CONDITIONS", "#10a37f",
+                f"Strong tailwinds — oil healthy, markets calm, money flowing into Saudi. "
+                f"Good time to run full-size positions on quality setups."))
+        if _oil_p is not None:
+            from macro_data import _SAUDI_OIL_BREAKEVEN
+            _gap = _oil_p - _SAUDI_OIL_BREAKEVEN
+            _oil_s = ('+' if _oil_c5 >= 0 else '') + f'{_oil_c5:.1f}%'
+            if _oil_p < _SAUDI_OIL_BREAKEVEN - 10:
+                _ctx_rows.append(("OIL CRITICAL", "#ef4444",
+                    f"Brent at ${_oil_p:.1f} — ${abs(_gap):.0f} BELOW Saudi budget breakeven (${_SAUDI_OIL_BREAKEVEN:.0f}). "
+                    f"This week: {_oil_s}. Saudi govt revenue under serious pressure."))
+            elif _oil_p < _SAUDI_OIL_BREAKEVEN:
+                _ctx_rows.append(("OIL BELOW BREAKEVEN", "#f97316",
+                    f"Brent at ${_oil_p:.1f} — ${abs(_gap):.0f} below Saudi budget breakeven (${_SAUDI_OIL_BREAKEVEN:.0f}). "
+                    f"Fiscal pressure building — watch for market weakness."))
+            elif _oil_p >= _SAUDI_OIL_BREAKEVEN and _oil_c5 > 3:
+                _ctx_rows.append(("OIL SUPPORTIVE", "#10a37f",
+                    f"Brent at ${_oil_p:.1f} — ${_gap:.0f} above budget breakeven. "
+                    f"Rising {_oil_s} this week. Saudi revenues healthy."))
+        if _vix_p is not None:
+            if _vix_p > 35:
+                _ctx_rows.append(("MARKET PANIC", "#ef4444",
+                    f"VIX at {_vix_p:.0f} — panic territory. Foreign investors fleeing ALL emerging markets. "
+                    f"Stocks can drop 10–20% in days during spikes like this."))
+            elif _vix_p > 25:
+                _ctx_rows.append(("HIGH FEAR", "#f97316",
+                    f"VIX at {_vix_p:.0f} — above normal anxiety levels. "
+                    f"Use smaller position sizes until VIX drops below 20."))
+            elif _vix_p < 16:
+                _ctx_rows.append(("MARKETS CALM", "#10a37f",
+                    f"VIX at {_vix_p:.0f} — very low fear globally. Good for Saudi stocks."))
+        _high_impact_cats = ('GEOPOLITICAL', 'OIL & ENERGY', 'TRUMP / US', 'FED & RATES')
+        _card_news = [n for n in _filtered_news if n.get('_cat') in _high_impact_cats]
+        for _cn in _card_news[:3]:
+            _impact_why = {
+                'GEOPOLITICAL': 'Conflict or sanctions can halt oil flows and trigger panic selling in Saudi.',
+                'OIL & ENERGY': 'Oil news directly moves Saudi stocks — Aramco, banks & petrochemicals react first.',
+                'TRUMP / US':   'US policy shifts redirect global capital flows into or out of markets like Saudi.',
+                'FED & RATES':  'Rate decisions move investment money — lower rates = more money into EM.',
+            }.get(_cn['_cat'], 'This event could affect your trade.')
+            _ctx_rows.append((_cn['_cat'], _cn['_col'], f"{_cn['title']} — {_impact_why}"))
+        _alert_rows_html = "".join(
+            f'<div style="border-left:3px solid {_ac};background:{_ac}09;'
+            f'border-radius:0 7px 7px 0;padding:0.55rem 0.75rem;margin-bottom:0.3rem;">'
+            f'<div style="font-size:0.66rem;font-weight:900;text-transform:uppercase;'
+            f'letter-spacing:0.7px;color:{_ac};margin-bottom:0.2rem;">{_at}</div>'
+            f'<div style="font-size:0.8rem;color:#bbb;line-height:1.55;">{_ad}</div>'
+            f'</div>'
+            for _at, _ac, _ad in _ctx_rows
+        ) if _ctx_rows else (
+            '<div style="font-size:0.82rem;color:#484848;line-height:1.7;padding:0.4rem 0;">'
+            'No major market alerts right now. Conditions appear neutral — normal position sizing applies.</div>'
+        )
+
+        from acpts_tab_v2 import _score_stock, _detect_regime, score_to_probability, _tip as _acpts_tip, _msr as _acpts_msr
+        _acpts_scored = []
+        for _as in all_stocks:
+            if _as.get('score', 0) < 1:
+                continue
+            _at, _abd = _score_stock(_as)
+            _acpts_scored.append({**_as, 'v14_score': _at, 'v14_bd': _abd})
+        _acpts_scored.sort(key=lambda x: x['v14_score'], reverse=True)
+        _acpts_regime, _acpts_regime_score = _detect_regime(all_stocks)
+        _acpts_max_pos = 3 if _acpts_regime == "TREND" else (1 if _acpts_regime == "RANGE" else 0)
+        _acpts_inst = [s for s in _acpts_scored if s['v14_score'] >= 70][:_acpts_max_pos]
+        _acpts_watch = [s for s in _acpts_scored if 55 <= s['v14_score'] < 70]
+        _acpts_rej   = [s for s in _acpts_scored if s['v14_score'] < 55]
+
+        # ── Perfect setups ───────────────────────────────────────────────────
+        st.markdown(
+            f"<div class='mr-sec'><div><div class='t'>Perfect setups</div>"
+            f"<div class='s'>Stocks that passed every quality gate: signal score ≥ 6, reward : risk ≥ 1, "
+            f"confidence ≥ 30% and an entry that isn't pressed against resistance. Ranked by score, "
+            f"reward : risk and confidence.</div></div>"
+            f"{_pill(f'{len(_perfect_list)} of {_n_buy_stocks:,} buy candidates', 'blue')}</div>"
+            f"{_filters_html}",
+            unsafe_allow_html=True,
+        )
+        if not _perfect_list:
+            st.markdown(
+                "<div class='mr-empty'><div class='t'>No stock passes every quality gate right now</div>"
+                "<div class='s'>That is a signal in itself — the market isn't offering clean setups today.<br>"
+                "Try another strategy, or scan again after the next session.</div></div>",
+                unsafe_allow_html=True)
+        else:
+            for _i, s in enumerate(_perfect_list):
+                with st.container(key=f"mr_card_{_i}"):
+                    _render_card(s, 'buy', rank_num=_i + 1, is_perfect=True)
+                    _analyse_btn(s, f"ps{_i}")
+
+    elif st.session_state.show_macro:
+
+        # ── MACRO INTELLIGENCE FULL PAGE ──────────────────────────────────────
+        apply_ui_theme()
+        st.markdown("""
+        <style>
+        header[data-testid="stHeader"] { display: none !important; }
+        section[data-testid="stMainBlockContainer"] { padding-top: 1rem !important; }
+        </style>""", unsafe_allow_html=True)
+
+        back_col, title_col = st.columns([1, 6], gap="small")
+        with back_col:
+            if st.button("← Home", key="macro_back_btn", type="secondary", width="stretch"):
+                st.session_state.show_macro = False
+                st.rerun()
+        with title_col:
+            st.markdown(
+                "<div style='font-size:1.4rem;font-weight:900;color:#e8e8e8;"
+                "letter-spacing:-0.5px;padding-top:0.15rem;'>"
+                "🌍 Macro Intelligence "
+                "<span style='font-size:0.7rem;font-weight:600;color:#555;'>"
+                "Global factors affecting Saudi stocks</span></div>",
+                unsafe_allow_html=True,
+            )
+        st.markdown("<div style='height:0.4rem'></div>", unsafe_allow_html=True)
+        from macro_tab import render_macro_tab
+        render_macro_tab()
+
+    elif st.session_state.show_market_pulse:
+
+        # ── MARKET PULSE FULL PAGE ─────────────────────────────────────────
+        apply_ui_theme()
+        st.markdown("""
+        <style>
+        header[data-testid="stHeader"] { display: none !important; }
+        section[data-testid="stMainBlockContainer"] { padding-top: 1rem !important; }
+        </style>""", unsafe_allow_html=True)
+
+        # Back button row
+        back_col, title_col = st.columns([1, 6], gap="small")
+        with back_col:
+            if st.button("← Home", key="pulse_back_btn", type="secondary", width="stretch"):
+                st.session_state.show_market_pulse = False
+                st.rerun()
+        with title_col:
+            st.markdown(
+                "<div style='font-size:1.4rem;font-weight:900;color:#e8e8e8;"
+                "letter-spacing:-0.5px;padding-top:0.15rem;'>"
+                "📡 Market Pulse <span style='font-size:0.7rem;font-weight:600;"
+                "color:#555;'>Saudi Market Command Center</span></div>",
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<div style='height:0.4rem'></div>", unsafe_allow_html=True)
+        from market_pulse_tab import render_market_pulse_tab
+        render_market_pulse_tab()
+
+    elif st.session_state.show_results:
+
+        # STOCK ANALYSIS RESULTS PAGE
+        # Light Apple-style design layer shared by the hero and all tabs.
+        from apple_theme import apply_results_apple_theme
+        apply_results_apple_theme()
+
+        df = st.session_state.df
+
+        symbol_input = st.session_state.analyzed_symbol
+
+        additional_charts = ['ADX', 'RSI', 'MACD']
+
+
+
+        from apple_theme import (T1 as _AT1, T2 as _AT2, T3 as _AT3, CARD as _ACARD,
+                                 INSET as _AINSET, HAIR as _AHAIR, SHADOW as _ASHADOW,
+                                 GREEN as _AGREEN, RED as _ARED, AMBER as _AAMBER,
+                                 BLUE as _ABLUE, GREEN_BG as _AGREEN_BG, RED_BG as _ARED_BG,
+                                 AMBER_BG as _AAMBER_BG, REGIME_COLORS as _AREG_C,
+                                 REGIME_BG as _AREG_BG)
+
+        if st.button("← New analysis", type="secondary", width="content"):
+
+            st.session_state.show_results = False
+
+            st.rerun()
+
+        # Arabic page guide (collapsed by default)
+        from analysis_guide import render_stock_guide
+        render_stock_guide()
+
+        
+
+        # Stock Information Section
+
+        latest = df.iloc[-1]
+
+        first = df.iloc[0]
+
+        
+
+        # Stock name — cached helper avoids slow uncached .info call
+        try:
+            from signal_engine import get_stock_name as _gsn
+            stock_name = _gsn(symbol_input) or symbol_input
+        except Exception:
+            stock_name = symbol_input
+        st.session_state.analyzed_stock_name = stock_name
+
+        # Live price — use already-downloaded Close (no extra network call)
+        current_price = float(latest['Close'])
+
+
+        period_change = ((current_price - first['Close']) / first['Close']) * 100
+
+        period_high = df['High'].max()
+
+        period_low = df['Low'].min()
+
+        avg_volume = df['Volume'].mean() if 'Volume' in df.columns else 0
+
+        price_range = period_high - period_low
+
+        volatility = (price_range / period_low) * 100
+
+        returns = df['Close'].pct_change().dropna()
+
+        annual_vol = returns.std() * np.sqrt(252) * 100 if len(returns) > 1 else 0
+
+        latest_volume = latest.get('Volume', avg_volume)
+
+        _regime_key = str(latest['REGIME']).upper()
+        regime_color = _AREG_C.get(_regime_key, _AT3)
+        regime_bg = _AREG_BG.get(_regime_key, "rgba(17,17,20,0.05)")
+
+        if period_change > 0.2:
+
+            delta_color = _AGREEN
+
+            delta_bg = _AGREEN_BG
+
+            delta_label = 'GAIN'
+
+        elif period_change < -0.2:
+
+            delta_color = _ARED
+
+            delta_bg = _ARED_BG
+
+            delta_label = 'LOSS'
+
+        else:
+
+            delta_color = _AAMBER
+
+            delta_bg = _AAMBER_BG
+
+            delta_label = 'NEUTRAL'
+
+        period_high_color = _AGREEN if current_price >= period_high * 0.98 else _AT2
+
+        period_low_color = _ARED if current_price <= period_low * 1.02 else _AT2
+
+        if latest_volume >= avg_volume * 1.2:
+
+            volume_color = _AGREEN
+
+        elif latest_volume <= avg_volume * 0.8:
+
+            volume_color = _ARED
+
+        else:
+
+            volume_color = _AAMBER
+
+        annual_vol_color = _ARED if annual_vol >= 45 else _AAMBER if annual_vol >= 25 else _AGREEN
+
+        card_bg = _ACARD
+
+        hero_bg = _ACARD
+
+        card_border = _AHAIR
+
+        text_color = _AT1
+
+        muted_color = _AT3
+
+
+
+        # ── Helpers ──────────────────────────────────────────────────────────
+        def _chg_color(val):
+            return _AGREEN if val >= 0 else _ARED
+
+        def _hex2rgb(h):
+            h = h.lstrip('#')
+            return f"{int(h[0:2],16)},{int(h[2:4],16)},{int(h[4:6],16)}"
+
+        # ── Precompute metrics ───────────────────────────────────────────────
+        high_diff    = (period_high - current_price) / current_price * 100
+        low_diff     = (period_low  - current_price) / current_price * 100
+        vol_diff_pct = ((latest_volume / avg_volume - 1) * 100) if avg_volume > 0 else 0
+
+        _adx_h     = float(latest.get('ADX_14', 20))
+        _rsi_h     = float(latest.get('RSI_14', 50))
+        _ema20_h   = latest.get('EMA_20',  current_price) or current_price
+        _ema200_h  = latest.get('EMA_200', current_price) or current_price
+        _pema20    = (current_price / _ema20_h  - 1) * 100
+        _pema200   = (current_price / _ema200_h - 1) * 100
+        _n5h       = max(len(df) - 6,  0)
+        _n20h      = max(len(df) - 21, 0)
+        _5d_chg    = ((current_price - df.iloc[_n5h]['Close'])  / df.iloc[_n5h]['Close'])  * 100 if len(df) >= 6  else 0
+        _20d_chg   = ((current_price - df.iloc[_n20h]['Close']) / df.iloc[_n20h]['Close']) * 100 if len(df) >= 21 else 0
+        _atr_h     = latest.get('ATR_14', 0)
+        _atr_pct_h = (_atr_h / current_price * 100) if current_price > 0 and _atr_h > 0 else 2.0
+
+        _adx_col  = _AGREEN if _adx_h >= 25 else _AAMBER
+        _adx_lbl  = "Strong trend" if _adx_h >= 25 else "Weak trend"
+        _5d_col   = _chg_color(_5d_chg)
+        _20d_col  = _chg_color(_20d_chg)
+        _atr_col  = _ARED if _atr_pct_h >= 3 else _AAMBER if _atr_pct_h >= 1.5 else _AGREEN
+        _atr_lbl  = "High volatility" if _atr_pct_h >= 3 else "Moderate move" if _atr_pct_h >= 1.5 else "Low volatility"
+        _ann_lbl  = "High risk" if annual_vol >= 45 else "Moderate risk" if annual_vol >= 25 else "Low risk"
+
+        _period_label = df.iloc[0]['Date'].strftime('%b %Y') + " — " + df.iloc[-1]['Date'].strftime('%b %Y')
+
+        # ── Card builder ─────────────────────────────────────────────────────
+        def _card(label, value, value_color, delta_text, delta_val,
+                  unit="", icon_arrow=True, status_color=None):
+            # Sub-line is green/red only when it is a real delta (arrow shown);
+            # status cards (ADX, volatility) get a small status dot instead.
+            is_delta = icon_arrow and delta_val is not None
+            dc    = _chg_color(delta_val) if is_delta else _AT3
+            arrow = ("▲ " if delta_val >= 0 else "▼ ") if is_delta else ""
+            dot   = (f"<span class='hx-dot' style='background:{status_color};'></span>"
+                     if status_color else "")
+            unit_h = f"<span class='hx-unit'>{unit}</span>" if unit else ""
+            return (
+                f"<div class='hx-tile'>"
+                f"<div class='hx-label'>{label}</div>"
+                f"<div class='hx-val-row'>"
+                f"<span class='hx-value' style='color:{value_color};'>{value}</span>"
+                f"{unit_h}"
+                f"</div>"
+                f"<div class='hx-sub' style='color:{dc};'>{dot}{arrow}{delta_text}</div>"
+                f"</div>"
+            )
+
+        # ── 8 cards ──────────────────────────────────────────────────────────
+        _vol_delta_text = f"{vol_diff_pct:+.0f}% vs avg" if avg_volume > 0 else "—"
+
+        _cards_html = (
+            _card("Start price",     f"{first['Close']:.2f}",  _AT1,
+                  "Period anchor",   0,                         unit="SAR", icon_arrow=False)
+            + _card("Current price", f"{current_price:.2f}",   _chg_color(period_change),
+                  f"{period_change:+.2f}% since start",         period_change, unit="SAR")
+            + _card("Period high",   f"{period_high:.2f}",     _AT1,
+                  f"{high_diff:+.1f}% from now",                high_diff)
+            + _card("Period low",    f"{period_low:.2f}",      _AT1,
+                  f"{low_diff:+.1f}% from now",                 low_diff)
+            + _card("Avg volume",    f"{avg_volume/1000:,.0f}K", _AT1,
+                  _vol_delta_text,                              vol_diff_pct)
+            + _card("ADX 14",        f"{_adx_h:.0f}",          _AT1,
+                  _adx_lbl,                                     (_adx_h - 25), icon_arrow=False,
+                  status_color=_adx_col)
+            + _card("Momentum 20D",  f"{_20d_chg:+.1f}%",      _20d_col,
+                  f"5D: {_5d_chg:+.1f}%",                       _5d_chg)
+            + _card("Volatility",    f"{_atr_pct_h:.1f}%",     _AT1,
+                  _atr_lbl,                                     (1.5 - _atr_pct_h), icon_arrow=False,
+                  status_color=_atr_col)
+        )
+
+        # ── Header (name + period meta + regime + change pill) ───────────────
+        _chg_up = period_change >= 0
+        _hdr_chg = (
+            f"<span class='hx-pill' style='background:{_AGREEN_BG if _chg_up else _ARED_BG};"
+            f"color:{_chg_color(period_change)};'>"
+            f"<span style='font-size:0.7rem;'>{('&#9650;' if _chg_up else '&#9660;')}</span>"
+            f"{period_change:+.2f}%</span>"
+        )
+
+        hero_header_html = (
+            # ── Header row ──
+            f"<div class='hx-head'>"
+
+            # Left: name + meta
+            f"<div style='min-width:0;'>"
+            f"<div class='hx-name'>{stock_name}</div>"
+            f"<div class='hx-meta'>"
+            f"<span class='hx-sym'>{symbol_input}</span>"
+            f"<span class='hx-sep'>·</span>{_period_label}"
+            f"<span class='hx-sep'>·</span>{len(df):,} sessions"
+            f"</div>"
+            f"</div>"
+
+            # Right: change pill + regime
+            f"<div class='hx-pills'>"
+            f"{_hdr_chg}"
+            f"<span class='hx-pill' style='background:{regime_bg};color:{regime_color};'>"
+            f"<span class='hx-dot' style='background:{regime_color};'></span>"
+            f"{str(latest['REGIME']).capitalize()} regime"
+            f"</span>"
+            f"</div>"
+            f"</div>"
+
+            # ── Cards grid (8 in 4×2) ──
+            f"<div class='hx-grid'>"
+            + _cards_html +
+            f"</div>"
+        )
+
+        # CSS targets the keyed container to give it the hero box look,
+        # so the chart renders INSIDE the same white card.
+        st.markdown(
+            "<style>"
+            f".st-key-hero_box{{background:{_ACARD}!important;border:1px solid {_AHAIR}!important;"
+            f"border-radius:20px!important;box-shadow:{_ASHADOW}!important;"
+            "padding:1.6rem 1.75rem 1.2rem!important;margin:0.6rem 0 1.4rem!important;}"
+            ".st-key-hero_box .js-plotly-plot{border-radius:12px;overflow:hidden;}"
+            ".hx-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;"
+            "flex-wrap:wrap;margin-bottom:1.3rem;}"
+            f".hx-name{{font-size:2rem;font-weight:700;color:{_AT1};letter-spacing:-0.025em;line-height:1.15;}}"
+            f".hx-meta{{font-size:0.92rem;color:{_AT3};margin-top:0.35rem;font-weight:500;"
+            "font-variant-numeric:tabular-nums;}"
+            f".hx-sym{{color:{_AT2};font-weight:600;}}"
+            ".hx-sep{margin:0 0.55rem;opacity:0.7;}"
+            ".hx-pills{display:flex;align-items:center;gap:0.55rem;flex-wrap:wrap;}"
+            ".hx-pill{display:inline-flex;align-items:center;gap:0.4rem;font-size:0.88rem;"
+            "font-weight:600;padding:0.42rem 0.95rem;border-radius:980px;white-space:nowrap;"
+            "font-variant-numeric:tabular-nums;}"
+            ".hx-dot{display:inline-block;width:7px;height:7px;border-radius:50%;flex-shrink:0;}"
+            ".hx-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0.8rem;margin-bottom:1.2rem;}"
+            "@media (max-width:1000px){.hx-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}"
+            f".hx-tile{{background:{_AINSET};border:1px solid {_AHAIR};border-radius:14px;"
+            "padding:1rem 1.15rem 0.95rem;display:flex;flex-direction:column;min-width:0;}"
+            f".hx-label{{font-size:0.82rem;font-weight:600;color:{_AT3};}}"
+            ".hx-val-row{display:flex;align-items:baseline;gap:0.3rem;margin-top:0.45rem;}"
+            ".hx-value{font-size:1.5rem;font-weight:700;letter-spacing:-0.02em;line-height:1.1;"
+            "font-variant-numeric:tabular-nums;}"
+            f".hx-unit{{font-size:0.8rem;font-weight:600;color:{_AT3};}}"
+            ".hx-sub{display:flex;align-items:center;gap:0.4rem;margin-top:0.45rem;font-size:0.82rem;"
+            "font-weight:600;font-variant-numeric:tabular-nums;}"
+            "</style>",
+            unsafe_allow_html=True,
+        )
+        with st.container(key="hero_box"):
+            st.markdown(hero_header_html, unsafe_allow_html=True)
+            from decision_tab import render_price_chart
+            render_price_chart(
+                df, symbol_input, stock_name, current_price,
+                d=st.session_state.get("_score_engine_d"),
+            )
+
+        # Calculate metrics for snapshot and recommendations
+
+        current_regime = latest['REGIME']
+
+        last_20_regimes = df.tail(20)['REGIME'].value_counts()
+
+        regime_stability = (last_20_regimes.iloc[0] / 20 * 100) if len(last_20_regimes) > 0 else 0
+
+
+
+        # TABS START HERE
+
+        adx_current       = _adx_h
+        rsi_current       = _rsi_h
+        price_vs_ema20    = _pema20
+        price_vs_ema200   = _pema200
+        recent_5d_change  = _5d_chg
+        recent_20d_change = _20d_chg
+        atr_pct           = _atr_pct_h
+
+
+
+        from regime_analysis_tab import render_regime_analysis_tab
+        from decision_tab import render_decision_tab
+        from signal_analysis_tab import signal_analysis_tab
+        from patterns_tab import render_patterns_price_action_workspace
+        from volume_profile_tab import volume_profile_tab
+        from smc_tab import smc_tab
+        from elliott_wave_tab import elliott_wave_tab
+        from strategy_lab_tab import strategy_lab_tab
+        from classical_ta_tab import classical_ta_tab
+
+        tab_dec, tab0, tab2, tab_vp, tab_smc, tab_ew, tab_cta, tab_lab, tab1 = st.tabs([
+            "Decision",
+            "Regime",
+            "Patterns & Price Action",
+            "Volume Profile",
+            "SMC",
+            "Elliott Wave",
+            "Classical TA",
+            "AI Analysis",
+            "Signals",
+        ])
+
+        with tab_dec:
+            render_decision_tab(df, symbol_input, stock_name, current_price)
+
+        with tab0:
+            render_regime_analysis_tab(df, info_icon, create_regime_distribution_chart)
+
+        with tab1:
+            signal_analysis_tab(df, info_icon)
+
+        with tab2:
+            render_patterns_price_action_workspace(df, info_icon)
+
+        _lab_args = (
+            df, symbol_input, stock_name, latest, current_price,
+            period_change, period_high, period_low, annual_vol,
+            current_regime, adx_current, rsi_current, atr_pct,
+            price_vs_ema20, price_vs_ema200, recent_5d_change, recent_20d_change,
+        )
+
+        @st.fragment
+        def _frag_vp(_df=df, _cp=current_price):
+            volume_profile_tab(_df, _cp)
+
+        @st.fragment
+        def _frag_smc(_df=df, _cp=current_price):
+            smc_tab(_df, _cp)
+
+        @st.fragment
+        def _frag_ew(_df=df, _cp=current_price):
+            elliott_wave_tab(_df, _cp)
+
+        @st.fragment
+        def _frag_cta(_df=df, _cp=current_price):
+            classical_ta_tab(_df, _cp)
+
+        @st.fragment
+        def _frag_lab(_args=_lab_args):
+            strategy_lab_tab(*_args)
+
+        with tab_vp:
+            _frag_vp()
+
+        with tab_smc:
+            _frag_smc()
+
+        with tab_ew:
+            _frag_ew()
+
+        with tab_cta:
+            _frag_cta()
+
+        with tab_lab:
+            _frag_lab()
+
+
+
+
+
+
+
+
+
+
+
+
+if __name__ == "__main__":
+
+    if auth_wall():
+
+        main()
+

@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+users.db
+.ml_cache/
+.git/

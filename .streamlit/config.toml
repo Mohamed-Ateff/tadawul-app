@@ -1,0 +1,10 @@
+[theme]
+# The app's pages use a light, Apple-style design (apple_theme.py). Pin the
+# base theme so built-in widgets (data grids, focus rings) match it even when
+# the viewer's OS is in dark mode.
+base = "light"
+primaryColor = "#0063D1"
+backgroundColor = "#F2F2F5"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#111114"
+font = "sans serif"
