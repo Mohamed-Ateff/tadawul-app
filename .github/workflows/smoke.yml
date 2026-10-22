@@ -1,0 +1,58 @@
+name: Smoke test (Linux, like Streamlit Cloud)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: System packages
+        run: sudo apt-get update -q && sudo apt-get install -y -q $(cat packages.txt)
+      - name: Install requirements (timed)
+        run: |
+          start=$(date +%s)
+          pip install -q -r requirements.txt
+          echo "INSTALL_SECONDS=$(( $(date +%s) - start ))"
+          du -sh $(python -c "import site; print(site.getsitepackages()[0])")
+      - name: Import every module
+        run: |
+          python - <<'EOF'
+          import importlib, glob, os, traceback
+          bad = 0
+          for f in sorted(glob.glob('*.py')):
+              m = os.path.splitext(f)[0]
+              if m in ('keepalive',):
+                  continue
+              try:
+                  importlib.import_module(m)
+              except Exception:
+                  bad += 1
+                  print('IMPORT FAIL', m); traceback.print_exc()
+          print('IMPORT_FAILURES', bad)
+          EOF
+      - name: Start the app and load the home page
+        run: |
+          streamlit run app.py --server.headless true --server.port 8501 > st.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -s localhost:8501/_stcore/health | grep -q ok; then echo "HEALTH_OK after ${i}s"; break; fi
+            sleep 1
+          done
+          python - <<'EOF'
+          from streamlit.testing.v1 import AppTest
+          at = AppTest.from_file("app.py", default_timeout=240)
+          at.run()
+          print("APPTEST_EXCEPTIONS", [e.value for e in at.exception][:5])
+          print("APPTEST_TABS", len(at.tabs))
+          EOF
+          echo "RSS_MB=$(ps -o rss= -C streamlit | awk '{s+=$1} END {print s/1024}')"
+          echo "---- streamlit log ----"; tail -n 60 st.log
