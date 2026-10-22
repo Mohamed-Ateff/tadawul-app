@@ -6,6 +6,4 @@ plotly==7.1.0
 yfinance==1.7.0
 pandas-ta==0.4.71b0
 scikit-learn==1.9.1
-xgboost-cpu==3.4.1
-lightgbm==4.7.0
 joblib==1.6.0
