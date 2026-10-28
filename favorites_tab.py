@@ -2355,6 +2355,28 @@ def render_auto_scanner_page() -> None:
       .sc-tr-n{text-align:left;}
     }
 
+    /* Scanned Strategies: two cards side by side. Each strategy is a 3-line
+       block: regime | validation · indicators · four labelled numbers. */
+    .sc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.2rem;
+        align-items:start;margin:0 0 1.2rem;}
+    .sc-grid .sc-stock{margin:0;}
+    .sc-grid .sc-stock-hdr{padding:1rem 1.2rem 0.85rem;}
+    .sc-grid .sc-tr{grid-template-columns:repeat(4,minmax(0,1fr));gap:0.55rem 0.9rem;align-items:start;
+        padding:0.85rem 1.2rem;grid-template-areas:"reg reg val val" "strat strat strat strat" "wr pf exp tr";}
+    .sc-grid .sc-tr>:nth-child(1){grid-area:reg;}
+    .sc-grid .sc-tr>:nth-child(2){grid-area:strat;}
+    .sc-grid .sc-tr>:nth-child(3){grid-area:wr;}
+    .sc-grid .sc-tr>:nth-child(4){grid-area:pf;}
+    .sc-grid .sc-tr>:nth-child(5){grid-area:exp;}
+    .sc-grid .sc-tr>:nth-child(6){grid-area:tr;}
+    .sc-grid .sc-tr>:nth-child(7){grid-area:val;justify-self:end;align-items:flex-end;text-align:right;}
+    .sc-grid .sc-tr-n{text-align:left;font-size:1.05rem;}
+    .sc-grid .sc-tr-n::before{content:attr(data-l);display:block;font-size:0.7rem;font-weight:500;
+        color:var(--t2);margin-bottom:0.1rem;letter-spacing:0;}
+    .sc-grid .sc-tr-alt{padding-left:0;}
+    .sc-grid details.sc-more>summary{padding:0.6rem 1.2rem;}
+    @media (max-width:900px){ .sc-grid{grid-template-columns:minmax(0,1fr);} }
+
     /* live signals table (under the Live Signal Check cards) */
     .lsc-tbl-hd{display:flex;align-items:baseline;gap:0.7rem;margin:1.8rem 0 0.2rem;}
     .lsc-tbl-t{font-size:1.15rem;font-weight:700;color:var(--t1);letter-spacing:-0.02em;}
@@ -2631,21 +2653,17 @@ def render_auto_scanner_page() -> None:
             f"{' sc-tr-focus' if focus else ''}'>"
             + _reg
             + f"<div class='sc-tr-strat'>{_chips(c.get('indicators', []))}{_sig}</div>"
-            + f"<div class='sc-tr-n'>{_w:.0f}%</div>"
-            + f"<div class='sc-tr-n'>{_p:.1f}×</div>"
-            + f"<div class='sc-tr-n' style='color:{'var(--red)' if _e <= 0 else 'var(--green)'};'>{_e:+.1f}%</div>"
-            + f"<div class='sc-tr-n'>{_n}<div class='sc-tr-sm'>{int(c.get('wins', 0) or 0)}W · "
+            # Each number carries its own label (data-l): the cards sit two per
+            # row, too narrow for a shared column header.
+            + f"<div class='sc-tr-n' data-l='Win rate'>{_w:.0f}%</div>"
+            + f"<div class='sc-tr-n' data-l='Profit factor' title='{_PF_HELP}'>{_p:.1f}×</div>"
+            + f"<div class='sc-tr-n' data-l='Expectancy' title='{_EXP_HELP}' "
+              f"style='color:{'var(--red)' if _e <= 0 else 'var(--green)'};'>{_e:+.1f}%</div>"
+            + f"<div class='sc-tr-n' data-l='Trades'>{_n}<div class='sc-tr-sm'>"
+              f"{int(c.get('wins', 0) or 0)}W · "
               f"{int(c.get('losses', 0) or 0)}L{' · too few' if _thin else ''}</div></div>"
             + _val_cell(c)
             + "</div>")
-
-    _TABLE_HEAD = (
-        "<div class='sc-tr sc-th'>"
-        "<div>Market regime</div><div>Strategy (all must agree)</div>"
-        "<div>Win rate</div>"
-        f"<div title='{_PF_HELP}'>Profit factor</div>"
-        f"<div title='{_EXP_HELP}'>Expectancy</div>"
-        "<div>Trades</div><div>Validation</div></div>")
 
     # ── top bar ───────────────────────────────────────────────────────────────
     _n_res  = len(st.session_state.sc_results or [])
@@ -3991,7 +4009,7 @@ def render_auto_scanner_page() -> None:
         + "</div>",
         unsafe_allow_html=True)
 
-    _PREVIEW_COUNT = 5
+    _PREVIEW_COUNT = 6                 # three rows of two cards
     _show_all_key  = 'sc_show_all_strats'
     if _show_all_key not in st.session_state:
         st.session_state[_show_all_key] = False
@@ -4007,9 +4025,11 @@ def render_auto_scanner_page() -> None:
 
     st.markdown(_IND_LEGEND, unsafe_allow_html=True)
 
-    # One card per stock: a table row per market regime (today's first),
-    # alternatives folded under their regime's row.
-    _grp_done = False
+    # One card per stock, two side by side: a block per market regime (today's
+    # first), alternatives folded under their regime's block. Cards come sorted
+    # with every stock that has a strategy for today's regime first; a divider
+    # separates the rest.
+    _cards_today, _cards_other = [], []
     for _pos, _row in enumerate(_rows_to_show, 1):
         _sym_d = _row['_sym'].replace('.SR', '')
         _sname = _row['_sname']
@@ -4021,17 +4041,6 @@ def render_auto_scanner_page() -> None:
         _has_fire = bool(_live_now)
         _is_focus = _sym_d == _focus
         _focus_cb = _live_now[0] if (_is_focus and _live_now) else None
-
-        # Cards are sorted with every stock that has a strategy for today's
-        # regime first; say so where that group ends.
-        if not _grp_done and not _lists.get(_cur_reg):
-            _grp_done = True
-            st.markdown(
-                "<div class='sc-grp'><b>No strategy for today's market regime"
-                + (" matches the filter" if _f_on else "") + "</b> — "
-                "the stocks below only have strategies for other regimes, ranked by "
-                "their best win rate.</div>",
-                unsafe_allow_html=True)
 
         _body = ''
         for _rname in _present:
@@ -4050,7 +4059,7 @@ def render_auto_scanner_page() -> None:
                               for _a in _alts)
                     + "</details>")
 
-        st.markdown(
+        (_cards_today if _lists.get(_cur_reg) else _cards_other).append(
             f"<div class='sc-stock sc-card-{_sym_d}{' sc-focus' if _is_focus else ''}'>"
             "<div class='sc-stock-hdr'>"
             f"<span class='sc-rank{' sc-rank-top' if _pos <= 3 else ''}' "
@@ -4061,9 +4070,21 @@ def render_auto_scanner_page() -> None:
                if _has_fire else
                f"<span class='sc-ct'>{len(_present)} of 3 regimes</span>")
             + "</div>"
-            + "<div class='sc-table'>" + _TABLE_HEAD + _body + "</div>"
-            + "</div>",
+            + "<div class='sc-table'>" + _body + "</div>"
+            + "</div>")
+
+    if _cards_today:
+        st.markdown(f"<div class='sc-grid'>{''.join(_cards_today)}</div>",
+                    unsafe_allow_html=True)
+    if _cards_other:
+        st.markdown(
+            "<div class='sc-grp'><b>No strategy for today's market regime"
+            + (" matches the filter" if _f_on else "") + "</b> — "
+            "the stocks below only have strategies for other regimes, ranked by "
+            "their best win rate.</div>",
             unsafe_allow_html=True)
+        st.markdown(f"<div class='sc-grid'>{''.join(_cards_other)}</div>",
+                    unsafe_allow_html=True)
 
     # Scroll to the requested card once per "View strategy" tap. The script
     # runs in a tiny iframe and reaches the page it sits in.
