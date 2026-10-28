@@ -2145,12 +2145,27 @@ def render_auto_scanner_page() -> None:
     .lsc-regime2{font-size:0.78rem;font-weight:600;padding:0.25rem 0.7rem;border-radius:980px;
                  white-space:nowrap;}
 
-    /* chart toggle row (attached under each live card) */
-    [class*="st-key-lsc_ctoggle_"] .stButton button{border-radius:980px!important;
+    /* buttons under each live card: Show chart · View strategy */
+    [class*="st-key-lsc_ctoggle_"] .stButton button,
+    [class*="st-key-lsc_goto_"] .stButton button{border-radius:980px!important;
         font-size:0.85rem!important;color:var(--blue)!important;min-height:2.2rem!important;
         margin-top:0.5rem!important;box-shadow:none!important;background:transparent!important;
         border:none!important;}
-    [class*="st-key-lsc_ctoggle_"] .stButton button:hover{background:var(--blue-bg)!important;}
+    [class*="st-key-lsc_ctoggle_"] .stButton button:hover,
+    [class*="st-key-lsc_goto_"] .stButton button:hover{background:var(--blue-bg)!important;}
+    [class*="st-key-lsc_goto_"] .stButton button p{color:var(--blue)!important;font-weight:600!important;}
+
+    /* live card = entry plan: strategy line, then the price ladder */
+    .lsc-card2 .lsc-ladder-wrap{margin:0 0.8rem;padding:0.9rem 0 1rem;border-top:1px solid var(--hair);}
+    .lsc-more{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:600;
+        padding:0.18rem 0.6rem;border-radius:980px;background:var(--blue-bg);color:var(--blue);
+        white-space:nowrap;cursor:help;}
+
+    /* the stock card a "View strategy" tap jumped to */
+    .sc-stock.sc-focus{border-color:var(--blue);
+        box-shadow:0 0 0 3px rgba(0,99,209,0.18),var(--shadow);}
+    .sc-tr.sc-tr-focus{background:rgba(0,99,209,0.10)!important;
+        box-shadow:inset 4px 0 0 var(--blue)!important;}
 
     /* expander shell: the app styles every expander dark — neutralise here */
     .stApp [data-testid="stExpander"]{background:transparent!important;border:none!important;}
@@ -2589,8 +2604,9 @@ def render_auto_scanner_page() -> None:
         return (f"<div class='sc-tv' title='{_tip}'>{_val_badge(c)}"
                 f"<div class='sc-tv-l'>{_line}</div></div>")
 
-    def _strat_row(c, regime, is_now=False, alt=False) -> str:
-        """One table row: regime · strategy · numbers · trades · validation."""
+    def _strat_row(c, regime, is_now=False, alt=False, focus=False) -> str:
+        """One table row: regime · strategy · numbers · trades · validation.
+        `focus` highlights the strategy a Live Signal Check card jumped to."""
         c = c or {}
         _w = float(c.get('win_rate', 0) or 0)
         _p = float(c.get('profit_factor', 0) or 0)
@@ -2611,7 +2627,8 @@ def render_auto_scanner_page() -> None:
                 if _is_live(c) else '')
         return (
             f"<div class='sc-tr{' sc-tr-now' if is_now and not alt else ''}"
-            f"{' sc-tr-sub' if alt else ''}{' sc-thin' if _thin else ''}'>"
+            f"{' sc-tr-sub' if alt else ''}{' sc-thin' if _thin else ''}"
+            f"{' sc-tr-focus' if focus else ''}'>"
             + _reg
             + f"<div class='sc-tr-strat'>{_chips(c.get('indicators', []))}{_sig}</div>"
             + f"<div class='sc-tr-n'>{_w:.0f}%</div>"
@@ -2629,33 +2646,6 @@ def render_auto_scanner_page() -> None:
         f"<div title='{_PF_HELP}'>Profit factor</div>"
         f"<div title='{_EXP_HELP}'>Expectancy</div>"
         "<div>Trades</div><div>Validation</div></div>")
-
-    def _strat_body(c) -> str:
-        """Indicators, the three headline numbers and a one-line trade count.
-        Numbers are neutral; colour only marks a loss or a thin sample."""
-        c = c or {}
-        _w   = float(c.get('win_rate', 0) or 0)
-        _p   = float(c.get('profit_factor', 0) or 0)
-        _e   = float(c.get('expectancy', 0) or 0)
-        _n   = int(c.get('total', 0) or 0)
-        _thin = _n < 10
-        _tags = _chips(c.get('indicators', []))
-        _e_col = 'var(--red)' if _e <= 0 else 'var(--green)'
-        return (
-            f"<div class='sc-rcard-inds'>{_tags}</div>"
-            f"<div class='sc-rcard-stats{' sc-thin' if _thin else ''}'>"
-            f"<div class='sc-rstat'><div class='sc-rstat-v'>{_w:.0f}%</div>"
-            f"<div class='sc-rstat-l'>Win rate</div></div>"
-            f"<div class='sc-rstat'><div class='sc-rstat-v'>{_p:.1f}×</div>"
-            f"<div class='sc-rstat-l'>Profit factor<span class='sc-help' title='{_PF_HELP}'>?</span></div></div>"
-            f"<div class='sc-rstat'><div class='sc-rstat-v' style='color:{_e_col};'>{_e:+.1f}%</div>"
-            f"<div class='sc-rstat-l'>Expectancy<span class='sc-help' title='{_EXP_HELP}'>?</span></div></div>"
-            "</div>"
-            f"<div class='sc-rcard-cap'>{int(c.get('wins', 0) or 0)} wins · "
-            f"{int(c.get('losses', 0) or 0)} losses · {_n} trades"
-            + (" · <span style='color:var(--orange);'>too few to trust</span>" if _thin else '')
-            + "</div>"
-        )
 
     # ── top bar ───────────────────────────────────────────────────────────────
     _n_res  = len(st.session_state.sc_results or [])
@@ -2815,6 +2805,7 @@ def render_auto_scanner_page() -> None:
                 st.session_state['_sc_raw'] = {'period': _sel_period, 'dfs': _cached[2]}
             st.session_state.sc_done            = True
             st.session_state.sc_show_all_strats = False
+            st.session_state.sc_focus           = None
             st.rerun()
 
         from scanner_engine import download_all_raw, _analyse_df, resolve_period
@@ -2861,6 +2852,7 @@ def render_auto_scanner_page() -> None:
         st.session_state.sc_results      = _out
         st.session_state.sc_done         = True
         st.session_state.sc_show_all_strats = False
+        st.session_state.sc_focus        = None
         # '|v3': results from before rows without a close were dropped and the
         # 7 indicators were corrected
         # (they showed 'nan' prices) must not be reused.
@@ -3142,6 +3134,12 @@ def render_auto_scanner_page() -> None:
                     _lv_cache[key] = None
             return _lv_cache[key]
 
+        def _goto_strategy(sym):
+            # "View strategy": Scanned Strategies shows and highlights this
+            # stock's card, and the page scrolls to it once.
+            st.session_state.sc_focus = sym
+            st.session_state.sc_focus_nonce = st.session_state.get('sc_focus_nonce', 0) + 1
+
         for _ri in range(0, len(_fire_rows_shown), 2):
             _pair = _fire_rows_shown[_ri:_ri + 2]
             # Always 2 columns so a lone last card keeps the same width.
@@ -3176,12 +3174,7 @@ def render_auto_scanner_page() -> None:
                                  if _c is _best_combo), 1)
               _same_df = _sym in _raw_dfs   # same bars the engine indexed
               _best_col   = _REGIME_COLORS.get(_best_rname, '#5C5C63')
-              _wr     = float(_best_combo.get('win_rate', 0) or 0)
-              _tot    = int(_best_combo.get('total', 0) or 0)
-              _wins   = int(_best_combo.get('wins', 0) or 0)
-              _losses = int(_best_combo.get('losses', 0) or 0)
               _inds   = _best_combo.get('indicators', [])
-              _wc     = _wr_col(_wr)
               _alts   = _live[1:]
 
               # price ladder
@@ -3295,58 +3288,17 @@ def render_auto_scanner_page() -> None:
                   f"{_fire_when_txt}</span>"
               ) if _fire_when_txt else ''
 
-              # tooltip help text (shared with Scanned Strategies)
-              _PF_HELP_L  = ("Profit Factor = total $ won ÷ total $ lost across all past "
-                             "signals. 1.0 = breakeven, 2.0+ = strong.")
-              _EXP_HELP_L = ("Expectancy = average % return per signal. "
-                             "+1.5% means each signal gained 1.5% on average.")
-
-              # ── other live strategies for the same regime — each one gets its
-              # own full stat box — Win Rate / Profit Factor / Expectancy on
-              # top, Wins / Losses / Total below — matching the main card above
-              # instead of a condensed one-line summary.
-              _alts_html_lsc = ''
-              _alts_firing = _alts
-              if _alts_firing:
-                  _alt_rows_l = ''
-                  for _alt in _alts_firing:
-                      _alt_inds  = _alt.get('indicators', [])
-                      _alt_wr    = float(_alt.get('win_rate', _wr) or 0)
-                      _alt_pf    = float(_alt.get('profit_factor', 0) or 0)
-                      _alt_exp   = float(_alt.get('expectancy', 0) or 0)
-                      _alt_tot   = int(_alt.get('total', 0) or 0)
-                      _alt_wins  = int(_alt.get('wins', 0) or 0)
-                      _alt_loss  = int(_alt.get('losses', 0) or 0)
-                      _alt_wc    = _wr_col(_alt_wr)
-                      _alt_exp_c = '#1B7A36' if _alt_exp > 0 else '#C1121F'
-                      _alt_tags  = "<span class='lsc-ind-plus'>+</span>".join(
-                          f"<span class='lsc-ind-tag'>{_ind_label([k])}</span>"
-                          for k in _alt_inds)
-                      _alt_rows_l += (
-                          "<div class='sc-alt-row'>"
-                          "<div class='sc-alt-tags'>"
-                          f"{_val_badge(_alt)}"
-                          f"<span class='sc-alt-fire'>{_age_txt(_sig_age(_alt))}</span>"
-                          "</div>"
-                          + _strat_body(_alt)
-                          + "</div>"
-                      )
-                  _alts_html_lsc = (
-                      f"<div class='sc-alts'>"
-                      f"<div class='sc-alts-hdr' title='Other strategies for "
-                      f"this regime that also started a signal in the last "
-                      f"{_LIVE_MAX_AGE + 1} trading days.'>"
-                      f"Also signalling · {len(_alts_firing)}"
-                      f"</div>{_alt_rows_l}</div>"
-                  )
+              # The card is the entry plan only. The strategy's numbers, and the
+              # other strategies that also signalled, live in Scanned Strategies
+              # (one tap away with "View strategy"), so only their count is here.
+              _more = (f"<span class='lsc-more' title='{len(_alts)} more "
+                       f"{'strategy' if len(_alts) == 1 else 'strategies'} for this regime "
+                       f"also started a signal in the last {_LIVE_MAX_AGE + 1} trading days. "
+                       f"View strategy shows them.'>+{len(_alts)} more signalling</span>"
+                       if _alts else '')
 
               # ── main card ─────────────────────────────────────────────────
               _rank_lbl = ('Best fit' if _best_rank == 1 else f'Strategy #{_best_rank}')
-
-              def _stat(v, label, color='var(--t1)'):
-                  return (f"<div class='lsc-stat2'><div class='lsc-stat2-v' "
-                          f"style='color:{color};'>{v}</div>"
-                          f"<div class='lsc-stat2-l'>{label}</div></div>")
 
               st.markdown(
                   "<div class='lsc-card2'>"
@@ -3363,34 +3315,33 @@ def render_auto_scanner_page() -> None:
                   f"<span class='lsc-regime2' title='{_REGIME_HELP.get(_best_rname, '')}'>"
                   f"{_REGIME_ICON.get(_best_rname, '')} {_best_rname.title()} · {_rank_lbl}</span>"
                   + _val_badge(_best_combo)
+                  + _more
                   + (f"<span class='lsc-when' style='background:{_fire_when_c}1a;"
                      f"color:{_fire_when_c};'>{_fire_when_txt}</span>"
                      if _fire_when_txt else '')
                   + "</div>"
                   # indicators
                   f"<div class='lsc-strat2'>{_ind_tags}</div>"
-                  # stats
-                  "<div class='lsc-stats2'>"
-                  + _stat(f"{_wr:.0f}%", 'Win rate', _wc)
-                  + _stat(_wins, 'Wins', 'var(--green)')
-                  + _stat(_losses, 'Losses', 'var(--red)')
-                  + _stat(_tot, 'Trades')
-                  + "</div>"
-                  + f"{_alts_html_lsc}"
                   + (f"<div class='lsc-ladder-wrap'>{_ladder}</div>" if _ladder else '')
                   + "</div>",
                   unsafe_allow_html=True)
 
-              # ── chart toggle button ───────────────────────────────────────────
+              # ── chart toggle · jump to the stock's strategies ─────────────────
               _chart_key = f"lsc_chart_{_sym_d}"
               _is_open   = st.session_state.lsc_chart_open.get(_chart_key, False)
-              with st.container(key=f"lsc_ctoggle_{_sym_d}"):
+              _bc1, _bc2 = st.columns(2, gap="small")
+              with _bc1, st.container(key=f"lsc_ctoggle_{_sym_d}"):
                   if st.button(
                       f"{'Hide chart' if _is_open else 'Show chart'}",
                       key=f"lsc_chart_btn_{_sym_d}",
                       use_container_width=True):
                       st.session_state.lsc_chart_open[_chart_key] = not _is_open
                       st.rerun()
+              with _bc2, st.container(key=f"lsc_goto_{_sym_d}"):
+                  st.button("View strategy ↓", key=f"lsc_goto_btn_{_sym_d}",
+                            on_click=_goto_strategy, args=(_sym_d,),
+                            use_container_width=True,
+                            help="Jump to this stock's strategies in Scanned Strategies")
 
               # ── chart (shown when open) ───────────────────────────────────────
               if _is_open and _df_f is not None:
@@ -4045,7 +3996,14 @@ def render_auto_scanner_page() -> None:
     if _show_all_key not in st.session_state:
         st.session_state[_show_all_key] = False
 
-    _rows_to_show = _rows if st.session_state[_show_all_key] else _rows[:_PREVIEW_COUNT]
+    # A Live Signal Check card's "View strategy" asks for one stock: show the
+    # list down to its card (it may sit past the preview), highlight the
+    # strategy that signalled, and scroll there once.
+    _focus = st.session_state.get('sc_focus')
+    _focus_idx = next((i for i, r in enumerate(_rows)
+                       if r['_sym'].replace('.SR', '') == _focus), None)
+    _rows_to_show = (_rows if st.session_state[_show_all_key]
+                     else _rows[:max(_PREVIEW_COUNT, (_focus_idx or 0) + 1)])
 
     st.markdown(_IND_LEGEND, unsafe_allow_html=True)
 
@@ -4059,7 +4017,10 @@ def render_auto_scanner_page() -> None:
         _lists = {_rn: _strats(_row, _rn)
                   for _rn in sorted(_REGIMES, key=lambda _rn: _rn != _cur_reg)}
         _present = [_rn for _rn, _l in _lists.items() if _l]
-        _has_fire = bool(_live_shown(_row))
+        _live_now = _live_shown(_row)
+        _has_fire = bool(_live_now)
+        _is_focus = _sym_d == _focus
+        _focus_cb = _live_now[0] if (_is_focus and _live_now) else None
 
         # Cards are sorted with every stock that has a strategy for today's
         # regime first; say so where that group ends.
@@ -4075,19 +4036,22 @@ def render_auto_scanner_page() -> None:
         _body = ''
         for _rname in _present:
             _main, *_alts = _lists[_rname]
-            _body += _strat_row(_main, _rname, is_now=(_rname == _cur_reg))
+            _body += _strat_row(_main, _rname, is_now=(_rname == _cur_reg),
+                                focus=_main is _focus_cb)
             if _alts:
                 _body += (
-                    "<details class='sc-more'><summary title='Other indicator sets for "
+                    f"<details class='sc-more'{' open' if any(_a is _focus_cb for _a in _alts) else ''}>"
+                    "<summary title='Other indicator sets for "
                     "this regime, highest win rate first. None is a subset or superset of "
                     "another, and any two share under 60% of their trades (fitted part).'>"
                     f"{len(_alts)} more {'strategy' if len(_alts) == 1 else 'strategies'} "
                     f"for {_rname.title()}</summary>"
-                    + ''.join(_strat_row(_a, _rname, alt=True) for _a in _alts)
+                    + ''.join(_strat_row(_a, _rname, alt=True, focus=_a is _focus_cb)
+                              for _a in _alts)
                     + "</details>")
 
         st.markdown(
-            "<div class='sc-stock'>"
+            f"<div class='sc-stock sc-card-{_sym_d}{' sc-focus' if _is_focus else ''}'>"
             "<div class='sc-stock-hdr'>"
             f"<span class='sc-rank{' sc-rank-top' if _pos <= 3 else ''}' "
             f"title='Rank: highest win rate first'>{_pos}</span>"
@@ -4100,6 +4064,21 @@ def render_auto_scanner_page() -> None:
             + "<div class='sc-table'>" + _TABLE_HEAD + _body + "</div>"
             + "</div>",
             unsafe_allow_html=True)
+
+    # Scroll to the requested card once per "View strategy" tap. The script
+    # runs in a tiny iframe and reaches the page it sits in.
+    _nonce = st.session_state.get('sc_focus_nonce')
+    if _focus_idx is not None and _nonce != st.session_state.get('sc_focus_done'):
+        st.session_state.sc_focus_done = _nonce
+        import streamlit.components.v1 as _components
+        _js = ("<script>(function go(n) {"
+               " const d = window.parent.document;"
+               " const el = d.querySelector('.sc-card-SYM .sc-tr-focus')"
+               " || d.querySelector('.sc-card-SYM');"
+               " if (el) el.scrollIntoView({behavior: 'smooth', block: 'center'});"
+               " else if (n < 50) setTimeout(function () { go(n + 1); }, 100);"
+               "})(0);</script>").replace('SYM', _focus)
+        _components.html(f"{_js}<!-- {_nonce} -->", height=0)
 
     # ── expand / collapse button for Section 1 ────────────────────────────
     if len(_rows) > _PREVIEW_COUNT:
@@ -4118,4 +4097,5 @@ def render_auto_scanner_page() -> None:
             unsafe_allow_html=True)
         if st.button(_btn_label, key="sc_expand_strats"):
             st.session_state[_show_all_key] = not st.session_state[_show_all_key]
+            st.session_state.sc_focus = None      # "Show less" really shows less
             st.rerun()
