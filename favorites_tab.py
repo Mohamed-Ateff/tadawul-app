@@ -2333,26 +2333,46 @@ def render_auto_scanner_page() -> None:
     details.sc-more>summary::after{content:' ›';}
     details.sc-more[open]>summary::after{content:' ⌄';}
     details.sc-more>summary:hover{background:var(--inset);}
-    /* strategy ranking: one extra leading cell (# + stock) */
-    .sc-tr.sc-rk{grid-template-columns:minmax(170px,1.2fr) minmax(130px,0.9fr) minmax(220px,2.3fr)
-        0.65fr 0.7fr 0.8fr 0.75fr minmax(180px,1.35fr);}
-    .sc-th.sc-rk>div{text-align:left!important;}
-    .sc-th.sc-rk>div:nth-child(n+4):nth-child(-n+7){text-align:right!important;}
-    .sc-rk-who{display:flex;align-items:center;gap:0.8rem;min-width:0;}
-    .sc-rk-n{min-width:2rem;font-size:0.95rem;font-weight:600;color:var(--t3);
-        font-variant-numeric:tabular-nums;}
-    .sc-rk-top .sc-rk-n{color:var(--blue);}
-    .sc-rk-sym{font-size:1.05rem;font-weight:700;color:var(--t1);letter-spacing:-0.01em;}
-    .sc-rk-nm{font-size:0.78rem;color:var(--t2);white-space:nowrap;overflow:hidden;
-        text-overflow:ellipsis;max-width:9rem;}
-    .sc-rk-sep{padding:0.7rem 1.5rem;background:var(--orange-bg);color:var(--orange);
-        font-size:0.84rem;font-weight:600;border-top:1px solid var(--hair);}
     @media (max-width:1150px){
       .sc-th{display:none;}
-      .sc-tr,.sc-tr.sc-rk{grid-template-columns:repeat(4,1fr);gap:0.6rem 1rem;}
-      .sc-tr-reg,.sc-tr-strat,.sc-tv,.sc-rk-who{grid-column:1/-1;}
+      .sc-tr{grid-template-columns:repeat(4,1fr);gap:0.6rem 1rem;}
+      .sc-tr-reg,.sc-tr-strat,.sc-tv{grid-column:1/-1;}
       .sc-tr-n{text-align:left;}
     }
+
+    /* live signals table (under the Live Signal Check cards) */
+    .lsc-tbl-hd{display:flex;align-items:baseline;gap:0.7rem;margin:1.8rem 0 0.2rem;}
+    .lsc-tbl-t{font-size:1.15rem;font-weight:700;color:var(--t1);letter-spacing:-0.02em;}
+    .lsc-tbl-s{font-size:0.86rem;color:var(--t2);}
+    .lsc-tbl-wrap{background:var(--card);border:1px solid var(--hair);border-radius:var(--r-lg);
+        box-shadow:var(--shadow);overflow:auto;max-height:660px;margin:0.4rem 0 0.4rem;}
+    .stApp table.lsc-tbl{width:100%;border-collapse:separate!important;border-spacing:0;margin:0!important;
+        font-size:0.86rem;color:var(--t1);font-variant-numeric:tabular-nums;border:none!important;}
+    .stApp table.lsc-tbl th,.stApp table.lsc-tbl td{border:none!important;
+        border-bottom:1px solid var(--hair)!important;padding:0.62rem 0.8rem!important;
+        text-align:right;white-space:nowrap;}
+    .stApp table.lsc-tbl thead th{position:sticky;top:0;z-index:2;background:var(--inset)!important;
+        color:var(--t2);font-size:0.74rem;font-weight:600;vertical-align:bottom;line-height:1.25;}
+    .stApp table.lsc-tbl tbody tr:nth-child(even) td{background:#FAFAFC;}
+    .stApp table.lsc-tbl tbody tr:hover td{background:var(--blue-bg);}
+    .stApp table.lsc-tbl tbody tr:last-child td{border-bottom:none!important;}
+    .stApp table.lsc-tbl .l{text-align:left;}
+    .stApp table.lsc-tbl .c{text-align:center;}
+    .stApp table.lsc-tbl .rk{text-align:center;color:var(--t3);font-weight:600;width:2.6rem;}
+    .stApp table.lsc-tbl .rk.top{color:var(--blue);}
+    .stApp table.lsc-tbl .nm{font-weight:600;max-width:13rem;overflow:hidden;text-overflow:ellipsis;}
+    .stApp table.lsc-tbl .sym{font-weight:600;}
+    .stApp table.lsc-tbl .muted{color:var(--t3);}
+    .stApp table.lsc-tbl .up{color:var(--green);font-weight:600;}
+    .stApp table.lsc-tbl .dn{color:var(--red);font-weight:600;}
+    .stApp table.lsc-tbl .wr{font-weight:700;font-size:0.92rem;}
+    .stApp table.lsc-tbl .few{color:var(--orange);font-weight:600;}
+    .st-key-lsc_xlsx [data-testid="stDownloadButton"] button{background:var(--card)!important;
+        border:1px solid var(--hair)!important;color:var(--blue)!important;font-weight:600!important;
+        border-radius:980px!important;min-height:2.4rem!important;box-shadow:var(--shadow)!important;}
+    .st-key-lsc_xlsx [data-testid="stDownloadButton"] button p{color:var(--blue)!important;
+        font-weight:600!important;}
+    .st-key-lsc_xlsx [data-testid="stDownloadButton"] button:hover{background:var(--blue-bg)!important;}
     .lsc-regime2{background:var(--fill);color:var(--t1);}
 
     /* fewer "?" marks: the regime pill tooltip is enough */
@@ -2569,9 +2589,8 @@ def render_auto_scanner_page() -> None:
         return (f"<div class='sc-tv' title='{_tip}'>{_val_badge(c)}"
                 f"<div class='sc-tv-l'>{_line}</div></div>")
 
-    def _strat_row(c, regime, is_now=False, alt=False, lead='', cls='') -> str:
-        """One table row: regime · strategy · numbers · trades · validation.
-        `lead` is an optional first cell (the ranking's # and stock)."""
+    def _strat_row(c, regime, is_now=False, alt=False) -> str:
+        """One table row: regime · strategy · numbers · trades · validation."""
         c = c or {}
         _w = float(c.get('win_rate', 0) or 0)
         _p = float(c.get('profit_factor', 0) or 0)
@@ -2592,9 +2611,7 @@ def render_auto_scanner_page() -> None:
                 if _is_live(c) else '')
         return (
             f"<div class='sc-tr{' sc-tr-now' if is_now and not alt else ''}"
-            f"{' sc-tr-sub' if alt else ''}{' sc-thin' if _thin else ''}"
-            f"{' ' + cls if cls else ''}'>"
-            + lead
+            f"{' sc-tr-sub' if alt else ''}{' sc-thin' if _thin else ''}'>"
             + _reg
             + f"<div class='sc-tr-strat'>{_chips(c.get('indicators', []))}{_sig}</div>"
             + f"<div class='sc-tr-n'>{_w:.0f}%</div>"
@@ -3088,6 +3105,43 @@ def render_auto_scanner_page() -> None:
         _raw_cache = st.session_state.get('_sc_raw') or {}
         _raw_dfs   = (_raw_cache.get('dfs') or {}) if _raw_cache.get('period') == _sel_period else {}
 
+        def _stock_df(sym):
+            """The scan's own bars for `sym` (downloaded again only if missing)."""
+            df = _raw_dfs.get(sym)
+            if df is None:
+                from scanner_engine import get_stock_df as _gsd
+                df = _gsd(sym, _sel_period, _v=2)
+            return df
+
+        # ── price levels of a live signal (shared by the cards and the table) ──
+        _RR_COL = {'Great': '#1B7A36', 'Good': '#A34800', 'Weak': '#C1121F'}
+        _lv_cache = st.session_state.setdefault('_lsc_levels', {})
+
+        def _lsc_levels(sym, df, price):
+            """Entry / stop / targets from the stock's price structure, with the %
+            distances and risk:reward the cards and the table show. None when they
+            can't be computed. Cached: the table needs every live stock each rerun."""
+            if df is None or price <= 0:
+                return None
+            key = (_sel_period, sym, len(df), round(price, 4))
+            if key not in _lv_cache:
+                try:
+                    from _levels import compute_structural_levels
+                    lv = compute_structural_levels(df, price, True)
+                    en, sl, t1, t2 = lv['entry'], lv['stop'], lv['t1'], lv['t2']
+                    rp  = round(abs(en - sl) / en * 100, 1) if en else 0
+                    t1p = round((t1 - en) / en * 100, 1) if en else 0
+                    t2p = round((t2 - en) / en * 100, 1) if en else 0
+                    rr  = round(t1p / rp, 2) if rp else 0
+                    _lv_cache[key] = {
+                        'entry': en, 'stop': sl, 't1': t1, 't2': t2, 'sl_pct': rp,
+                        't1_pct': t1p, 't2_pct': t2p, 'rr': rr,
+                        'rr_label': 'Great' if rr >= 2 else 'Good' if rr >= 1.5 else 'Weak',
+                        'quality': lv.get('entry_quality', '') or ''}
+                except Exception:
+                    _lv_cache[key] = None
+            return _lv_cache[key]
+
         for _ri in range(0, len(_fire_rows_shown), 2):
             _pair = _fire_rows_shown[_ri:_ri + 2]
             # Always 2 columns so a lone last card keeps the same width.
@@ -3104,10 +3158,7 @@ def render_auto_scanner_page() -> None:
               _regs       = _row.get('regimes', {})
               _price      = float(_row.get('price', 0) or 0)
               _cur_regime = _row.get('current_regime', 'RANGE')
-              _df_f       = _raw_dfs.get(_sym)
-              if _df_f is None:
-                  from scanner_engine import get_stock_df as _gsd
-                  _df_f = _gsd(_sym, _sel_period, _v=2)
+              _df_f       = _stock_df(_sym)
 
               # Only the CURRENT regime's strategies count (do not advertise
               # off-regime signals). The highest-ranked live one leads the card;
@@ -3135,19 +3186,14 @@ def render_auto_scanner_page() -> None:
 
               # price ladder
               _ladder = ''; _en = _sl_p = _t1 = _t2 = 0.0
-              if _df_f is not None and _price > 0:
+              _lvx = _lsc_levels(_sym, _df_f, _price)
+              if _lvx:
                   try:
-                      from _levels import compute_structural_levels
-                      _lv   = compute_structural_levels(_df_f, _price, True)
-                      _en   = _lv['entry']; _sl_p = _lv['stop']
-                      _t1   = _lv['t1'];    _t2   = _lv['t2']
-                      _eq   = _lv.get('entry_quality', '')
-                      _eqc  = _lv.get('eq_col', '#0063D1')
-                      _rp   = round(abs(_en - _sl_p) / _en * 100, 1) if _en else 0
-                      _t1p  = round((_t1 - _en) / _en * 100, 1) if _en else 0
-                      _t2p  = round((_t2 - _en) / _en * 100, 1) if _en else 0
-                      _rr   = round(_t1p / _rp, 2) if _rp else 0
-                      _rr_c = ('#1B7A36' if _rr >= 2 else '#A34800' if _rr >= 1.5 else '#C1121F')
+                      _en, _sl_p, _t1, _t2 = _lvx['entry'], _lvx['stop'], _lvx['t1'], _lvx['t2']
+                      _eq   = _lvx['quality']
+                      _rp, _t1p, _t2p, _rr = (_lvx['sl_pct'], _lvx['t1_pct'],
+                                              _lvx['t2_pct'], _lvx['rr'])
+                      _rr_c = _RR_COL[_lvx['rr_label']]
                       # tooltip text per quality level
                       _eq_tips = {
                           'OPTIMAL':  'Price is right at structural support — best possible entry. Low risk of stop hunt.',
@@ -3178,7 +3224,7 @@ def render_auto_scanner_page() -> None:
                           f"<div class='lsc-lc'><div class='lsc-ll'>Risk : Reward</div>"
                           f"<div class='lsc-lv'>1 : {_rr:.1f}</div>"
                           f"<div class='lsc-lp' style='color:{_rr_c};'>"
-                          f"{'Great' if _rr >= 2 else 'Good' if _rr >= 1.5 else 'Weak'}"
+                          f"{_lvx['rr_label']}"
                           f"</div></div>"
                           f"</div>")
                   except Exception:
@@ -3876,6 +3922,103 @@ def render_auto_scanner_page() -> None:
                 st.session_state.lsc_show_all = not st.session_state.lsc_show_all
                 st.rerun()
 
+        # ── every live signal as one table, downloadable as Excel ─────────────
+        # Same rows and order as the cards (all of them, not just the preview),
+        # so the table and the file always follow the filters above.
+        import html as _html
+        import math as _math
+        from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+        from live_signal_export import build_live_signal_xlsx
+
+        def _fin(v):
+            return float(v) if v is not None and _math.isfinite(float(v)) else None
+
+        _tbl = []
+        for _r in _fire_rows:
+            _cb = _live_shown(_r)[0]
+            _p = float(_r.get('price', 0) or 0)
+            _lv = _lsc_levels(_r['_sym'], _stock_df(_r['_sym']), _p) or {}
+            _tbl.append({
+                'name': _r.get('_sname') or '', 'symbol': _r['_sym'].replace('.SR', ''),
+                'date': f"{_cb['signal_date']} 15:00" if _cb.get('signal_date') else '',
+                'price': _fin(_p), 'entry': _fin(_lv.get('entry')), 'stop': _fin(_lv.get('stop')),
+                'sl_pct': _fin(_lv.get('sl_pct')), 't1': _fin(_lv.get('t1')),
+                't1_pct': _fin(_lv.get('t1_pct')), 't2': _fin(_lv.get('t2')),
+                't2_pct': _fin(_lv.get('t2_pct')), 'rr': _fin(_lv.get('rr')),
+                'rr_label': _lv.get('rr_label', ''),
+                'win_rate': float(_cb.get('win_rate', 0) or 0),
+                'trades': int(_cb.get('total', 0) or 0)})
+
+        _now = _dt.now(_tz(_td(hours=3)))                  # Riyadh time
+        _filters = (f"Win rate {st.session_state.sc_f_wr} · Trades {st.session_state.sc_f_tr} · "
+                    f"Market regime {st.session_state.sc_f_rg}"
+                    + (f' · Search "{_sc_query.strip()}"' if _sc_q else ''))
+        try:
+            _xlsx = build_live_signal_xlsx(
+                _tbl, f"LIVE SIGNAL CHECK | {len(_tbl)} Stocks",
+                f"Source: Strategy Scanner · Period: {_sc_period_label(_sel_period)} · "
+                f"Filters: {_filters} · Highest win rate first · "
+                f"Generated {_now:%Y-%m-%d %H:%M} (Riyadh)")
+        except ImportError:                                 # xlsxwriter not installed
+            _xlsx = None
+
+        _tt, _tb = st.columns([1, 0.2], vertical_alignment="bottom")
+        with _tt:
+            st.markdown(
+                "<div class='lsc-tbl-hd'><span class='lsc-tbl-t'>All live signals</span>"
+                f"<span class='lsc-tbl-s'>{len(_tbl)} stocks · same order as the cards · "
+                "prices in SAR</span></div>",
+                unsafe_allow_html=True)
+        with _tb, st.container(key="lsc_xlsx"):
+            if _xlsx:
+                st.download_button(
+                    "Download Excel", data=_xlsx,
+                    file_name=f"Live_Signal_Check_{len(_tbl)}_Stocks_with_Win_Rate_"
+                              f"{_now:%Y-%m-%d}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    icon=":material/download:", on_click="ignore",
+                    use_container_width=True, key="lsc_xlsx_btn")
+            else:
+                st.caption("Excel export needs the xlsxwriter package.")
+
+        def _px(v):
+            return f"{v:,.2f}" if v is not None else '—'
+
+        def _pc(v, sign):
+            return f"{sign}{v:.1f}%" if v is not None else '—'
+
+        def _rrt(v):
+            return f"1 : {v:.1f}" if v is not None else '—'
+
+        _ths = ("<th class='c'>#</th><th class='l'>Stock</th><th class='c'>Symbol</th>"
+                "<th class='c'>Analysis date</th><th>Price</th><th>Entry</th>"
+                "<th>Stop loss</th><th>Stop %</th><th>Target 1</th><th>T1 %</th>"
+                "<th>Target 2</th><th>T2 %</th><th class='c'>Risk : Reward</th>"
+                "<th class='c'>Rating</th><th>Win rate</th><th class='c'>Trades</th>")
+        _trs = ''.join(
+            "<tr>"
+            f"<td class='rk{' top' if _i <= 3 else ''}'>{_i}</td>"
+            f"<td class='l nm' title='{_html.escape(_t['name'], quote=True)}'>"
+            f"{_html.escape(_t['name'])}</td>"
+            f"<td class='c sym'>{_t['symbol']}</td>"
+            f"<td class='c muted'>{_t['date'] or '—'}</td>"
+            f"<td>{_px(_t['price'])}</td><td>{_px(_t['entry'])}</td><td>{_px(_t['stop'])}</td>"
+            f"<td class='dn'>{_pc(_t['sl_pct'], '−')}</td>"
+            f"<td>{_px(_t['t1'])}</td><td class='up'>{_pc(_t['t1_pct'], '+')}</td>"
+            f"<td>{_px(_t['t2'])}</td><td class='up'>{_pc(_t['t2_pct'], '+')}</td>"
+            f"<td class='c'>{_rrt(_t['rr'])}</td>"
+            f"<td class='c' style='color:{_RR_COL.get(_t['rr_label'], 'var(--t3)')};"
+            f"font-weight:600;'>{_t['rr_label'] or '—'}</td>"
+            f"<td class='wr' style='color:{_wr_col(_t['win_rate'])};'>{_t['win_rate']:.0f}%</td>"
+            + (f"<td class='c few' title='Fewer than 10 trades: weak evidence'>{_t['trades']}</td>"
+               if _t['trades'] < 10 else f"<td class='c'>{_t['trades']}</td>")
+            + "</tr>"
+            for _i, _t in enumerate(_tbl, 1))
+        st.markdown(
+            f"<div class='lsc-tbl-wrap'><table class='lsc-tbl'><thead><tr>{_ths}</tr></thead>"
+            f"<tbody>{_trs}</tbody></table></div>",
+            unsafe_allow_html=True)
+
     # ══════════════════════════════════════════════════════════════════════════
     # SECTION 1 — Scanned Strategy Grid
     # ══════════════════════════════════════════════════════════════════════════
@@ -3976,62 +4119,3 @@ def render_auto_scanner_page() -> None:
         if st.button(_btn_label, key="sc_expand_strats"):
             st.session_state[_show_all_key] = not st.session_state[_show_all_key]
             st.rerun()
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # SECTION 3 — Strategy Ranking: every strategy of every stock, by win rate
-    # ══════════════════════════════════════════════════════════════════════════
-    # Strategies with fewer than 10 trades sink below the rest (a 100% from 3
-    # trades says little) but are still listed, labelled "too few".
-    _rank = [(r, _rn, c) for r in _rows for _rn in _REGIMES for c in _strats(r, _rn)]
-    _rank.sort(key=lambda t: (int(t[2].get('total', 0) or 0) >= 10, _wr_key(t[2])),
-               reverse=True)
-
-    _RANK_PREVIEW = 25
-    if 'sc_rank_show_all' not in st.session_state:
-        st.session_state.sc_rank_show_all = False
-    _rank_show = _rank if st.session_state.sc_rank_show_all else _rank[:_RANK_PREVIEW]
-
-    _rk_body = ''
-    _sep_done = False
-    for _i, (_r, _rn, _c) in enumerate(_rank_show, 1):
-        if not _sep_done and int(_c.get('total', 0) or 0) < 10:
-            _sep_done = True
-            _rk_body += ("<div class='sc-rk-sep'>Fewer than 10 trades — too few to trust, "
-                         "ranked after the rest</div>")
-        _nm = (_r.get('_sname') or '').replace("'", '&#39;')
-        _lead = (f"<div class='sc-rk-who{' sc-rk-top' if _i <= 3 else ''}'>"
-                 f"<span class='sc-rk-n'>{_i}</span><div>"
-                 f"<div class='sc-rk-sym'>{_r['_sym'].replace('.SR', '')}</div>"
-                 + (f"<div class='sc-rk-nm' title='{_nm}'>{_nm}</div>" if _nm else '')
-                 + "</div></div>")
-        _rk_body += _strat_row(_c, _rn, is_now=(_rn == _r.get('current_regime')),
-                               lead=_lead, cls='sc-rk')
-
-    st.markdown(
-        "<div class='sc-h2'><span class='sc-h2-t'>Strategy Ranking</span>"
-        "<span class='sc-h2-s'>Every strategy of every stock, highest win rate first</span>"
-        f"<span class='sc-h2-c'>{len(_rank):,} strategies</span></div>"
-        "<div class='sc-stock'><div class='sc-table'>"
-        "<div class='sc-tr sc-th sc-rk'>"
-        "<div>Stock</div><div>Market regime</div><div>Strategy (all must agree)</div>"
-        "<div>Win rate</div>"
-        f"<div title='{_PF_HELP}'>Profit factor</div>"
-        f"<div title='{_EXP_HELP}'>Expectancy</div>"
-        "<div>Trades</div><div>Validation</div></div>"
-        + _rk_body + "</div></div>",
-        unsafe_allow_html=True)
-
-    if len(_rank) > _RANK_PREVIEW:
-        _rk_lbl = (f"Show all {len(_rank):,} strategies  ↓"
-                   if not st.session_state.sc_rank_show_all else "Show less ↑")
-        st.markdown(
-            "<style>"
-            ".st-key-sc_rank_expand .stButton button{"
-            "color:var(--blue)!important;font-size:0.9rem!important;font-weight:600!important;"
-            "padding:0.5rem 1.2rem!important;margin:0.8rem 0 0.5rem!important;}"
-            "</style>",
-            unsafe_allow_html=True)
-        with st.container(key="sc_rank_expand"):
-            if st.button(_rk_lbl, key="sc_rank_expand_btn"):
-                st.session_state.sc_rank_show_all = not st.session_state.sc_rank_show_all
-                st.rerun()
