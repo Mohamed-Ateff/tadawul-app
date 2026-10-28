@@ -2190,17 +2190,42 @@ def render_auto_scanner_page() -> None:
 
     /* ── round 2: critique fixes ─────────────────────────────────────────── */
     /* segmented control (Short | Medium | Long | Days) */
-    .st-key-sc_seg_box [role="radiogroup"]{background:var(--fill)!important;border-radius:13px!important;
+    .st-key-sc_seg_box [role="radiogroup"],
+    [class*="st-key-sc_flt_f"] [role="radiogroup"]{background:var(--fill)!important;border-radius:13px!important;
         padding:4px!important;display:inline-flex!important;gap:2px!important;flex-wrap:nowrap!important;}
-    .st-key-sc_seg_box [role="radiogroup"] button{background:transparent!important;border:none!important;
+    .st-key-sc_seg_box [role="radiogroup"] button,
+    [class*="st-key-sc_flt_f"] [role="radiogroup"] button{background:transparent!important;border:none!important;
         box-shadow:none!important;border-radius:10px!important;color:var(--t2)!important;
         min-height:2.4rem!important;padding:0 1.6rem!important;font-weight:500!important;}
-    .st-key-sc_seg_box [role="radiogroup"] button p{font-size:0.95rem!important;color:inherit!important;
+    .st-key-sc_seg_box [role="radiogroup"] button p,
+    [class*="st-key-sc_flt_f"] [role="radiogroup"] button p{font-size:0.95rem!important;color:inherit!important;
         font-weight:inherit!important;}
-    .st-key-sc_seg_box [role="radiogroup"] button:hover{color:var(--t1)!important;}
-    .st-key-sc_seg_box [role="radiogroup"] button[aria-checked="true"]{
+    .st-key-sc_seg_box [role="radiogroup"] button:hover,
+    [class*="st-key-sc_flt_f"] [role="radiogroup"] button:hover{color:var(--t1)!important;}
+    .st-key-sc_seg_box [role="radiogroup"] button[aria-checked="true"],
+    [class*="st-key-sc_flt_f"] [role="radiogroup"] button[aria-checked="true"]{
         background:#FFFFFF!important;color:var(--t1)!important;font-weight:600!important;
         box-shadow:0 1px 4px rgba(0,0,0,0.14),0 0 0 0.5px rgba(0,0,0,0.06)!important;}
+
+    /* filter row (Win rate · Trades · Market regime) */
+    [class*="st-key-sc_flt_f"] [role="radiogroup"] button{padding:0 1rem!important;
+        min-height:2.25rem!important;}
+    .sc-flt-l{font-size:0.82rem;font-weight:600;color:var(--t2);margin:0.4rem 0 0.35rem 0.15rem;}
+    .sc-flt-sum{font-size:0.88rem;color:var(--t2);margin:0.2rem 0 0 0.15rem;}
+    .sc-flt-sum b{color:var(--t1);font-weight:600;}
+    .st-key-sc_flt_clear .stButton button{background:transparent!important;border:none!important;
+        box-shadow:none!important;color:var(--blue)!important;font-weight:600!important;
+        font-size:0.9rem!important;min-height:2.25rem!important;}
+    .st-key-sc_flt_clear .stButton button:hover{background:var(--blue-bg)!important;}
+
+    /* rank number on stock cards (1 = highest win rate) */
+    .sc-rank{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
+        min-width:2rem;height:2rem;padding:0 0.45rem;border-radius:980px;background:var(--fill);
+        color:var(--t2);font-size:0.9rem;font-weight:700;font-variant-numeric:tabular-nums;cursor:help;}
+    .sc-rank-top{background:var(--blue-bg);color:var(--blue);}
+    .sc-grp{margin:1.6rem 0 1.1rem;padding:0.85rem 1.1rem;border-radius:var(--r-md);
+        background:var(--fill);color:var(--t2);font-size:0.88rem;line-height:1.45;}
+    .sc-grp b{color:var(--t1);font-weight:600;}
     .st-key-sc_run .stButton button{box-shadow:none!important;}
     .st-key-sc_days_box [data-baseweb="input"],.st-key-sc_days_box input{border-radius:12px!important;}
     .st-key-sc_days_box [data-testid="stNumberInputContainer"]{border-radius:12px!important;
@@ -2308,10 +2333,24 @@ def render_auto_scanner_page() -> None:
     details.sc-more>summary::after{content:' ›';}
     details.sc-more[open]>summary::after{content:' ⌄';}
     details.sc-more>summary:hover{background:var(--inset);}
+    /* strategy ranking: one extra leading cell (# + stock) */
+    .sc-tr.sc-rk{grid-template-columns:minmax(170px,1.2fr) minmax(130px,0.9fr) minmax(220px,2.3fr)
+        0.65fr 0.7fr 0.8fr 0.75fr minmax(180px,1.35fr);}
+    .sc-th.sc-rk>div{text-align:left!important;}
+    .sc-th.sc-rk>div:nth-child(n+4):nth-child(-n+7){text-align:right!important;}
+    .sc-rk-who{display:flex;align-items:center;gap:0.8rem;min-width:0;}
+    .sc-rk-n{min-width:2rem;font-size:0.95rem;font-weight:600;color:var(--t3);
+        font-variant-numeric:tabular-nums;}
+    .sc-rk-top .sc-rk-n{color:var(--blue);}
+    .sc-rk-sym{font-size:1.05rem;font-weight:700;color:var(--t1);letter-spacing:-0.01em;}
+    .sc-rk-nm{font-size:0.78rem;color:var(--t2);white-space:nowrap;overflow:hidden;
+        text-overflow:ellipsis;max-width:9rem;}
+    .sc-rk-sep{padding:0.7rem 1.5rem;background:var(--orange-bg);color:var(--orange);
+        font-size:0.84rem;font-weight:600;border-top:1px solid var(--hair);}
     @media (max-width:1150px){
       .sc-th{display:none;}
-      .sc-tr{grid-template-columns:repeat(4,1fr);gap:0.6rem 1rem;}
-      .sc-tr-reg,.sc-tr-strat,.sc-tv{grid-column:1/-1;}
+      .sc-tr,.sc-tr.sc-rk{grid-template-columns:repeat(4,1fr);gap:0.6rem 1rem;}
+      .sc-tr-reg,.sc-tr-strat,.sc-tv,.sc-rk-who{grid-column:1/-1;}
       .sc-tr-n{text-align:left;}
     }
     .lsc-regime2{background:var(--fill);color:var(--t1);}
@@ -2327,10 +2366,6 @@ def render_auto_scanner_page() -> None:
         ('sc_results',   None),
         ('sc_done',      False),
         ('sc_requested', False),     # only True after the user taps ↻ Scan
-        ('sc_regime',    'All'),       # regime filter
-        ('sc_minwr',     0),           # min win-rate filter (0 = off)
-        ('sc_show',      'All'),       # All | Firing
-        ('sc_sort',      'WinRate'),   # WinRate | Alpha | Firing
         ('sc_days_n',    60),          # custom window, in TRADING days
     ]
     for _k, _v in _SS_DEFS:
@@ -2358,14 +2393,24 @@ def render_auto_scanner_page() -> None:
         _a = _sig_age(cb)
         return _a is not None and _a <= _LIVE_MAX_AGE
 
+    def _combos_of(v) -> tuple:
+        """A regime's best strategy followed by its alternatives."""
+        return (v, *(v.get('alt_combos') or [])) if v else ()
+
+    def _wr_key(c):
+        """Sort key for "highest win rate first"; a tie goes to the strategy
+        with more trades, then to the higher expectancy."""
+        c = c or {}
+        return (float(c.get('win_rate', 0) or 0), int(c.get('total', 0) or 0),
+                float(c.get('expectancy', 0) or 0))
+
     def _live_combos(row) -> list:
         """Strategies of the stock's CURRENT regime (best + runner-ups) that
-        started a signal within the live window, in rank order."""
+        started a signal within the live window, highest win rate first."""
         cb = ((row.get('regimes') or {}).get(row.get('current_regime', 'RANGE'))
               or {})
-        if not cb:
-            return []
-        return [c for c in (cb, *(cb.get('alt_combos') or [])) if _is_live(c)]
+        return sorted((c for c in _combos_of(cb) if _is_live(c)),
+                      key=_wr_key, reverse=True)
 
     def _age_txt(age) -> str:
         # Ages count trading sessions back from the latest bar in the data.
@@ -2524,8 +2569,9 @@ def render_auto_scanner_page() -> None:
         return (f"<div class='sc-tv' title='{_tip}'>{_val_badge(c)}"
                 f"<div class='sc-tv-l'>{_line}</div></div>")
 
-    def _strat_row(c, regime, is_now=False, alt=False) -> str:
-        """One table row: regime · strategy · numbers · trades · validation."""
+    def _strat_row(c, regime, is_now=False, alt=False, lead='', cls='') -> str:
+        """One table row: regime · strategy · numbers · trades · validation.
+        `lead` is an optional first cell (the ranking's # and stock)."""
         c = c or {}
         _w = float(c.get('win_rate', 0) or 0)
         _p = float(c.get('profit_factor', 0) or 0)
@@ -2546,7 +2592,9 @@ def render_auto_scanner_page() -> None:
                 if _is_live(c) else '')
         return (
             f"<div class='sc-tr{' sc-tr-now' if is_now and not alt else ''}"
-            f"{' sc-tr-sub' if alt else ''}{' sc-thin' if _thin else ''}'>"
+            f"{' sc-tr-sub' if alt else ''}{' sc-thin' if _thin else ''}"
+            f"{' ' + cls if cls else ''}'>"
+            + lead
             + _reg
             + f"<div class='sc-tr-strat'>{_chips(c.get('indicators', []))}{_sig}</div>"
             + f"<div class='sc-tr-n'>{_w:.0f}%</div>"
@@ -2874,11 +2922,6 @@ def render_auto_scanner_page() -> None:
             "</div></div>",
             unsafe_allow_html=True)
         return
-    _all_combos = [c for r in _rows for v in (r.get('regimes') or {}).values() if v
-                   for c in (v, *(v.get('alt_combos') or []))]
-    _n_val = sum(1 for c in _all_combos if _is_validated(c))
-    _n_fail = sum(1 for c in _all_combos
-                  if not _is_validated(c) and c.get('fail_reason') == 'lost')
 
     # ── search bar (styled in the page CSS block) ────────────────────────────
     with st.container(key="sc_search_box"):
@@ -2891,30 +2934,109 @@ def render_auto_scanner_page() -> None:
                  if _sc_q in r['_sym'].replace('.SR', '').lower()
                  or _sc_q in (r.get('_sname') or '').lower()]
 
-    # Stocks with a live signal first, then by number of validated strategies.
-    _rows.sort(key=lambda r: (not _live_combos(r), -sum(
-        1 for v in (r.get('regimes') or {}).values() if v
-        for c in (v, *(v.get('alt_combos') or [])) if _is_validated(c))))
+    # ── filter: decides which strategies every section below shows ───────────
+    _REGIMES = ('TREND', 'RANGE', 'VOLATILE')
+    _F_WR = {'Any': 0, '60%+': 60, '70%+': 70, '80%+': 80}
+    _F_TR = {'Any': 0, '10+': 10, '20+': 20}
+    _F_RG = {'All': None, 'Trend': 'TREND', 'Range': 'RANGE', 'Volatile': 'VOLATILE'}
+    _F_DEF = (('sc_f_wr', 'Any'), ('sc_f_tr', 'Any'), ('sc_f_rg', 'All'))
+    for _k, _v in _F_DEF:
+        if not st.session_state.get(_k):
+            st.session_state[_k] = _v
+
+    def _keep_one(key, default):
+        # Tapping the selected segment would clear it; fall back to the default.
+        if not st.session_state.get(key):
+            st.session_state[key] = default
+
+    def _clear_filters():
+        for _k, _v in _F_DEF:
+            st.session_state[_k] = _v
+
+    _fc = st.columns([1.3, 1, 1.45, 0.75], gap="medium", vertical_alignment="bottom")
+    for _col, (_key, _dflt), _lbl, _opts in zip(
+            _fc, _F_DEF, ('Win rate', 'Trades', 'Market regime'), (_F_WR, _F_TR, _F_RG)):
+        with _col:
+            st.markdown(f"<div class='sc-flt-l'>{_lbl}</div>", unsafe_allow_html=True)
+            with st.container(key=f"sc_flt_{_key[3:]}"):
+                st.segmented_control(
+                    _lbl, list(_opts), key=_key, on_change=_keep_one,
+                    args=(_key, _dflt), selection_mode="single",
+                    label_visibility="collapsed")
+    _f_wr = _F_WR[st.session_state.sc_f_wr]
+    _f_tr = _F_TR[st.session_state.sc_f_tr]
+    _f_rg = _F_RG[st.session_state.sc_f_rg]
+    _f_on = bool(_f_wr or _f_tr or _f_rg)
+    if _f_on:
+        with _fc[3], st.container(key="sc_flt_clear"):
+            st.button("Clear filters", key="sc_flt_clear_btn", on_click=_clear_filters,
+                      use_container_width=True)
+
+    def _strats(row, rn) -> list:
+        """The stock's strategies for regime `rn` that pass the filter,
+        highest win rate first. The win rate is compared as displayed
+        (rounded), so a strategy shown as 70% counts as 70%+."""
+        return sorted(
+            (c for c in _combos_of((row.get('regimes') or {}).get(rn))
+             if round(float(c.get('win_rate', 0) or 0)) >= _f_wr
+             and int(c.get('total', 0) or 0) >= _f_tr
+             and _f_rg in (None, rn)),
+            key=_wr_key, reverse=True)
+
+    def _live_shown(row) -> list:
+        """Live strategies of today's regime that pass the filter, best first."""
+        return [c for c in _strats(row, row.get('current_regime', 'RANGE'))
+                if _is_live(c)]
+
+    _n_searched = len(_rows)
+    _rows = [r for r in _rows if any(_strats(r, _rn) for _rn in _REGIMES)]
+    if _f_on:
+        st.markdown(
+            f"<div class='sc-flt-sum'><b>{len(_rows)}</b> of {_n_searched} stocks have a "
+            "strategy that matches the filter</div>",
+            unsafe_allow_html=True)
+    if not _rows:
+        st.markdown(
+            "<div style='background:var(--card);border:1px solid var(--hair);"
+            "border-radius:var(--r-lg);padding:3rem 1.5rem;text-align:center;'>"
+            "<div style='font-size:1.05rem;font-weight:600;color:var(--t1);'>"
+            "No stock matches</div>"
+            "<div style='font-size:0.9rem;color:var(--t2);margin-top:0.4rem;'>"
+            + ("Try a lower win rate, fewer trades or another market regime."
+               if _f_on else "Try another symbol or company name.")
+            + "</div></div>",
+            unsafe_allow_html=True)
+        return
+
+    # Highest win rate first, judged on the strategy for the stock's TODAY
+    # regime (the one that applies now). Stocks with no strategy for today's
+    # regime follow, by their best win rate in another regime.
+    def _row_key(r):
+        _now = _strats(r, r.get('current_regime'))
+        _best = max((c for _rn in _REGIMES for c in _strats(r, _rn)), key=_wr_key)
+        return (bool(_now), _wr_key(_now[0] if _now else _best))
+
+    _rows.sort(key=_row_key, reverse=True)
+    _all_combos = [c for r in _rows for _rn in _REGIMES for c in _strats(r, _rn)]
+    _n_val = sum(1 for c in _all_combos if _is_validated(c))
+    _n_fail = sum(1 for c in _all_combos
+                  if not _is_validated(c) and c.get('fail_reason') == 'lost')
 
     # ══════════════════════════════════════════════════════════════════════════
     # SECTION 2 — Live Signal Check
     # ══════════════════════════════════════════════════════════════════════════
-    import math as _math
-
     _REGIME_SHORT = {'TREND': 'Trend', 'RANGE': 'Range', 'VOLATILE': 'Volatile'}
 
     # Only include stocks where one of the CURRENT regime's strategies started
     # a signal within the live window (_LIVE_MAX_AGE).
-    _fire_rows_raw = [r for r in _rows if _live_combos(r)]
+    _fire_rows_raw = [r for r in _rows if _live_shown(r)]
 
     def _lsc_score(row):
-        cb   = _live_combos(row)[0]
-        wr   = float(cb.get('win_rate', 0) or 0)
-        tot  = int(cb.get('total', 1) or 1)
-        return (_is_validated(cb), -(_sig_age(cb) or 0), wr * _math.sqrt(tot))
+        cb = _live_shown(row)[0]
+        return (_wr_key(cb), -(_sig_age(cb) or 0))
 
-    # Fixed sort: validated strategies first, then freshest signal, then
-    # strongest (win_rate weighted by sample size). One clear ranking.
+    # Highest win rate first (the stock's best live strategy); the fresher
+    # signal breaks a tie.
     _fire_rows = sorted(_fire_rows_raw, key=_lsc_score, reverse=True)
     _n_signals = len(_fire_rows)
 
@@ -2938,7 +3060,7 @@ def render_auto_scanner_page() -> None:
         f"</div>"
         f"<div class='sc-h2-s' style='margin:-0.6rem 0 1.2rem;'>Stocks where a strategy for "
         f"today's market regime started a buy signal in the last {_LIVE_MAX_AGE + 1} trading days. "
-        f"Validated strategies are listed first.</div>" + _IND_LEGEND,
+        f"Highest win rate first.</div>" + _IND_LEGEND,
         unsafe_allow_html=True)
 
     if not _fire_rows:
@@ -2948,8 +3070,10 @@ def render_auto_scanner_page() -> None:
             "<div style='font-size:0.75rem;font-weight:800;color:#6E6E75;"
             "text-transform:uppercase;letter-spacing:1.2px;'>No best-fit signals</div>"
             "<div style='font-size:0.62rem;color:#6E6E75;margin-top:0.4rem;'>"
-            f"No stock's current-regime strategy triggered in the last "
-            f"{_LIVE_MAX_AGE + 1} trading days</div></div>",
+            + ("No live signal matches the filter" if _f_on else
+               f"No stock's current-regime strategy triggered in the last "
+               f"{_LIVE_MAX_AGE + 1} trading days")
+            + "</div></div>",
             unsafe_allow_html=True)
     else:
         # chart expand state
@@ -2972,7 +3096,7 @@ def render_auto_scanner_page() -> None:
             # instead of inside its card's column (which left the other column
             # empty next to a tall chart).
             _chart_area = st.container()
-            for _col_slot, _row in zip(_grid, _pair):
+            for _lsc_pos, (_col_slot, _row) in enumerate(zip(_grid, _pair), _ri + 1):
              with _col_slot:
               _sym        = _row['_sym']
               _sname      = _row['_sname']
@@ -2988,15 +3112,15 @@ def render_auto_scanner_page() -> None:
               # Only the CURRENT regime's strategies count (do not advertise
               # off-regime signals). The highest-ranked live one leads the card;
               # any other live ones are listed under it.
-              _live = _live_combos(_row)
+              _live = _live_shown(_row)
               if not _live:
                   continue
 
               _best_rname = _cur_regime
               _best_combo = _live[0]
-              # Rank of the leading live strategy within its regime (1 = best).
-              _reg_top  = _regs.get(_cur_regime) or {}
-              _reg_list = [_reg_top, *(_reg_top.get('alt_combos') or [])]
+              # Rank of the leading live strategy within its regime (1 = best),
+              # in the same order Scanned Strategies lists them.
+              _reg_list = _strats(_row, _cur_regime)
               _best_rank = next((_i + 1 for _i, _c in enumerate(_reg_list)
                                  if _c is _best_combo), 1)
               _same_df = _sym in _raw_dfs   # same bars the engine indexed
@@ -3182,6 +3306,8 @@ def render_auto_scanner_page() -> None:
                   "<div class='lsc-card2'>"
                   # header: symbol · name · price
                   "<div class='lsc-hdr2'>"
+                  f"<span class='sc-rank{' sc-rank-top' if _lsc_pos <= 3 else ''}' "
+                  f"title='Rank: highest win rate first'>{_lsc_pos}</span>"
                   f"<span class='lsc-sym2'>{_sym_d}</span>"
                   + (f"<span class='lsc-name2'>{_sname}</span>" if _sname else '')
                   + f"<span class='lsc-price2'>{_price:.2f}<small>SAR</small></span>"
@@ -3755,7 +3881,8 @@ def render_auto_scanner_page() -> None:
     # ══════════════════════════════════════════════════════════════════════════
     st.markdown(
         "<div class='sc-h2'><span class='sc-h2-t'>Scanned Strategies</span>"
-        "<span class='sc-h2-s'>Up to 3 strategies per market regime for each stock</span>"
+        "<span class='sc-h2-s'>Up to 3 strategies per market regime for each stock · "
+        "highest win rate first, judged on today's regime (the first row of each card)</span>"
         f"<span class='sc-h2-c'>{len(_rows)} stocks</span></div>"
         "<div class='sc-summary'>"
         f"<span class='sc-chip'><b>{len(_all_combos):,}</b> strategies</span>"
@@ -3779,29 +3906,38 @@ def render_auto_scanner_page() -> None:
 
     st.markdown(_IND_LEGEND, unsafe_allow_html=True)
 
-    # One card per stock: a table row per market regime, alternatives folded
-    # under their regime's row.
-    for _row in _rows_to_show:
+    # One card per stock: a table row per market regime (today's first),
+    # alternatives folded under their regime's row.
+    _grp_done = False
+    for _pos, _row in enumerate(_rows_to_show, 1):
         _sym_d = _row['_sym'].replace('.SR', '')
         _sname = _row['_sname']
-        _regs  = _row.get('regimes', {}) or {}
         _cur_reg = _row.get('current_regime')
-        _present = [_rn for _rn in ('TREND', 'RANGE', 'VOLATILE') if _regs.get(_rn)]
-        _has_fire = bool(_live_combos(_row))
+        _lists = {_rn: _strats(_row, _rn)
+                  for _rn in sorted(_REGIMES, key=lambda _rn: _rn != _cur_reg)}
+        _present = [_rn for _rn, _l in _lists.items() if _l]
+        _has_fire = bool(_live_shown(_row))
+
+        # Cards are sorted with every stock that has a strategy for today's
+        # regime first; say so where that group ends.
+        if not _grp_done and not _lists.get(_cur_reg):
+            _grp_done = True
+            st.markdown(
+                "<div class='sc-grp'><b>No strategy for today's market regime"
+                + (" matches the filter" if _f_on else "") + "</b> — "
+                "the stocks below only have strategies for other regimes, ranked by "
+                "their best win rate.</div>",
+                unsafe_allow_html=True)
 
         _body = ''
         for _rname in _present:
-            _combo = _regs[_rname]
-            _is_now = (_rname == _cur_reg)
-            _body += _strat_row(_combo, _rname, is_now=_is_now)
-            _alts = _combo.get('alt_combos') or []
+            _main, *_alts = _lists[_rname]
+            _body += _strat_row(_main, _rname, is_now=(_rname == _cur_reg))
             if _alts:
                 _body += (
-                    "<details class='sc-more'><summary title='The next-best indicator sets "
-                    "for this regime, ranked on the fitted part of the period (validated "
-                    "ones first). None is a subset or superset of a strategy ranked above it, "
-                    "and their shared trades are under 60% of the two strategies' combined "
-                    "trades (fitted part).'>"
+                    "<details class='sc-more'><summary title='Other indicator sets for "
+                    "this regime, highest win rate first. None is a subset or superset of "
+                    "another, and any two share under 60% of their trades (fitted part).'>"
                     f"{len(_alts)} more {'strategy' if len(_alts) == 1 else 'strategies'} "
                     f"for {_rname.title()}</summary>"
                     + ''.join(_strat_row(_a, _rname, alt=True) for _a in _alts)
@@ -3810,6 +3946,8 @@ def render_auto_scanner_page() -> None:
         st.markdown(
             "<div class='sc-stock'>"
             "<div class='sc-stock-hdr'>"
+            f"<span class='sc-rank{' sc-rank-top' if _pos <= 3 else ''}' "
+            f"title='Rank: highest win rate first'>{_pos}</span>"
             f"<span class='sc-sym'>{_sym_d}</span>"
             + (f"<span class='sc-sname'>{_sname}</span>" if _sname else '')
             + ("<span class='sc-cfire' style='margin-left:auto;'>Live signal</span>"
@@ -3838,3 +3976,62 @@ def render_auto_scanner_page() -> None:
         if st.button(_btn_label, key="sc_expand_strats"):
             st.session_state[_show_all_key] = not st.session_state[_show_all_key]
             st.rerun()
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # SECTION 3 — Strategy Ranking: every strategy of every stock, by win rate
+    # ══════════════════════════════════════════════════════════════════════════
+    # Strategies with fewer than 10 trades sink below the rest (a 100% from 3
+    # trades says little) but are still listed, labelled "too few".
+    _rank = [(r, _rn, c) for r in _rows for _rn in _REGIMES for c in _strats(r, _rn)]
+    _rank.sort(key=lambda t: (int(t[2].get('total', 0) or 0) >= 10, _wr_key(t[2])),
+               reverse=True)
+
+    _RANK_PREVIEW = 25
+    if 'sc_rank_show_all' not in st.session_state:
+        st.session_state.sc_rank_show_all = False
+    _rank_show = _rank if st.session_state.sc_rank_show_all else _rank[:_RANK_PREVIEW]
+
+    _rk_body = ''
+    _sep_done = False
+    for _i, (_r, _rn, _c) in enumerate(_rank_show, 1):
+        if not _sep_done and int(_c.get('total', 0) or 0) < 10:
+            _sep_done = True
+            _rk_body += ("<div class='sc-rk-sep'>Fewer than 10 trades — too few to trust, "
+                         "ranked after the rest</div>")
+        _nm = (_r.get('_sname') or '').replace("'", '&#39;')
+        _lead = (f"<div class='sc-rk-who{' sc-rk-top' if _i <= 3 else ''}'>"
+                 f"<span class='sc-rk-n'>{_i}</span><div>"
+                 f"<div class='sc-rk-sym'>{_r['_sym'].replace('.SR', '')}</div>"
+                 + (f"<div class='sc-rk-nm' title='{_nm}'>{_nm}</div>" if _nm else '')
+                 + "</div></div>")
+        _rk_body += _strat_row(_c, _rn, is_now=(_rn == _r.get('current_regime')),
+                               lead=_lead, cls='sc-rk')
+
+    st.markdown(
+        "<div class='sc-h2'><span class='sc-h2-t'>Strategy Ranking</span>"
+        "<span class='sc-h2-s'>Every strategy of every stock, highest win rate first</span>"
+        f"<span class='sc-h2-c'>{len(_rank):,} strategies</span></div>"
+        "<div class='sc-stock'><div class='sc-table'>"
+        "<div class='sc-tr sc-th sc-rk'>"
+        "<div>Stock</div><div>Market regime</div><div>Strategy (all must agree)</div>"
+        "<div>Win rate</div>"
+        f"<div title='{_PF_HELP}'>Profit factor</div>"
+        f"<div title='{_EXP_HELP}'>Expectancy</div>"
+        "<div>Trades</div><div>Validation</div></div>"
+        + _rk_body + "</div></div>",
+        unsafe_allow_html=True)
+
+    if len(_rank) > _RANK_PREVIEW:
+        _rk_lbl = (f"Show all {len(_rank):,} strategies  ↓"
+                   if not st.session_state.sc_rank_show_all else "Show less ↑")
+        st.markdown(
+            "<style>"
+            ".st-key-sc_rank_expand .stButton button{"
+            "color:var(--blue)!important;font-size:0.9rem!important;font-weight:600!important;"
+            "padding:0.5rem 1.2rem!important;margin:0.8rem 0 0.5rem!important;}"
+            "</style>",
+            unsafe_allow_html=True)
+        with st.container(key="sc_rank_expand"):
+            if st.button(_rk_lbl, key="sc_rank_expand_btn"):
+                st.session_state.sc_rank_show_all = not st.session_state.sc_rank_show_all
+                st.rerun()
