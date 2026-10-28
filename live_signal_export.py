@@ -25,6 +25,8 @@ COLUMNS = [
     ('Risk : Reward Rating',  'rr_label', 15, 'rating'),
     ('Win Rate (%)',          'win_rate', 12, 'winrate'),
     ('Trades',                'trades',    9, 'int'),
+    ('Wins',                  'wins',      8, 'wins'),
+    ('Losses',                'losses',    8, 'losses'),
 ]
 
 NAVY, BLUE, BAND, GRID = '#0B2545', '#1F4E79', '#DDEBF7', '#C9D6E3'
@@ -81,6 +83,10 @@ def build_live_signal_xlsx(rows: list[dict], title: str, subtitle: str) -> bytes
                 kw.update(bold=True, num_format='0%')
             elif kind == 'int':
                 kw.update(num_format='0')
+            elif kind == 'wins':
+                kw.update(num_format='0', bold=True, font_color=GREEN)
+            elif kind == 'losses':
+                kw.update(num_format='0', bold=True, font_color=RED)
             cell_cache[key] = fmt(**kw)
         return cell_cache[key]
 
@@ -108,7 +114,7 @@ def build_live_signal_xlsx(rows: list[dict], title: str, subtitle: str) -> bytes
                 ws.write_number(row, c, -abs(float(v)) / 100, f)
             elif kind in ('gain', 'winrate'):
                 ws.write_number(row, c, float(v) / 100, f)
-            elif kind in ('price', 'rr', 'int'):
+            elif kind in ('price', 'rr', 'int', 'wins', 'losses'):
                 ws.write_number(row, c, float(v), f)
             else:
                 ws.write_string(row, c, str(v), f)
@@ -126,10 +132,12 @@ def build_live_signal_xlsx(rows: list[dict], title: str, subtitle: str) -> bytes
         ws.merge_range(first, 0, first, n_col - 1,
                        'No live signal matches the filters.', cell('text', 0))
 
-    ws.set_row(last + 2, 30)
+    ws.set_row(last + 2, 42)
     ws.merge_range(last + 2, 0, last + 2, n_col - 1,
                    'Win Rate (%) is the win rate of the leading live strategy; Trades is how many '
-                   'past signals it is based on (fewer than 10 is weak evidence). Entry, stop and '
+                   'past signals it is based on (fewer than 10 is weak evidence), split into Wins and '
+                   'Losses. Risk : Reward = Target 1 gain ÷ stop-loss risk: Great from 1 : 2, Good from '
+                   '1 : 1.5. Entry, stop and '
                    'targets come from the stock\'s price structure. Prices in SAR. '
                    'Not investment advice.', note_f)
 

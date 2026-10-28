@@ -3923,7 +3923,8 @@ def render_auto_scanner_page() -> None:
                 't2_pct': _fin(_lv.get('t2_pct')), 'rr': _fin(_lv.get('rr')),
                 'rr_label': _lv.get('rr_label', ''),
                 'win_rate': float(_cb.get('win_rate', 0) or 0),
-                'trades': int(_cb.get('total', 0) or 0)})
+                'trades': int(_cb.get('total', 0) or 0),
+                'wins': int(_cb.get('wins', 0) or 0), 'losses': int(_cb.get('losses', 0) or 0)})
 
         _now = _dt.now(_tz(_td(hours=3)))                  # Riyadh time
         _filters = (f"Win rate {st.session_state.sc_f_wr} · Trades {st.session_state.sc_f_tr} · "
@@ -3971,7 +3972,8 @@ def render_auto_scanner_page() -> None:
                 "<th class='c'>Analysis date</th><th>Price</th><th>Entry</th>"
                 "<th>Stop loss</th><th>Stop %</th><th>Target 1</th><th>T1 %</th>"
                 "<th>Target 2</th><th>T2 %</th><th class='c'>Risk : Reward</th>"
-                "<th class='c'>Rating</th><th>Win rate</th><th class='c'>Trades</th>")
+                "<th class='c'>Rating</th><th>Win rate</th><th class='c'>Trades</th>"
+                "<th class='c'>Wins</th><th class='c'>Losses</th>")
         _trs = ''.join(
             "<tr>"
             f"<td class='rk{' top' if _i <= 3 else ''}'>{_i}</td>"
@@ -3989,6 +3991,7 @@ def render_auto_scanner_page() -> None:
             f"<td class='wr' style='color:{_wr_col(_t['win_rate'])};'>{_t['win_rate']:.0f}%</td>"
             + (f"<td class='c few' title='Fewer than 10 trades: weak evidence'>{_t['trades']}</td>"
                if _t['trades'] < 10 else f"<td class='c'>{_t['trades']}</td>")
+            + f"<td class='c up'>{_t['wins']}</td><td class='c dn'>{_t['losses']}</td>"
             + "</tr>"
             for _i, _t in enumerate(_tbl, 1))
         st.markdown(
