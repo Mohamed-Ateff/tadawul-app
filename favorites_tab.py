@@ -2669,8 +2669,10 @@ def render_auto_scanner_page() -> None:
     _n_res  = len(st.session_state.sc_results or [])
     _n_fire = sum(1 for row in (st.session_state.sc_results or [])
                   if _live_combos(row))
+    # Stocks with at least one validated live signal (what the Validation
+    # filter would keep in Live Signal Check).
     _n_fire_val = sum(1 for row in (st.session_state.sc_results or [])
-                      if _live_combos(row) and _is_validated(_live_combos(row)[0]))
+                      if any(_is_validated(c) for c in _live_combos(row)))
     _upd = (st.session_state.get('_sc_full_cache') or {}).get(f"{st.session_state.sc_period}|v3")
     _upd_txt = _time.strftime('%H:%M', _time.localtime(_upd[0])) if _upd else '—'
     _tl, _tr = st.columns([1, 0.12])
@@ -2966,7 +2968,9 @@ def render_auto_scanner_page() -> None:
     _F_WR = {'Any': 0, '60%+': 60, '70%+': 70, '80%+': 80}
     _F_TR = {'Any': 0, '10+': 10, '20+': 20}
     _F_RG = {'All': None, 'Trend': 'TREND', 'Range': 'RANGE', 'Volatile': 'VOLATILE'}
-    _F_DEF = (('sc_f_wr', 'Any'), ('sc_f_tr', 'Any'), ('sc_f_rg', 'All'))
+    # "Not validated" covers every strategy that did not pass, incl. Failed test.
+    _F_VA = {'All': None, 'Validated': True, 'Not validated': False}
+    _F_DEF = (('sc_f_wr', 'Any'), ('sc_f_tr', 'Any'), ('sc_f_rg', 'All'), ('sc_f_va', 'All'))
     for _k, _v in _F_DEF:
         if not st.session_state.get(_k):
             st.session_state[_k] = _v
@@ -2980,9 +2984,10 @@ def render_auto_scanner_page() -> None:
         for _k, _v in _F_DEF:
             st.session_state[_k] = _v
 
-    _fc = st.columns([1.3, 1, 1.45, 0.75], gap="medium", vertical_alignment="bottom")
+    _fc = st.columns([1.3, 1, 1.45, 1.5, 0.75], gap="medium", vertical_alignment="bottom")
     for _col, (_key, _dflt), _lbl, _opts in zip(
-            _fc, _F_DEF, ('Win rate', 'Trades', 'Market regime'), (_F_WR, _F_TR, _F_RG)):
+            _fc, _F_DEF, ('Win rate', 'Trades', 'Market regime', 'Validation'),
+            (_F_WR, _F_TR, _F_RG, _F_VA)):
         with _col:
             st.markdown(f"<div class='sc-flt-l'>{_lbl}</div>", unsafe_allow_html=True)
             with st.container(key=f"sc_flt_{_key[3:]}"):
@@ -2993,9 +2998,10 @@ def render_auto_scanner_page() -> None:
     _f_wr = _F_WR[st.session_state.sc_f_wr]
     _f_tr = _F_TR[st.session_state.sc_f_tr]
     _f_rg = _F_RG[st.session_state.sc_f_rg]
-    _f_on = bool(_f_wr or _f_tr or _f_rg)
+    _f_va = _F_VA[st.session_state.sc_f_va]
+    _f_on = bool(_f_wr or _f_tr or _f_rg or _f_va is not None)
     if _f_on:
-        with _fc[3], st.container(key="sc_flt_clear"):
+        with _fc[4], st.container(key="sc_flt_clear"):
             st.button("Clear filters", key="sc_flt_clear_btn", on_click=_clear_filters,
                       use_container_width=True)
 
@@ -3007,7 +3013,8 @@ def render_auto_scanner_page() -> None:
             (c for c in _combos_of((row.get('regimes') or {}).get(rn))
              if round(float(c.get('win_rate', 0) or 0)) >= _f_wr
              and int(c.get('total', 0) or 0) >= _f_tr
-             and _f_rg in (None, rn)),
+             and _f_rg in (None, rn)
+             and _f_va in (None, _is_validated(c))),
             key=_wr_key, reverse=True)
 
     def _live_shown(row) -> list:
@@ -3029,7 +3036,7 @@ def render_auto_scanner_page() -> None:
             "<div style='font-size:1.05rem;font-weight:600;color:var(--t1);'>"
             "No stock matches</div>"
             "<div style='font-size:0.9rem;color:var(--t2);margin-top:0.4rem;'>"
-            + ("Try a lower win rate, fewer trades or another market regime."
+            + ("Try a lower win rate, fewer trades, another market regime or Validation All."
                if _f_on else "Try another symbol or company name.")
             + "</div></div>",
             unsafe_allow_html=True)
@@ -3920,7 +3927,8 @@ def render_auto_scanner_page() -> None:
 
         _now = _dt.now(_tz(_td(hours=3)))                  # Riyadh time
         _filters = (f"Win rate {st.session_state.sc_f_wr} · Trades {st.session_state.sc_f_tr} · "
-                    f"Market regime {st.session_state.sc_f_rg}"
+                    f"Market regime {st.session_state.sc_f_rg} · "
+                    f"Validation {st.session_state.sc_f_va}"
                     + (f' · Search "{_sc_query.strip()}"' if _sc_q else ''))
         try:
             _xlsx = build_live_signal_xlsx(
