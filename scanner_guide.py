@@ -98,7 +98,9 @@ def _table(head: list[str], rows: list[list[str]]) -> str:
 
 
 def _sec(num: int, title: str, body: str, open_: bool = False) -> str:
-    return (f"<details class='sg-d'{' open' if open_ else ''}><summary>"
+    # id = the section's built-in number (stable when sections are re-ordered);
+    # the page's "؟" links open the guide on it (data-sg='<num>').
+    return (f"<details class='sg-d' id='sg-sec-{num}'{' open' if open_ else ''}><summary>"
             f"<span class='sg-n'>{num}</span>{title}</summary>"
             f"<div class='sg-b'>{body}</div></details>")
 
@@ -197,7 +199,9 @@ _CSS = """
            border-radius:50%;background:#0063D1;color:#fff;font-size:0.8rem;font-weight:600;margin-bottom:0.35rem;}
 .sg-step-t{font-size:0.88rem;color:#111114;line-height:1.5;}
 .sg-list{background:#FFFFFF;border:1px solid #DEDEE3;border-radius:16px;overflow:hidden;margin-top:0.6rem;}
-.sg-d{border-bottom:1px solid #DEDEE3;}
+.sg-d{border-bottom:1px solid #DEDEE3;scroll-margin-top:90px;}
+/* a section a "؟" on the page just opened: its title glows for a moment */
+.st-key-sg_wrap .sg .sg-d.sg-flash>summary{background:#D6E8FF!important;transition:background .4s ease;}
 .sg-d:last-child{border-bottom:none;}
 .sg-d summary{cursor:pointer;padding:0.85rem 1.1rem;font-weight:500;color:#111114;font-size:0.98rem;
               list-style:none;display:flex;align-items:center;gap:0.75rem;transition:background .15s ease;}
@@ -958,7 +962,10 @@ def _build_html() -> str:
         + _step(3, 'راجع الفرص في <b>Live Signal Check</b>، وابدأ باللي عليها ✓ Validated '
                    f'(القسم {_new_no[18]} بيشرح ليه)')
         + _step(4, 'اضغط <b>View strategy</b> على أي كارت تشوف تفاصيل استراتيجيته في Scanned Strategies')
-        + "</div></div>"
+        + "</div>"
+        + _note("مش لازم تدوّر هنا: في الصفحة، دوس على أي <b>؟</b> أو أي كلمة تحتها خط منقّط "
+                "(أو على علامة ✓ Validated)، والدليل هيتفتح على القسم اللي بيشرحها على طول.", 'info')
+        + "</div>"
     )
 
     def _renum(html: str) -> str:
@@ -1051,6 +1058,60 @@ def _ideas_html() -> str:
 _AR_LETTERS_SG = "أبجدهوزحطيكلمن"
 
 
+# Clicking anything on the page that carries data-sg='<section id>' (the "؟"
+# marks, the Validated badges) opens this guide on that section. Installed once
+# into the page itself, so it keeps working across Streamlit reruns.
+_HELP_LINKS_JS = """function (w, d) {
+  if (w.__sgHelp) return;
+  w.__sgHelp = true;
+  d.addEventListener('click', function (e) {
+    var q = e.target.closest && e.target.closest('[data-sg]');
+    if (!q) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var exp = d.querySelector('.st-key-sg_wrap details'), opened = false;
+    if (exp && !exp.open) {
+      var s = exp.querySelector('summary');
+      if (s) { s.click(); opened = true; }
+    }
+    var id = 'sg-sec-' + q.getAttribute('data-sg'), n = 0;
+    (function go() {
+      var sec = d.getElementById(id);
+      if (!sec) { if (n++ < 40) w.setTimeout(go, 100); return; }
+      sec.open = true;
+      var jump = function () { sec.scrollIntoView({behavior: 'smooth', block: 'start'}); };
+      // Scroll once the guide has opened, and again after it has finished
+      // laying out (opening it shifts everything below).
+      w.setTimeout(jump, opened ? 350 : 0);
+      w.setTimeout(jump, opened ? 1200 : 700);
+      sec.classList.add('sg-flash');
+      w.setTimeout(function () { sec.classList.remove('sg-flash'); }, 2200);
+    })();
+  }, true);
+}"""
+
+
+def _install_help_links() -> None:
+    """Put the _HELP_LINKS_JS click handler into the page. st.markdown does not
+    run scripts, so a zero-height component iframe adds it to its parent page
+    (and, if the page refuses inline scripts, attaches it from the iframe)."""
+    import json
+    import streamlit.components.v1 as components
+    components.html(
+        "<script>(function () {"
+        " var w = window.parent, d = w.document;"
+        " if (w.__sgHelp) return;"
+        f" var install = {_HELP_LINKS_JS};"
+        " try {"
+        "  var s = d.createElement('script');"
+        f"  s.textContent = '(' + {json.dumps(_HELP_LINKS_JS)} + ')(window, document);';"
+        "  d.head.appendChild(s);"
+        " } catch (err) {}"
+        " if (!w.__sgHelp) install(w, d);"
+        "})();</script>",
+        height=0)
+
+
 def render_scanner_guide() -> None:
     """Collapsible Arabic guide shown at the top of the Strategy Scanner page."""
     # The guide CSS (incl. the RTL rule for this expander's title) has to be on
@@ -1061,5 +1122,7 @@ def render_scanner_guide() -> None:
                          expanded=bool(st.session_state.get('_sg_open', False))):
             _html = _build_html()
             if st.session_state.get('_sg_open_sections'):   # screenshot/test hook
-                _html = _html.replace("<details class='sg-d'>", "<details class='sg-d' open>")
+                _html = _re_bidi.sub(r"<details class='sg-d'( id='[^']*')?>",
+                                     r"<details class='sg-d'\1 open>", _html)
             st.markdown(_html, unsafe_allow_html=True)
+    _install_help_links()

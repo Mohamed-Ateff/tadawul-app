@@ -8,4 +8,4 @@ pandas-ta==0.4.71b0
 scikit-learn==1.9.1
 joblib==1.6.0
 xlsxwriter==3.2.0
-# redeploy: 2026-10-28 19:18 UTC (restarts the app so new code loads)
+# redeploy: 2026-10-28 20:07 UTC (restarts the app so new code loads)

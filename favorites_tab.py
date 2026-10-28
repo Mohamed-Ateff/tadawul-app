@@ -2371,8 +2371,20 @@ def render_auto_scanner_page() -> None:
     .sc-grid .sc-tr>:nth-child(6){grid-area:tr;}
     .sc-grid .sc-tr>:nth-child(7){grid-area:val;justify-self:end;align-items:flex-end;text-align:right;}
     .sc-grid .sc-tr-n{text-align:left;font-size:1.05rem;}
-    .sc-grid .sc-tr-n::before{content:attr(data-l);display:block;font-size:0.7rem;font-weight:500;
-        color:var(--t2);margin-bottom:0.1rem;letter-spacing:0;}
+    .sc-tr-l{display:block;width:max-content;font-size:0.7rem;font-weight:500;color:var(--t2);
+        margin-bottom:0.1rem;letter-spacing:0;}
+
+    /* links into the Arabic guide: a small "؟", or a term underlined with dots.
+       Clicking anything with data-sg opens the guide on that section. */
+    [data-sg]{cursor:pointer;}
+    .qg{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
+        width:17px;height:17px;margin:0 0.3rem;border-radius:50%;background:var(--fill);
+        color:var(--t2);font:700 0.68rem/1 'IBM Plex Sans Arabic',sans-serif;vertical-align:middle;
+        user-select:none;letter-spacing:0;text-transform:none;transition:background .15s,color .15s;}
+    .qg:hover{background:var(--blue);color:#FFFFFF;}
+    .sgt{text-decoration:underline dotted rgba(60,60,67,0.5);text-decoration-thickness:1px;
+        text-underline-offset:3px;}
+    .sgt:hover{color:var(--blue)!important;text-decoration-color:var(--blue);}
     .sc-grid .sc-tr-alt{padding-left:0;}
     .sc-grid details.sc-more>summary{padding:0.6rem 1.2rem;}
     @media (max-width:900px){ .sc-grid{grid-template-columns:minmax(0,1fr);} }
@@ -2500,7 +2512,22 @@ def render_auto_scanner_page() -> None:
             _k = 'bad' if _r == 'lost' else 'warn'
             _t = '✕ Failed test' if _r == 'lost' else 'Not validated'
             _tip = _VAL_BADGE_TIP.get(_r, _VAL_BADGE_TIP['few'])
-        return f"<span class='sc-vb sc-vb-{_k}' title='{_tip}'>{_t}</span>"
+        return f"<span class='sc-vb sc-vb-{_k}' data-sg='18' title='{_tip}'>{_t}</span>"
+
+    def _q(sg) -> str:
+        """A small "؟" that opens the Arabic guide on its section `sg` (the
+        section's built-in number; see scanner_guide._HELP_LINKS_JS)."""
+        return f"<span class='qg' data-sg='{sg}' title='اضغط للشرح في دليل الصفحة'>؟</span>"
+
+    def _term(text, sg) -> str:
+        """A term underlined with dots that opens the guide on section `sg` —
+        used where a "؟" after every label would crowd the cards."""
+        return f"<span class='sgt' data-sg='{sg}' title='اضغط للشرح في دليل الصفحة'>{text}</span>"
+
+    def _lbl(text, sg) -> str:
+        """Small label above a number in a strategy block, linked to the guide."""
+        return (f"<span class='sc-tr-l sgt' data-sg='{sg}' "
+                f"title='اضغط للشرح في دليل الصفحة'>{text}</span>")
 
     _VAL_HELP = (
         'The strategy was picked using the first 70% of the period, then '
@@ -2640,9 +2667,9 @@ def render_auto_scanner_page() -> None:
         else:
             _reg = (f"<div class='sc-tr-reg' title='{_REGIME_HELP.get(regime, '')}'>"
                     f"<span class='sc-tr-ico'>{_REGIME_ICON.get(regime, '')}</span>"
-                    f"<span class='sc-tr-rn'>{regime.title()}</span>"
-                    + ("<span class='sc-now-pill' title='The stock is in this market regime "
-                       "today, so this is the strategy that applies now.'>Today</span>"
+                    f"<span class='sc-tr-rn sgt' data-sg='3'>{regime.title()}</span>"
+                    + ("<span class='sc-now-pill' data-sg='3' title='The stock is in this market "
+                       "regime today, so this is the strategy that applies now.'>Today</span>"
                        if is_now else '')
                     + "</div>")
         _sig = (f"<span class='sc-cfire'>{_age_txt(_sig_age(c))}</span>"
@@ -2653,13 +2680,14 @@ def render_auto_scanner_page() -> None:
             f"{' sc-tr-focus' if focus else ''}'>"
             + _reg
             + f"<div class='sc-tr-strat'>{_chips(c.get('indicators', []))}{_sig}</div>"
-            # Each number carries its own label (data-l): the cards sit two per
-            # row, too narrow for a shared column header.
-            + f"<div class='sc-tr-n' data-l='Win rate'>{_w:.0f}%</div>"
-            + f"<div class='sc-tr-n' data-l='Profit factor' title='{_PF_HELP}'>{_p:.1f}×</div>"
-            + f"<div class='sc-tr-n' data-l='Expectancy' title='{_EXP_HELP}' "
-              f"style='color:{'var(--red)' if _e <= 0 else 'var(--green)'};'>{_e:+.1f}%</div>"
-            + f"<div class='sc-tr-n' data-l='Trades'>{_n}<div class='sc-tr-sm'>"
+            # Each number carries its own label: the cards sit two per row, too
+            # narrow for a shared column header. A label opens its guide section.
+            + f"<div class='sc-tr-n'>{_lbl('Win rate', 7)}{_w:.0f}%</div>"
+            + f"<div class='sc-tr-n' title='{_PF_HELP}'>{_lbl('Profit factor', 7)}{_p:.1f}×</div>"
+            + f"<div class='sc-tr-n' title='{_EXP_HELP}' "
+              f"style='color:{'var(--red)' if _e <= 0 else 'var(--green)'};'>"
+              f"{_lbl('Expectancy', 7)}{_e:+.1f}%</div>"
+            + f"<div class='sc-tr-n'>{_lbl('Trades', 7)}{_n}<div class='sc-tr-sm'>"
               f"{int(c.get('wins', 0) or 0)}W · "
               f"{int(c.get('losses', 0) or 0)}L{' · too few' if _thin else ''}</div></div>"
             + _val_cell(c)
@@ -2683,14 +2711,14 @@ def render_auto_scanner_page() -> None:
             "<div class='sc-sub'>The best indicator strategies for every Tadawul stock, "
             "in every market regime.</div></div>"
             f"<div class='sc-kpi'><div class='sc-kv' style='color:var(--green);'>{_n_fire}</div>"
-            f"<div class='sc-kl'>Live signals</div></div>"
+            f"<div class='sc-kl'>Live signals{_q(10)}</div></div>"
             f"<div class='sc-kpi'><div class='sc-kv'>{_n_fire_val}</div>"
-            f"<div class='sc-kl'>Validated</div></div>"
+            f"<div class='sc-kl'>Validated{_q(18)}</div></div>"
             f"<div class='sc-kpi'><div class='sc-kv'>{_n_res}<span style='color:var(--t4);"
             f"font-weight:500;'>/{len(_ALL_SYMS)}</span></div>"
-            f"<div class='sc-kl'>Stocks scanned</div></div>"
+            f"<div class='sc-kl'>Stocks scanned{_q(1)}</div></div>"
             f"<div class='sc-kpi'><div class='sc-kv'>{_upd_txt}</div>"
-            f"<div class='sc-kl'>Updated</div></div>"
+            f"<div class='sc-kl'>Updated{_q(12)}</div></div>"
             "</div>",
             unsafe_allow_html=True)
     with _tr:
@@ -2985,14 +3013,16 @@ def render_auto_scanner_page() -> None:
             st.session_state[_k] = _v
 
     _fc = st.columns([1.3, 1, 1.45, 1.5, 0.75], gap="medium", vertical_alignment="bottom")
-    for _col, (_key, _dflt), _lbl, _opts in zip(
-            _fc, _F_DEF, ('Win rate', 'Trades', 'Market regime', 'Validation'),
+    # Each filter label has a "؟" to the guide: what the filter does (10), what
+    # a market regime is (3), what Validated means (18).
+    for _col, (_key, _dflt), _flbl, _fsg, _opts in zip(
+            _fc, _F_DEF, ('Win rate', 'Trades', 'Market regime', 'Validation'), (10, 10, 3, 18),
             (_F_WR, _F_TR, _F_RG, _F_VA)):
         with _col:
-            st.markdown(f"<div class='sc-flt-l'>{_lbl}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='sc-flt-l'>{_flbl}{_q(_fsg)}</div>", unsafe_allow_html=True)
             with st.container(key=f"sc_flt_{_key[3:]}"):
                 st.segmented_control(
-                    _lbl, list(_opts), key=_key, on_change=_keep_one,
+                    _flbl, list(_opts), key=_key, on_change=_keep_one,
                     args=(_key, _dflt), selection_mode="single",
                     label_visibility="collapsed")
     _f_wr = _F_WR[st.session_state.sc_f_wr]
@@ -3074,12 +3104,6 @@ def render_auto_scanner_page() -> None:
     _fire_rows = sorted(_fire_rows_raw, key=_lsc_score, reverse=True)
     _n_signals = len(_fire_rows)
 
-    _LSC_HELP = (f"Live Signal Check shows stocks where one of the strategies for "
-                 f"the stock&#39;s CURRENT market regime (from Scanned Strategies) "
-                 f"started a signal in the last "
-                 f"{_LIVE_MAX_AGE + 1} trading days. The colored chip indicates how "
-                 f"fresh the signal is — green = today, light green = 1 day ago, "
-                 f"amber = older.")
     # section header
     st.markdown(
         f"<div class='lsc-section-hdr'>"
@@ -3087,7 +3111,7 @@ def render_auto_scanner_page() -> None:
         f"<div class='lsc-section-pill'>"
         f"<span class='sc-live-dot'></span>"
         f"<span class='lsc-section-label'>Live Signal Check</span>"
-        f"<span class='sc-help-pill' title='{_LSC_HELP}'>?</span>"
+        f"{_q(10)}"
         + (f"<span class='lsc-section-count'>{_n_signals}</span>" if _n_signals else '')
         + f"</div>"
         f"<div class='lsc-section-line-r'></div>"
@@ -3227,21 +3251,21 @@ def render_auto_scanner_page() -> None:
                       # Ordered low → high price: Stop, Entry, Target 1, Target 2.
                       _ladder = (
                           f"<div class='lsc-ladder'>"
-                          f"<div class='lsc-lc'><div class='lsc-ll'>Stop loss</div>"
+                          f"<div class='lsc-lc'><div class='lsc-ll'>{_term('Stop loss', 11)}</div>"
                           f"<div class='lsc-lv'>{_sl_p:.2f}</div>"
                           f"<div class='lsc-lp' style='color:var(--red);'>−{_rp}%</div></div>"
                           f"<div class='lsc-lc' style='background:var(--blue-bg);'>"
-                          f"<div class='lsc-ll'>Entry</div>"
+                          f"<div class='lsc-ll'>{_term('Entry', 11)}</div>"
                           f"<div class='lsc-lv'>{_en:.2f}</div>{_eq_html}</div>"
-                          f"<div class='lsc-lc'><div class='lsc-ll'>Target 1</div>"
+                          f"<div class='lsc-lc'><div class='lsc-ll'>{_term('Target 1', 11)}</div>"
                           f"<div class='lsc-lv'>{_t1:.2f}</div>"
                           f"<div class='lsc-lp' style='color:var(--green);'>+{_t1p}%</div></div>"
-                          f"<div class='lsc-lc'><div class='lsc-ll'>Target 2</div>"
+                          f"<div class='lsc-lc'><div class='lsc-ll'>{_term('Target 2', 11)}</div>"
                           f"<div class='lsc-lv'>{_t2:.2f}</div>"
                           f"<div class='lsc-lp' style='color:var(--green);'>+{_t2p}%</div></div>"
-                          f"<div class='lsc-lc'><div class='lsc-ll'>Risk : Reward</div>"
+                          f"<div class='lsc-lc'><div class='lsc-ll'>{_term('Risk : Reward', 19)}</div>"
                           f"<div class='lsc-lv'>1 : {_rr:.1f}</div>"
-                          f"<div class='lsc-lp' style='color:{_rr_c};'>"
+                          f"<div class='lsc-lp' data-sg='19' style='color:{_rr_c};'>"
                           f"{_lvx['rr_label']}"
                           f"</div></div>"
                           f"</div>")
@@ -3316,7 +3340,7 @@ def render_auto_scanner_page() -> None:
               # The card is the entry plan only. The strategy's numbers, and the
               # other strategies that also signalled, live in Scanned Strategies
               # (one tap away with "View strategy"), so only their count is here.
-              _more = (f"<span class='lsc-more' title='{len(_alts)} more "
+              _more = (f"<span class='lsc-more' data-sg='10' title='{len(_alts)} more "
                        f"{'strategy' if len(_alts) == 1 else 'strategies'} for this regime "
                        f"also started a signal in the last {_LIVE_MAX_AGE + 1} trading days. "
                        f"View strategy shows them.'>+{len(_alts)} more signalling</span>"
@@ -3337,16 +3361,16 @@ def render_auto_scanner_page() -> None:
                   "</div>"
                   # regime · rank · validation · when
                   "<div class='lsc-strat2' style='padding-bottom:0.6rem;'>"
-                  f"<span class='lsc-regime2' title='{_REGIME_HELP.get(_best_rname, '')}'>"
+                  f"<span class='lsc-regime2' data-sg='3' title='{_REGIME_HELP.get(_best_rname, '')}'>"
                   f"{_REGIME_ICON.get(_best_rname, '')} {_best_rname.title()} · {_rank_lbl}</span>"
                   + _val_badge(_best_combo)
                   + _more
-                  + (f"<span class='lsc-when' style='background:{_fire_when_c}1a;"
+                  + (f"<span class='lsc-when' data-sg='5' style='background:{_fire_when_c}1a;"
                      f"color:{_fire_when_c};'>{_fire_when_txt}</span>"
                      if _fire_when_txt else '')
                   + "</div>"
                   # indicators
-                  f"<div class='lsc-strat2'>{_ind_tags}</div>"
+                  f"<div class='lsc-strat2'>{_ind_tags}{_q(4)}</div>"
                   + (f"<div class='lsc-ladder-wrap'>{_ladder}</div>" if _ladder else '')
                   + "</div>",
                   unsafe_allow_html=True)
@@ -3943,7 +3967,7 @@ def render_auto_scanner_page() -> None:
         _tt, _tb = st.columns([1, 0.2], vertical_alignment="bottom")
         with _tt:
             st.markdown(
-                "<div class='lsc-tbl-hd'><span class='lsc-tbl-t'>All live signals</span>"
+                f"<div class='lsc-tbl-hd'><span class='lsc-tbl-t'>All live signals{_q(10)}</span>"
                 f"<span class='lsc-tbl-s'>{len(_tbl)} stocks · same order as the cards · "
                 "prices in SAR</span></div>",
                 unsafe_allow_html=True)
@@ -3968,11 +3992,15 @@ def render_auto_scanner_page() -> None:
         def _rrt(v):
             return f"1 : {v:.1f}" if v is not None else '—'
 
+        # Headers that need explaining open their guide section when clicked.
         _ths = ("<th class='c'>#</th><th class='l'>Stock</th><th class='c'>Symbol</th>"
-                "<th class='c'>Analysis date</th><th>Price</th><th>Entry</th>"
-                "<th>Stop loss</th><th>Stop %</th><th>Target 1</th><th>T1 %</th>"
-                "<th>Target 2</th><th>T2 %</th><th class='c'>Risk : Reward</th>"
-                "<th class='c'>Rating</th><th>Win rate</th><th class='c'>Trades</th>"
+                f"<th class='c'>{_term('Analysis date', 5)}</th><th>Price</th>"
+                f"<th>{_term('Entry', 11)}</th><th>{_term('Stop loss', 11)}</th><th>Stop %</th>"
+                f"<th>{_term('Target 1', 11)}</th><th>T1 %</th>"
+                f"<th>{_term('Target 2', 11)}</th><th>T2 %</th>"
+                f"<th class='c'>{_term('Risk : Reward', 19)}</th>"
+                f"<th class='c'>{_term('Rating', 19)}</th><th>{_term('Win rate', 7)}</th>"
+                f"<th class='c'>{_term('Trades', 7)}</th>"
                 "<th class='c'>Wins</th><th class='c'>Losses</th>")
         _trs = ''.join(
             "<tr>"
@@ -4003,17 +4031,17 @@ def render_auto_scanner_page() -> None:
     # SECTION 1 — Scanned Strategy Grid
     # ══════════════════════════════════════════════════════════════════════════
     st.markdown(
-        "<div class='sc-h2'><span class='sc-h2-t'>Scanned Strategies</span>"
+        f"<div class='sc-h2'><span class='sc-h2-t'>Scanned Strategies{_q(9)}</span>"
         "<span class='sc-h2-s'>Up to 3 strategies per market regime for each stock · "
         "highest win rate first, judged on today's regime (the first row of each card)</span>"
         f"<span class='sc-h2-c'>{len(_rows)} stocks</span></div>"
         "<div class='sc-summary'>"
         f"<span class='sc-chip'><b>{len(_all_combos):,}</b> strategies</span>"
-        f"<span class='sc-chip'><span class='sc-vb sc-vb-ok' style='padding:0 0.45rem;'>"
+        f"<span class='sc-chip' data-sg='18'><span class='sc-vb sc-vb-ok' style='padding:0 0.45rem;'>"
         f"{_n_val}</span> validated</span>"
-        f"<span class='sc-chip'><span class='sc-vb sc-vb-warn' style='padding:0 0.45rem;'>"
+        f"<span class='sc-chip' data-sg='18'><span class='sc-vb sc-vb-warn' style='padding:0 0.45rem;'>"
         f"{len(_all_combos) - _n_val - _n_fail}</span> not validated</span>"
-        f"<span class='sc-chip'><span class='sc-vb sc-vb-bad' style='padding:0 0.45rem;'>"
+        f"<span class='sc-chip' data-sg='18'><span class='sc-vb sc-vb-bad' style='padding:0 0.45rem;'>"
         f"{_n_fail}</span> failed test</span>"
         + (f"<span class='sc-chip'><b>{_rejected}</b> stocks without a profitable strategy</span>"
            if _rejected else '')
@@ -4065,7 +4093,7 @@ def render_auto_scanner_page() -> None:
                     "this regime, highest win rate first. None is a subset or superset of "
                     "another, and any two share under 60% of their trades (fitted part).'>"
                     f"{len(_alts)} more {'strategy' if len(_alts) == 1 else 'strategies'} "
-                    f"for {_rname.title()}</summary>"
+                    f"for {_rname.title()}{_q(8)}</summary>"
                     + ''.join(_strat_row(_a, _rname, alt=True, focus=_a is _focus_cb)
                               for _a in _alts)
                     + "</details>")
@@ -4077,7 +4105,7 @@ def render_auto_scanner_page() -> None:
             f"title='Rank: highest win rate first'>{_pos}</span>"
             f"<span class='sc-sym'>{_sym_d}</span>"
             + (f"<span class='sc-sname'>{_sname}</span>" if _sname else '')
-            + ("<span class='sc-cfire' style='margin-left:auto;'>Live signal</span>"
+            + ("<span class='sc-cfire' data-sg='10' style='margin-left:auto;'>Live signal</span>"
                if _has_fire else
                f"<span class='sc-ct'>{len(_present)} of 3 regimes</span>")
             + "</div>"
@@ -4091,8 +4119,8 @@ def render_auto_scanner_page() -> None:
         st.markdown(
             "<div class='sc-grp'><b>No strategy for today's market regime"
             + (" matches the filter" if _f_on else "") + "</b> — "
-            "the stocks below only have strategies for other regimes, ranked by "
-            "their best win rate.</div>",
+            f"the stocks below only have strategies for other regimes, ranked by "
+            f"their best win rate.{_q(9)}</div>",
             unsafe_allow_html=True)
         st.markdown(f"<div class='sc-grid'>{''.join(_cards_other)}</div>",
                     unsafe_allow_html=True)
