@@ -721,6 +721,9 @@ def _eval(states_list: list[np.ndarray], close: np.ndarray,
     wins = 0; losses = 0
     gains: list[float] = []; loss_vals: list[float] = []
     trade_idxs: list[int] = []   # signal bars that actually resolved into a trade
+    # One entry per resolved trade, for the card's trade list: (entry bar,
+    # return %, how it ended 'target'/'stop'/'time', days held, won).
+    trade_log: list[tuple] = []
 
     for i in idxs:
         if _has_ohlc:
@@ -728,25 +731,31 @@ def _eval(states_list: list[np.ndarray], close: np.ndarray,
             if _t is None:
                 continue
             outcome = (_t['outcome'], _t['ret'])
+            _entry_i, _how = _t['entry_idx'], _t['reason']
+            _days = _t['exit_idx'] - _t['entry_idx'] + 1
         else:
             entry = close[i]
             if entry <= 0:
                 continue
             outcome = None
+            _entry_i = int(i)
             for j in range(1, hold + 1):
                 if i + j >= len(close):
                     break
                 g = (close[i + j] - entry) / entry
                 if g <= -sl:
-                    outcome = ('loss', g); break
+                    outcome = ('loss', g); _how, _days = 'stop', j; break
                 if g >= pt:
-                    outcome = ('win', g); break
+                    outcome = ('win', g); _how, _days = 'target', j; break
             if outcome is None and i + hold < len(close):
                 g = (close[i + hold] - entry) / entry
                 outcome = ('win', g) if g > 0 else ('loss', g)
+                _how, _days = 'time', hold
         if outcome is None:
             continue
         trade_idxs.append(int(i))
+        trade_log.append((int(_entry_i), round(float(outcome[1]) * 100, 2), _how, int(_days),
+                          outcome[0] == 'win'))
         if outcome[0] == 'win':
             wins += 1; gains.append(outcome[1])
         else:
@@ -808,6 +817,8 @@ def _eval(states_list: list[np.ndarray], close: np.ndarray,
         'wins':  wins,
         'losses': losses,
         'score': score,
+        'avg_days': round(sum(t[3] for t in trade_log) / total, 1),
+        'trades': tuple(trade_log),
         # Fingerprint of the trades this combo actually resolved. Two combos
         # with the same fingerprint took literally the same trades, so they are
         # the same strategy wearing different indicator names — callers use
@@ -1388,6 +1399,9 @@ def _merge_oos(fitted: dict, tested: dict) -> dict:
                'avg_loss', 'total', 'wins', 'losses', 'score'):
         out[f'is_{_k}'] = fitted.get(_k)
         out[_k]         = tested[_k]
+    # The trade list and days held describe the displayed (held-back) trades.
+    for _k in ('avg_days', 'trades'):
+        out[_k] = tested.get(_k)
     out['is_signal_idxs'] = fitted.get('signal_idxs')
     out['signal_idxs']    = tested['signal_idxs']
     out['validated']      = True
@@ -1609,6 +1623,11 @@ def _analyse_df(df: pd.DataFrame, hold: int, pt: float, sl: float,
                     _si = _c.get('signal_idxs')
                     if _si:
                         _c['last_trade_date'] = str(_dates.iloc[_si[-1]])[:10]
+                    # Trade list with real dates: (entry date, return %,
+                    # how it ended, days held, won), oldest first.
+                    _c['trades'] = tuple(
+                        (str(_dates.iloc[min(_e, len(_dates) - 1)])[:10], *_rest)
+                        for _e, *_rest in (_c.get('trades') or ()))
                     if _c['signal_age'] is not None:
                         _c['signal_date'] = str(
                             _dates.iloc[len(_dates) - 1 - _c['signal_age']])[:10]

@@ -2362,7 +2362,8 @@ def render_auto_scanner_page() -> None:
     .sc-grid .sc-stock{margin:0;}
     .sc-grid .sc-stock-hdr{padding:1rem 1.2rem 0.85rem;}
     .sc-grid .sc-tr{grid-template-columns:repeat(4,minmax(0,1fr));gap:0.55rem 0.9rem;align-items:start;
-        padding:0.85rem 1.2rem;grid-template-areas:"reg reg val val" "strat strat strat strat" "wr pf exp tr";}
+        padding:0.85rem 1.2rem;grid-template-areas:"reg reg val val" "strat strat strat strat" "wr pf exp tr"
+        "wl wl wl wl" "det det det det";}
     .sc-grid .sc-tr>:nth-child(1){grid-area:reg;}
     .sc-grid .sc-tr>:nth-child(2){grid-area:strat;}
     .sc-grid .sc-tr>:nth-child(3){grid-area:wr;}
@@ -2373,6 +2374,51 @@ def render_auto_scanner_page() -> None:
     .sc-grid .sc-tr-n{text-align:left;font-size:1.05rem;}
     .sc-tr-l{display:block;width:max-content;font-size:0.7rem;font-weight:500;color:var(--t2);
         margin-bottom:0.1rem;letter-spacing:0;}
+    .sc-tr-sm:empty{display:none;}
+
+    /* winning vs losing trades bar, and the folded "Strategy details" */
+    .sc-wl,.sc-det{grid-column:1/-1;}
+    .sc-grid .sc-tr>:nth-child(8){grid-area:wl;}
+    .sc-grid .sc-tr>:nth-child(9){grid-area:det;}
+    .sc-wl{display:flex;flex-direction:column;gap:0.35rem;margin-top:0.1rem;}
+    .sc-wl-bar{display:flex;height:6px;border-radius:980px;overflow:hidden;background:var(--fill);}
+    .sc-wl-bar i{display:block;height:100%;}
+    .sc-wl-bar i.w{background:#2F9E52;}
+    .sc-wl-bar i.l{background:#E0454F;}
+    .sc-wl-row{display:flex;justify-content:space-between;flex-wrap:wrap;gap:0.2rem 1rem;
+        font-size:0.8rem;color:var(--t2);font-variant-numeric:tabular-nums;}
+    .sc-wl-w b{color:var(--green);font-weight:600;}
+    .sc-wl-l b{color:var(--red);font-weight:600;}
+    .sc-wl-row .z b{color:var(--t3);}
+    details.sc-det>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;
+        color:var(--blue);font-size:0.84rem;font-weight:500;padding:0.1rem 0;}
+    details.sc-det>summary::-webkit-details-marker{display:none;}
+    details.sc-det>summary::after{content:'›';margin-left:0.35rem;transition:transform .15s ease;}
+    details.sc-det[open]>summary::after{transform:rotate(90deg);}
+    .sc-det-hint{color:var(--t3);font-weight:400;margin-left:0.25rem;}
+    .sc-det-body{display:grid;gap:1rem;margin-top:0.55rem;padding:0.9rem 1rem;background:var(--card);
+        border:1px solid var(--hair);border-radius:var(--r-md);}
+    .sc-det-h{font-size:0.78rem;font-weight:600;color:var(--t1);margin-bottom:0.35rem;}
+    .sc-det-sub{font-size:0.78rem;color:var(--t2);line-height:1.5;margin-top:0.35rem;}
+    .sc-det-sub b{color:var(--t1);font-weight:600;}
+    .sc-det-ind{display:flex;align-items:baseline;gap:0.7rem;padding:0.28rem 0;
+        border-top:1px solid var(--hair);font-size:0.84rem;}
+    .sc-det-h+.sc-det-ind{border-top:none;}
+    .sc-det-ind>b{flex:0 0 7.5rem;color:var(--t1);font-weight:600;}
+    .sc-det-ar{flex:1;text-align:left;unicode-bidi:isolate;color:var(--t1);line-height:1.6;
+        font-family:'IBM Plex Sans Arabic','Inter',sans-serif;}
+    .sc-det-ex{display:flex;flex-wrap:wrap;gap:0.4rem;}
+    .sc-det-ex span{background:var(--inset);border-radius:980px;padding:0.22rem 0.7rem;
+        font-size:0.82rem;color:var(--t1);}
+    .sc-det .u{color:var(--green);font-weight:600;}
+    .sc-det .d{color:var(--red);font-weight:600;}
+    .sc-tl{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;
+        max-height:280px;overflow:auto;margin-top:0.45rem;font-size:0.82rem;color:var(--t1);
+        font-variant-numeric:tabular-nums;}
+    .sc-tl>span{padding:0.3rem 1.4rem 0.3rem 0;border-bottom:1px solid var(--hair);white-space:nowrap;}
+    .sc-tl>span:nth-child(4n){text-align:right;padding-right:0;}
+    .sc-tl>.h{position:sticky;top:0;background:var(--card);font-size:0.72rem;font-weight:500;color:var(--t3);}
+    .sc-det .sc-val{margin:0;}
 
     /* links into the Arabic guide: a small "؟", or a term underlined with dots.
        Clicking anything with data-sg opens the guide on that section. */
@@ -2653,6 +2699,100 @@ def render_auto_scanner_page() -> None:
         return (f"<div class='sc-tv' title='{_tip}'>{_val_badge(c)}"
                 f"<div class='sc-tv-l'>{_line}</div></div>")
 
+    def _wl_bar(c) -> str:
+        """Winning vs losing trades: a split bar, then the count and the
+        average % of each side."""
+        _wn = int(c.get('wins', 0) or 0)
+        _ln = int(c.get('losses', 0) or 0)
+        _ag = float(c.get('avg_gain', 0) or 0)
+        _al = abs(float(c.get('avg_loss', 0) or 0))
+        return (
+            "<div class='sc-wl'>"
+            f"<div class='sc-wl-bar'><i class='w' style='flex:{_wn}'></i>"
+            f"<i class='l' style='flex:{_ln}'></i></div>"
+            "<div class='sc-wl-row'>"
+            f"<span class='sc-wl-w{' z' if not _wn else ''}'><b>{_wn}</b> "
+            f"{'winning trade' if _wn == 1 else 'winning trades'}"
+            + (f" · avg <b>+{_ag:.1f}%</b>" if _wn else '') + "</span>"
+            f"<span class='sc-wl-l{' z' if not _ln else ''}'><b>{_ln}</b> "
+            f"{'losing trade' if _ln == 1 else 'losing trades'}"
+            + (f" · avg <b>−{_al:.1f}%</b>" if _ln else '') + "</span>"
+            "</div></div>")
+
+    # What each indicator has to show for a strategy to buy — the guide's
+    # catalogue, so the card and the guide always say the same thing. The bidi
+    # fix keeps "−1.5" and "CCI(20)" reading left-to-right inside the Arabic.
+    from scanner_guide import _bidi_fix
+    _IND_COND = {k: _bidi_fix(_cond) for _c, _items in _GUIDE_INDS for (k, _cond, _w) in _items}
+    _EXIT_TXT = {'target': 'Hit target', 'stop': 'Hit stop', 'time': 'Time limit'}
+    _TRADES_SHOWN = 30
+
+    def _details(c, regime) -> str:
+        """Folded "Strategy details": buy rule, sell rule, how the trades
+        ended, every trade, and the fitted → held-back comparison."""
+        from scanner_engine import resolve_period as _rp
+        _hold, _pt, _sl = _rp(st.session_state.sc_period)[2:5]
+        _keys = list(c.get('indicators', []))
+        _trades = list(c.get('trades') or ())
+        _n = int(c.get('total', 0) or 0)
+        _ok = _is_validated(c)
+        _rsn = c.get('fail_reason', 'few')
+
+        _buy = ''.join(
+            f"<div class='sc-det-ind'><b>{_ind_label([k])}</b>"
+            f"<span class='sc-det-ar' dir='rtl' lang='ar'>{_IND_COND.get(k, '')}</span></div>"
+            for k in _keys)
+        _ends = {r: sum(1 for t in _trades if t[2] == r) for r in _EXIT_TXT}
+        _ends_html = (
+            f"<div class='sc-det-sub'>How the {len(_trades)} trades ended: "
+            f"<b>{_ends['target']}</b> hit the target · <b>{_ends['stop']}</b> hit the stop · "
+            f"<b>{_ends['time']}</b> closed on day {_hold}"
+            + (f" · on average <b>{float(c['avg_days']):.0f} days</b> in a trade"
+               if c.get('avg_days') is not None else '')
+            + "</div>") if _trades else ''
+
+        if _ok:
+            _src = 'from the recent test (last 30% of the period)'
+        elif _rsn == 'short':
+            _src = 'from the whole period'
+        else:
+            _src = 'from the search part (first 70% of the period)'
+        if _trades:
+            _rows = ''.join(
+                f"<span>{_d if isinstance(_d, str) else '—'}</span>"
+                f"<span class='{'u' if _won else 'd'}'>{'+' if _r >= 0 else '−'}{abs(_r):.1f}%</span>"
+                f"<span>{_EXIT_TXT.get(_how, _how)}</span><span>{_days}</span>"
+                for _d, _r, _how, _days, _won in reversed(_trades[-_TRADES_SHOWN:]))
+            _list = (
+                f"<div class='sc-det-h'>Every trade · newest first</div>"
+                f"<div class='sc-det-sub'>The {len(_trades)} trades behind the numbers above, {_src}.</div>"
+                "<div class='sc-tl'><span class='h'>Bought</span><span class='h'>Result</span>"
+                "<span class='h'>Ended by</span><span class='h'>Days</span>" + _rows + "</div>"
+                + (f"<div class='sc-det-sub'>+ {len(_trades) - _TRADES_SHOWN} older trades not shown.</div>"
+                   if len(_trades) > _TRADES_SHOWN else ''))
+        else:
+            _list = ("<div class='sc-det-sub'>The trade list appears after the next "
+                     "Run Scan.</div>")
+
+        return (
+            "<details class='sc-det'>"
+            f"<summary>Strategy details<span class='sc-det-hint'> · buy &amp; sell rules, "
+            f"all {_n} trades</span>{_q(20)}</summary>"
+            "<div class='sc-det-body'>"
+            f"<div><div class='sc-det-h'>Buy when all {len(_keys)} are true on the same day</div>"
+            + _buy
+            + f"<div class='sc-det-sub'>Checked at the daily close, only on {regime.title()} days. "
+              "Buy at the next day's open.</div></div>"
+            "<div><div class='sc-det-h'>Sell at whichever comes first</div>"
+            "<div class='sc-det-ex'>"
+            f"<span><b class='u'>+{_pt * 100:g}%</b> target</span>"
+            f"<span><b class='d'>−{_sl * 100:g}%</b> stop</span>"
+            f"<span>close of day <b>{_hold}</b></span></div>"
+            + _ends_html + "</div>"
+            f"<div>{_list}</div>"
+            + _val_box(c)
+            + "</div></details>")
+
     def _strat_row(c, regime, is_now=False, alt=False, focus=False) -> str:
         """One table row: regime · strategy · numbers · trades · validation.
         `focus` highlights the strategy a Live Signal Check card jumped to."""
@@ -2688,9 +2828,11 @@ def render_auto_scanner_page() -> None:
               f"style='color:{'var(--red)' if _e <= 0 else 'var(--green)'};'>"
               f"{_lbl('Expectancy', 7)}{_e:+.1f}%</div>"
             + f"<div class='sc-tr-n'>{_lbl('Trades', 7)}{_n}<div class='sc-tr-sm'>"
-              f"{int(c.get('wins', 0) or 0)}W · "
-              f"{int(c.get('losses', 0) or 0)}L{' · too few' if _thin else ''}</div></div>"
+              f"{'too few' if _thin else ''}</div></div>"
             + _val_cell(c)
+            # Winning and losing trades, then the folded details.
+            + _wl_bar(c)
+            + _details(c, regime)
             + "</div>")
 
     # ── top bar ───────────────────────────────────────────────────────────────
