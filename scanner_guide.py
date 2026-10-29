@@ -180,96 +180,175 @@ def _bidi_fix(html: str) -> str:
 _CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap');
-.sg,.sg *{font-family:'IBM Plex Sans Arabic','Inter',-apple-system,'Segoe UI',Tahoma,sans-serif!important;}
-.sg{direction:rtl;text-align:right;color:#111114;font-size:0.95rem;line-height:1.85;
-    -webkit-font-smoothing:antialiased;padding:0.2rem 0.1rem 0.4rem;}
-.sg p{margin:0.25rem 0 0.7rem;color:#26262B;}
-.sg ul,.sg ol{margin:0.2rem 0 0.8rem;padding-right:1.25rem;padding-left:0;color:#26262B;}
-.sg li{margin:0.25rem 0;}
-.sg li::marker{color:#8A8A91;}
-.sg b{color:#111114;font-weight:600;}
+/* ── the guide: one card that opens into every section ─────────────────────
+   Native <details> elements throughout. Where the browser supports it
+   (::details-content + interpolate-size) opening and closing animate their
+   height; everywhere else the opened content still fades in. */
+.sg-shell,.sg-shell *{font-family:'IBM Plex Sans Arabic','Inter',-apple-system,'Segoe UI',Tahoma,sans-serif!important;
+    -webkit-font-smoothing:antialiased;box-sizing:border-box;}
+.sg-shell{direction:rtl;text-align:right;background:#FFFFFF;border:1px solid #E5E5EA;border-radius:22px;
+    margin:0.2rem 0 1.4rem;interpolate-size:allow-keywords;
+    box-shadow:0 1px 2px rgba(17,17,20,0.04),0 10px 30px rgba(17,17,20,0.06);
+    transition:box-shadow .3s ease,border-color .3s ease;}
+.sg-shell:hover{box-shadow:0 1px 2px rgba(17,17,20,0.05),0 14px 40px rgba(17,17,20,0.09);}
+.sg-shell[open]{border-color:#DCE6F5;}
+.sg-top{list-style:none;cursor:pointer;display:flex;align-items:center;gap:1rem;padding:1.05rem 1.3rem;
+    border-radius:22px;user-select:none;-webkit-tap-highlight-color:transparent;}
+.sg-top::-webkit-details-marker{display:none;}
+.sg-top::marker{content:'';}
+.sg-top-ic{flex:0 0 auto;width:46px;height:46px;border-radius:14px;display:grid;place-items:center;
+    background:linear-gradient(145deg,#3B93FF 0%,#0063D1 100%);
+    box-shadow:0 6px 16px rgba(0,99,209,0.28),inset 0 1px 0 rgba(255,255,255,0.25);}
+.sg-top-ic svg{width:24px;height:24px;display:block;}
+.sg-top-tx{display:flex;flex-direction:column;gap:0.1rem;min-width:0;}
+.sg-top-tx b{font-size:1.12rem;font-weight:700;letter-spacing:-0.01em;line-height:1.4;}
+.sg-top-tx small{font-size:0.86rem;line-height:1.5;}
+.sg-top-btn{margin-right:auto;flex:0 0 auto;display:inline-flex;align-items:center;gap:0.55rem;
+    padding:0.5rem 1rem 0.5rem 0.85rem;border-radius:980px;background:#EEF4FD;font-size:0.88rem;
+    font-weight:600;white-space:nowrap;transition:background .2s ease,color .2s ease;}
+.sg-top-btn .c{display:none;}
+.sg-shell[open] .sg-top-btn .o{display:none;}
+.sg-shell[open] .sg-top-btn .c{display:inline;}
+.sg-chev{display:inline-block;width:7px;height:7px;border-left:2px solid currentColor;
+    border-bottom:2px solid currentColor;transform:translateY(-2px) rotate(-45deg);
+    transition:transform .35s cubic-bezier(.2,.8,.2,1);}
+.sg-shell[open] .sg-chev{transform:translateY(2px) rotate(135deg);}
+.sg-shell::details-content,.sg-d::details-content{height:0;overflow:clip;opacity:0;
+    transition:height .4s cubic-bezier(.2,.8,.2,1),opacity .3s ease,content-visibility .4s allow-discrete;}
+.sg-shell[open]::details-content,.sg-d[open]::details-content{height:auto;opacity:1;}
+.sg-shell[open]>.sg,.sg-d[open]>.sg-b{animation:sgIn .45s cubic-bezier(.2,.8,.2,1) both;}
+@keyframes sgIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:none;}}
+
+/* ── content ─────────────────────────────────────────────────────────────── */
+.sg{direction:rtl;text-align:right;font-size:0.96rem;line-height:1.9;padding:0.1rem 1.3rem 1.5rem;}
+.sg p{margin:0.35rem 0 0.8rem;}
+.sg ul,.sg ol{margin:0.3rem 0 0.9rem;padding-right:1.3rem;padding-left:0;}
+.sg li{margin:0.3rem 0;}
+.sg li::marker{color:#9A9AA2;}
+.sg b{font-weight:600;}
 .sg code{font-family:'SF Mono',Menlo,Consolas,monospace!important;background:#F2F2F7;border:none;
-         border-radius:6px;padding:0.08rem 0.4rem;color:#111114;font-size:0.8rem;unicode-bidi:isolate;direction:ltr;}
-.sg-intro{padding:0.4rem 0.3rem 1rem;}
-.sg-intro h3{margin:0 0 0.5rem;font-size:1.5rem;font-weight:700;color:#111114;letter-spacing:-0.01em;}
-.sg-lead{font-size:1.02rem;color:#26262B;}
-.sg-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin:1rem 0 0.4rem;}
-.sg-step{background:#F2F2F5;border-radius:14px;padding:0.8rem 0.9rem;}
-.sg-step-n{display:inline-flex;align-items:center;justify-content:center;width:1.6rem;height:1.6rem;
-           border-radius:50%;background:#0063D1;color:#fff;font-size:0.8rem;font-weight:600;margin-bottom:0.35rem;}
-.sg-step-t{font-size:0.88rem;color:#111114;line-height:1.5;}
-.sg-list{background:#FFFFFF;border:1px solid #DEDEE3;border-radius:16px;overflow:hidden;margin-top:0.6rem;}
-.sg-d{border-bottom:1px solid #DEDEE3;scroll-margin-top:90px;}
-/* a section a "؟" on the page just opened: its title glows for a moment */
-.st-key-sg_wrap .sg .sg-d.sg-flash>summary{background:#D6E8FF!important;transition:background .4s ease;}
-.sg-d:last-child{border-bottom:none;}
-.sg-d summary{cursor:pointer;padding:0.85rem 1.1rem;font-weight:500;color:#111114;font-size:0.98rem;
-              list-style:none;display:flex;align-items:center;gap:0.75rem;transition:background .15s ease;}
-.sg-d summary:hover{background:#F9F9FB;}
-.sg-d summary::-webkit-details-marker{display:none;}
-.sg-d summary::after{content:'‹';margin-right:auto;color:#C7C7CC;font-size:1.3rem;line-height:1;
-                     transition:transform .2s ease;}
-.sg-d[open] summary::after{transform:rotate(-90deg);}
-.sg-d[open] summary{background:#F9F9FB;}
-.sg-n{display:inline-flex;align-items:center;justify-content:center;min-width:1.75rem;height:1.75rem;
-      border-radius:8px;background:#EAF3FF;color:#0063D1;font-size:0.8rem;font-weight:600;}
-.sg-b{padding:0.4rem 1.4rem 1.2rem 1.4rem;background:#F9F9FB;}
-.sg-b h4{margin:1rem 0 0.3rem!important;font-size:0.95rem!important;font-weight:600!important;color:#111114!important;}
-.sg-tw{overflow-x:auto;margin:0.5rem 0 0.9rem;background:#FFFFFF;border:1px solid #DEDEE3;border-radius:12px;}
-.sg-t{border-collapse:collapse;width:100%;font-size:0.86rem;}
-.sg-t th{background:#F2F2F5;color:#3F3F46;font-weight:500;padding:0.55rem 0.75rem;text-align:right;
-         border-bottom:1px solid #DEDEE3;white-space:nowrap;}
-.sg-t td{padding:0.6rem 0.75rem;border-bottom:1px solid #F0F0F3;vertical-align:top;color:#26262B;}
-.sg-t tr:last-child td{border-bottom:none;}
-.sg-note{border-radius:12px;padding:0.7rem 0.9rem;margin:0.6rem 0;font-size:0.88rem;line-height:1.7;}
-.sg-info{background:#EAF3FF;color:#082F5F;}
-.sg-warn{background:#FFF4E5;color:#5E3200;}
-.sg-bad{background:#FFEDEC;color:#6E0A06;}
-.sg-ok{background:#E9F7EE;color:#0E3F22;}
-.sg-note b{color:inherit;}
+    border-radius:7px;padding:0.1rem 0.45rem;color:#111114;font-size:0.8rem;unicode-bidi:isolate;direction:ltr;}
+.sg-intro{margin:0.2rem 0 0.4rem;padding:1.6rem 1.7rem 1.2rem;border-radius:18px;border:1px solid #E3ECF8;
+    background:radial-gradient(120% 140% at 100% 0%,#E9F2FF 0%,rgba(233,242,255,0) 58%),
+               linear-gradient(180deg,#FAFCFF 0%,#FFFFFF 100%);}
+.sg-intro h3{margin:0 0 0.55rem!important;padding:0!important;font-size:1.6rem!important;font-weight:700!important;
+    letter-spacing:-0.015em;line-height:1.35!important;}
+.sg-lead{font-size:1.04rem;}
+.sg-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;margin:1.2rem 0 0.7rem;}
+.sg-step{background:#FFFFFF;border:1px solid #E8E8ED;border-radius:16px;padding:0.95rem 1rem;
+    box-shadow:0 1px 2px rgba(17,17,20,0.03);transition:transform .25s ease,box-shadow .25s ease;}
+.sg-step:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(17,17,20,0.08);}
+.sg-step-n{display:inline-flex;align-items:center;justify-content:center;width:1.8rem;height:1.8rem;
+    border-radius:50%;background:linear-gradient(145deg,#3B93FF,#0063D1);font-size:0.82rem;font-weight:700;
+    margin-bottom:0.45rem;box-shadow:0 3px 8px rgba(0,99,209,0.25);}
+.sg-step-t{font-size:0.9rem;line-height:1.65;}
+.sg-gh{display:flex;align-items:baseline;flex-wrap:wrap;gap:0.3rem 0.75rem;margin:2rem 0.3rem 0.8rem;}
+.sg-gh span{font-size:1.2rem;font-weight:700;letter-spacing:-0.01em;}
+.sg-gh small{font-size:0.86rem;}
+
+/* sections: one card each */
+.sg-list{display:grid;gap:0.6rem;}
+.sg-d{background:#FFFFFF;border:1px solid #E8E8ED;border-radius:16px;scroll-margin-top:90px;
+    transition:border-color .25s ease,box-shadow .25s ease;}
+.sg-d:hover{border-color:#D8D8DF;box-shadow:0 4px 14px rgba(17,17,20,0.05);}
+.sg-d[open]{border-color:#D6E3F5;box-shadow:0 12px 32px rgba(17,17,20,0.07);}
+.sg-d>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:0.9rem;
+    padding:0.9rem 1.15rem;font-size:1rem;font-weight:600;line-height:1.5;border-radius:16px;
+    transition:background .2s ease;-webkit-tap-highlight-color:transparent;}
+.sg-d>summary::-webkit-details-marker{display:none;}
+.sg-d>summary::marker{content:'';}
+.sg-d>summary:hover{background:#FAFAFC;}
+.sg-d>summary::after{content:'';flex:0 0 auto;margin-right:auto;width:30px;height:30px;border-radius:50%;
+    background:#F2F2F6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%233F3F46' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/12px no-repeat;
+    transition:transform .35s cubic-bezier(.2,.8,.2,1),background-color .2s ease;}
+.sg-d[open]>summary::after{transform:rotate(180deg);background-color:#E6F0FD;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%230063D1' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
+.sg-n{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:2rem;height:2rem;
+    padding:0 0.4rem;border-radius:10px;background:#EEF4FD;font-size:0.85rem;font-weight:700;
+    transition:background .25s ease,color .25s ease;}
+.sg-d[open] .sg-n{background:#0063D1;}
+.sg-b{padding:0.4rem 1.5rem 1.6rem;border-top:1px solid #F0F0F3;}
+.sg-b h4{position:relative;margin:1.4rem 0 0.45rem!important;padding:0 0.85rem 0 0!important;
+    font-size:1rem!important;font-weight:700!important;line-height:1.5!important;}
+.sg-b h4::before{content:'';position:absolute;right:0;top:0.3em;width:3.5px;height:0.95em;border-radius:3px;
+    background:#0063D1;}
+
+/* tables */
+.sg-tw{overflow-x:auto;margin:0.75rem 0 1.05rem;background:#FFFFFF;border:1px solid #E8E8ED;border-radius:14px;}
+.st-key-sg_wrap .sg table.sg-t{border-collapse:separate!important;border-spacing:0;width:100%;margin:0!important;
+    font-size:0.88rem;border:none!important;}
+.st-key-sg_wrap .sg .sg-t th,.st-key-sg_wrap .sg .sg-t td{border:none!important;border-bottom:1px solid #F0F0F3!important;}
+.st-key-sg_wrap .sg .sg-t th{background:#F7F7FA!important;font-weight:600;font-size:0.8rem;padding:0.65rem 0.95rem;
+    text-align:right;white-space:nowrap;}
+.st-key-sg_wrap .sg .sg-t td{padding:0.75rem 0.95rem;vertical-align:top;line-height:1.75;transition:background .15s ease;}
+.st-key-sg_wrap .sg .sg-t tbody tr:hover td{background:#FAFAFD;}
+.st-key-sg_wrap .sg .sg-t tbody tr:last-child td{border-bottom:none!important;}
+
+/* notes: a coloured card with a round icon */
+.sg-note{position:relative;border-radius:14px;padding:0.85rem 2.9rem 0.85rem 1.1rem;margin:0.85rem 0;
+    font-size:0.9rem;line-height:1.8;border:1px solid transparent;}
+.sg-note::before{position:absolute;right:1rem;top:1.05rem;width:1.25rem;height:1.25rem;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;font:700 0.72rem/1 -apple-system,'Segoe UI',sans-serif;
+    color:#FFFFFF;}
+.st-key-sg_wrap .sg .sg-info{background:#F2F7FF;border-color:#DCE8FA;color:#0B3768;}
+.st-key-sg_wrap .sg .sg-warn{background:#FFF8EC;border-color:#F3E1BF;color:#5A3800;}
+.st-key-sg_wrap .sg .sg-ok{background:#F0FAF3;border-color:#D2EEDB;color:#0E3F22;}
+.st-key-sg_wrap .sg .sg-bad{background:#FFF3F2;border-color:#F6D6D3;color:#6E0A06;}
+.sg-info::before{content:'i';background:#0063D1;}
+.sg-warn::before{content:'!';background:#C77700;}
+.sg-ok::before{content:'✓';background:#1B7A36;}
+.sg-bad::before{content:'✕';background:#C1121F;}
 .sg-pill{display:inline-block;font-size:0.78rem;font-weight:600;padding:0.12rem 0.6rem;border-radius:980px;
-         white-space:nowrap;}
+    white-space:nowrap;}
 .sg .sg-sub{font-size:0.8rem;color:#5C5C63!important;margin-top:0.15rem;}
-.sg-gh{display:flex;align-items:baseline;gap:0.6rem;margin:1.4rem 0.2rem 0.5rem;}
-.sg-gh span{font-size:1.1rem;font-weight:600;color:#111114;}
-.sg-gh small{font-size:0.85rem;color:#3F3F46;}
-@media (max-width:900px){.sg-steps{grid-template-columns:repeat(2,1fr);}}
-.sg-idea{display:grid;gap:0.55rem;margin:0.5rem 0 0.4rem;}
-.sg-idea-r{display:grid;grid-template-columns:7.5rem 1fr;gap:0.9rem;align-items:start;background:#FFFFFF;
-           border:1px solid #DEDEE3;border-radius:12px;padding:0.75rem 0.95rem;}
-.sg-idea-k{font-weight:600;color:#0063D1;font-size:0.88rem;padding-top:0.1rem;}
-.sg-idea-v{color:#26262B;font-size:0.93rem;line-height:1.8;}
-@media (max-width:700px){.sg-idea-r{grid-template-columns:1fr;gap:0.25rem;}}
+
+/* «الفكرة والمنطق» cards */
+.sg-idea{display:grid;gap:0.6rem;margin:0.7rem 0 0.4rem;}
+.sg-idea-r{display:grid;grid-template-columns:7.5rem 1fr;gap:1rem;align-items:start;background:#FAFAFC;
+    border:1px solid #EDEDF1;border-radius:14px;padding:0.85rem 1.05rem;}
+.sg-idea-k{font-weight:700;font-size:0.88rem;padding-top:0.1rem;}
+.sg-idea-v{font-size:0.94rem;line-height:1.85;}
+
 /* the search / test split, drawn as a time bar (oldest on the right) */
-.sg-split{display:flex;gap:4px;margin:0.6rem 0 0.2rem;}
-.sg-split>div{border-radius:10px;padding:0.6rem 0.8rem;font-size:0.86rem;font-weight:600;line-height:1.45;}
+.sg-split{display:flex;gap:5px;margin:0.7rem 0 0.25rem;}
+.sg-split>div{border-radius:12px;padding:0.7rem 0.9rem;font-size:0.86rem;font-weight:600;line-height:1.45;}
 .sg-split small{display:block;font-weight:500;font-size:0.76rem;}
-.st-key-sg_wrap .sg .sg-split-a{background:#E4E4EA;color:#111114!important;}
-.st-key-sg_wrap .sg .sg-split-b{background:#0063D1;color:#FFFFFF!important;}
+.st-key-sg_wrap .sg .sg-split-a{background:#ECECF1;color:#111114!important;}
+.st-key-sg_wrap .sg .sg-split-b{background:linear-gradient(145deg,#2B86F5,#0063D1);color:#FFFFFF!important;}
 .st-key-sg_wrap .sg .sg-split-b small{color:#FFFFFF!important;}
-.sg-split-axis{display:flex;justify-content:space-between;font-size:0.76rem;color:#5C5C63;margin:0 0.2rem 0.8rem;}
-.st-key-sg_wrap .sg .sg-idea-v{color:#26262B!important;}
-.st-key-sg_wrap .sg .sg-idea-k{color:#0063D1!important;}
-/* The app colours every expander <summary> light grey (!important); the
-   guide's section titles are <summary> elements inside the expander, so they
-   need an explicit, more specific colour. */
-.st-key-sg_wrap .sg .sg-d>summary,.st-key-sg_wrap .sg .sg-d>summary *{color:#111114!important;}
-.st-key-sg_wrap .sg .sg-d>summary .sg-n{color:#0063D1!important;}
-.st-key-sg_wrap .sg p,.st-key-sg_wrap .sg li,.st-key-sg_wrap .sg td{color:#26262B!important;}
-.st-key-sg_wrap .sg th{color:#3F3F46!important;}
-.st-key-sg_wrap .sg b,.st-key-sg_wrap .sg h3,.st-key-sg_wrap .sg h4,.st-key-sg_wrap .sg .sg-gh span{color:#111114!important;}
-/* expander header: light in both states (Streamlit's dark theme paints the
-   open header near-black) */
-.st-key-sg_wrap [data-testid="stExpander"] details>summary{background:#FFFFFF!important;
-    color:#111114!important;transition:background .15s ease;}
-.st-key-sg_wrap [data-testid="stExpander"] details>summary:hover{background:#F7F7FA!important;}
-.st-key-sg_wrap [data-testid="stExpander"] details[open]>summary{border-bottom:1px solid #DEDEE3;}
-.st-key-sg_wrap [data-testid="stExpander"] details>summary *{color:#111114!important;}
-.st-key-sg_wrap [data-testid="stExpanderDetails"]{background:#FFFFFF!important;}
-/* expander title: right-to-left, Arabic font */
-.st-key-sg_wrap [data-testid="stExpander"] summary{direction:rtl;text-align:right;}
-.st-key-sg_wrap [data-testid="stExpander"] summary p{font-family:'IBM Plex Sans Arabic','Inter',sans-serif!important;
-    font-size:1rem!important;font-weight:600!important;}
+.sg-split-axis{display:flex;justify-content:space-between;font-size:0.76rem;color:#6E6E76;margin:0 0.2rem 0.9rem;}
+
+/* a section a "؟" on the page just opened: a soft blue ring for a moment */
+.st-key-sg_wrap .sg .sg-d.sg-flash{border-color:#0063D1;
+    box-shadow:0 0 0 4px rgba(0,99,209,0.16),0 12px 32px rgba(17,17,20,0.07);}
+.st-key-sg_wrap .sg .sg-d.sg-flash>summary{background:#F0F6FF;}
+
+@media (max-width:900px){.sg-steps{grid-template-columns:repeat(2,1fr);}}
+@media (max-width:640px){
+  .sg-top{padding:0.9rem 1rem;gap:0.75rem;}
+  .sg-top-btn .o,.sg-top-btn .c,.sg-shell[open] .sg-top-btn .c{display:none;}
+  .sg-top-btn{padding:0.6rem 0.75rem;}
+  .sg{padding:0 0.8rem 1.1rem;}
+  .sg-intro{padding:1.2rem 1.1rem 1rem;}
+  .sg-steps{grid-template-columns:1fr;}
+  .sg-b{padding:0.3rem 1rem 1.2rem;}
+  .sg-idea-r{grid-template-columns:1fr;gap:0.25rem;}
+}
+
+/* Text colours, stated with !important because the app's global CSS forces
+   its own (e.g. every h4 white). */
+.st-key-sg_wrap .sg p,.st-key-sg_wrap .sg li,.st-key-sg_wrap .sg td,.st-key-sg_wrap .sg .sg-lead,
+.st-key-sg_wrap .sg .sg-idea-v{color:#2A2A30!important;}
+.st-key-sg_wrap .sg th{color:#55555C!important;}
+.st-key-sg_wrap .sg b,.st-key-sg_wrap .sg h3,.st-key-sg_wrap .sg h4,.st-key-sg_wrap .sg .sg-gh span,
+.st-key-sg_wrap .sg .sg-d>summary,.st-key-sg_wrap .sg .sg-step-t,
+.st-key-sg_wrap .sg-top-tx b{color:#111114!important;}
+.st-key-sg_wrap .sg .sg-gh small,.st-key-sg_wrap .sg-top-tx small{color:#6E6E76!important;}
+.st-key-sg_wrap .sg-top-btn{color:#0063D1!important;}
+.st-key-sg_wrap .sg-top:hover .sg-top-btn{background:#0063D1;color:#FFFFFF!important;}
+.st-key-sg_wrap .sg .sg-d>summary .sg-n,.st-key-sg_wrap .sg .sg-idea-k{color:#0063D1!important;}
+.st-key-sg_wrap .sg .sg-d[open]>summary .sg-n,.st-key-sg_wrap .sg .sg-step-n{color:#FFFFFF!important;}
+.st-key-sg_wrap .sg .sg-note b{color:inherit!important;}
 </style>
 """
 
@@ -1021,7 +1100,7 @@ def _build_html() -> str:
         return (f"<div class='sg-gh'><span>{title}</span><small>{sub}</small></div>"
                 "<div class='sg-list'>" + ''.join(_renum(S[n - 1]) for n in nums) + "</div>")
 
-    return (_CSS + "<div class='sg notranslate' translate='no' lang='ar'>" + intro
+    return ("<div class='sg notranslate' translate='no' lang='ar'>" + intro
             + _group('قراءة الصفحة', 'إيه اللي بتشوفه على الشاشة ومعناه', _reading)
             + _bidi_fix(_ideas_html())
             + _group('التفاصيل الفنية', 'إزاي كل حاجة بتتحسب — للي عايز يفهم أعمق أو يغيّر إعداد', _tech)
@@ -1156,17 +1235,34 @@ def _install_help_links() -> None:
         height=0)
 
 
+_BOOK_ICON = ("<svg viewBox='0 0 24 24' fill='none' stroke='#FFFFFF' stroke-width='1.8' "
+              "stroke-linecap='round' stroke-linejoin='round'><path d='M12 6.8C10.3 5.5 8 4.8 4.5 4.8"
+              "v12.6c3.5 0 5.8.7 7.5 2 1.7-1.3 4-2 7.5-2V4.8c-3.5 0-5.8.7-7.5 2z'/>"
+              "<path d='M12 6.8v12.6'/></svg>")
+
+
 def render_scanner_guide() -> None:
-    """Collapsible Arabic guide shown at the top of the Strategy Scanner page."""
-    # The guide CSS (incl. the RTL rule for this expander's title) has to be on
-    # the page before the expander renders, so it is emitted separately.
+    """Collapsible Arabic guide shown at the top of the Strategy Scanner page.
+
+    A plain <details> card rather than st.expander, so the header can be
+    designed (icon, title, subtitle, open/close button) and the opening can
+    animate. The page's "؟" links open it through _HELP_LINKS_JS, which finds
+    the first <details> inside the sg_wrap container."""
+    # The CSS goes in its own block, ahead of the guide.
     st.markdown(_CSS, unsafe_allow_html=True)
+    _html = _build_html()
+    if st.session_state.get('_sg_open_sections'):   # screenshot/test hook
+        _html = _re_bidi.sub(r"<details class='sg-d'( id='[^']*')?>",
+                             r"<details class='sg-d'\1 open>", _html)
+    _open = ' open' if st.session_state.get('_sg_open', False) else ''
     with st.container(key="sg_wrap"):
-        with st.expander("📘  دليل الصفحة بالعربي",
-                         expanded=bool(st.session_state.get('_sg_open', False))):
-            _html = _build_html()
-            if st.session_state.get('_sg_open_sections'):   # screenshot/test hook
-                _html = _re_bidi.sub(r"<details class='sg-d'( id='[^']*')?>",
-                                     r"<details class='sg-d'\1 open>", _html)
-            st.markdown(_html, unsafe_allow_html=True)
+        st.markdown(
+            f"<details class='sg-shell'{_open}><summary class='sg-top'>"
+            f"<span class='sg-top-ic'>{_BOOK_ICON}</span>"
+            "<span class='sg-top-tx'><b>دليل الصفحة</b>"
+            "<small>الصفحة بتشتغل إزاي، وكل رقم وعلامة عليها معناها إيه</small></span>"
+            "<span class='sg-top-btn'><span class='o'>افتح الدليل</span>"
+            "<span class='c'>اقفل الدليل</span><i class='sg-chev'></i></span>"
+            "</summary>" + _html + "</details>",
+            unsafe_allow_html=True)
     _install_help_links()

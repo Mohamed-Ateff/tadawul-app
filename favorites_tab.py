@@ -2423,11 +2423,13 @@ def render_auto_scanner_page() -> None:
     /* links into the Arabic guide: a small "؟", or a term underlined with dots.
        Clicking anything with data-sg opens the guide on that section. */
     [data-sg]{cursor:pointer;}
+    /* "؟" is always blue, so it reads as a link into the guide */
     .qg{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
-        width:17px;height:17px;margin:0 0.3rem;border-radius:50%;background:var(--fill);
-        color:var(--t2);font:700 0.68rem/1 'IBM Plex Sans Arabic',sans-serif;vertical-align:middle;
-        user-select:none;letter-spacing:0;text-transform:none;transition:background .15s,color .15s;}
-    .qg:hover{background:var(--blue);color:#FFFFFF;}
+        width:17px;height:17px;margin:0 0.3rem;border-radius:50%;background:var(--blue);
+        color:#FFFFFF;font:700 0.68rem/1 'IBM Plex Sans Arabic',sans-serif;vertical-align:middle;
+        box-shadow:0 1px 3px rgba(0,99,209,0.28);user-select:none;letter-spacing:0;text-transform:none;
+        transition:background .15s ease,transform .15s ease,box-shadow .15s ease;}
+    .qg:hover{background:#004FA8;transform:scale(1.12);box-shadow:0 2px 6px rgba(0,99,209,0.35);}
     .sgt{text-decoration:underline dotted rgba(60,60,67,0.5);text-decoration-thickness:1px;
         text-underline-offset:3px;}
     .sgt:hover{color:var(--blue)!important;text-decoration-color:var(--blue);}
