@@ -1845,12 +1845,46 @@ def render_auto_scanner_page() -> None:
     # Light-theme regime colours (the engine's are tuned for dark pages).
     # Hues kept apart from the gain/loss green/red and the blue action colour.
     _REGIME_COLORS = {'TREND': '#4B47C4', 'RANGE': '#086F8C', 'VOLATILE': '#8E3FBA'}
-    from market_data import get_all_tadawul_tickers
+    from scanner_markets import (MARKETS, DEFAULT_MARKET, market_symbols,
+                                 short_symbol as _short, unit_of as _unit_of,
+                                 search_text as _search_text)
 
     _PERIODS = ['Short', 'Medium', 'Long']
 
-    _ticker_map = get_all_tadawul_tickers()   # {sym: name}
+    # The market being scanned. Kept apart from its segmented control's own key
+    # because Streamlit forgets a widget's state once the page is left.
+    if st.session_state.get('sc_market') not in MARKETS:
+        st.session_state.sc_market = DEFAULT_MARKET
+    _mk = st.session_state.sc_market
+    _M  = MARKETS[_mk]
+    _ticker_map = market_symbols(_mk)   # {sym: name}
     _ALL_SYMS   = list(_ticker_map.keys())
+
+    def _sym_labels(sym, name):
+        """(big label, small label) of a symbol. Stocks lead with their ticker;
+        commodities with their name, since nobody looks for gold under "GC"."""
+        _u = _unit_of(sym)
+        if _mk == 'COM':
+            return name, f"{_short(sym)} · {_u}"
+        return _short(sym), (f"{name} · {_u}" if _u else name)
+
+    def _fp(v):
+        """A price; three decimals under 1 (the EGX quotes those in 0.001 steps)."""
+        return '—' if v is None else f"{v:,.3f}" if abs(v) < 1 else f"{v:,.2f}"
+
+    def _prices_note():
+        return (f"Prices in {_M['cur']}" if _M['cur']
+                else "Each commodity is priced in its own unit, shown under its name")
+
+    def _is_phone() -> bool:
+        """Phones get a shorter chart that doesn't catch the finger. CSS can't
+        reach inside a Plotly figure, so this goes by the browser's User-Agent."""
+        try:
+            return 'Mobi' in (st.context.headers.get('User-Agent') or '')
+        except Exception:
+            return False
+
+    _PHONE = _is_phone()
 
     # ── helpers ───────────────────────────────────────────────────────────────
     def _ind_label(inds):
@@ -1970,7 +2004,9 @@ def render_auto_scanner_page() -> None:
     .stApp [data-testid="stTooltipIcon"] svg{stroke:var(--t3)!important;}
 
     /* ── top bar ─────────────────────────────────────────────────────────── */
-    .sc-tb{display:flex;align-items:flex-end;gap:2.2rem;margin-bottom:1.4rem;flex-wrap:wrap;}
+    .sc-tb{display:flex;align-items:flex-end;gap:2.2rem;margin-bottom:1.4rem;}
+    .sc-tb>div:first-child{flex:1 1 0;min-width:0;}
+    .sc-kpi{flex:none;}
     .sc-title{font-size:2.1rem;font-weight:700;color:var(--t1);letter-spacing:-0.035em;line-height:1.1;}
     .sc-sub{font-size:0.95rem;color:var(--t2);font-weight:400;margin-top:0.3rem;}
     .sc-div{display:none;}
@@ -2021,9 +2057,11 @@ def render_auto_scanner_page() -> None:
 
     /* ── section headings ────────────────────────────────────────────────── */
     .sc-h2{display:flex;align-items:baseline;gap:0.7rem;margin:2.2rem 0 0.9rem;}
-    .sc-h2-t{font-size:1.45rem;font-weight:700;color:var(--t1);letter-spacing:-0.025em;}
+    .sc-h2-t{font-size:1.45rem;font-weight:700;color:var(--t1);letter-spacing:-0.025em;
+        white-space:nowrap;flex:none;}
     .sc-h2-s{font-size:0.9rem;color:var(--t2);}
-    .sc-h2-c{margin-left:auto;font-size:0.85rem;color:var(--t2);font-variant-numeric:tabular-nums;}
+    .sc-h2-c{margin-left:auto;font-size:0.85rem;color:var(--t2);font-variant-numeric:tabular-nums;
+        white-space:nowrap;flex:none;}
     .sc-summary{display:flex;gap:0.5rem;flex-wrap:wrap;margin:0 0 1rem;}
     .sc-chip{display:inline-flex;align-items:center;gap:0.35rem;font-size:0.82rem;font-weight:500;
         padding:0.3rem 0.75rem;border-radius:980px;background:var(--card);border:1px solid var(--hair);
@@ -2105,58 +2143,14 @@ def render_auto_scanner_page() -> None:
                        color:var(--green);border-radius:980px;padding:0.15rem 0.6rem;
                        font-variant-numeric:tabular-nums;}
 
-    /* indicator tags in live cards */
-    .lsc-ind-tag{display:inline-block;background:var(--fill);border:none;border-radius:8px;
-                 padding:0.25rem 0.6rem;font-size:0.82rem;font-weight:500;color:var(--t1);white-space:nowrap;}
-    .lsc-ind-plus{display:inline-flex;align-items:center;justify-content:center;background:none;border:none;
-                  color:var(--t4);font-size:0.82rem;font-weight:500;margin:0 0.05rem;width:auto;height:auto;}
-
-    /* price ladder */
-    .lsc-ladder{display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;}
-    .lsc-lc{padding:0.75rem 0.85rem;border-radius:var(--r-md);background:var(--inset);
-            border:1px solid var(--hair);position:relative;text-align:left;overflow:hidden;}
-    .lsc-lc-bar{position:absolute;top:0;left:0;bottom:0;width:3px;}
-    .lsc-ll{font-size:0.75rem;font-weight:500;color:var(--t2);margin-bottom:0.3rem;}
-    .lsc-lv{font-size:1.3rem;font-weight:600;line-height:1;letter-spacing:-0.03em;
-            font-variant-numeric:tabular-nums;}
-    .lsc-lp{font-size:0.78rem;font-weight:600;margin-top:0.3rem;font-variant-numeric:tabular-nums;}
-
-    /* live card shell */
-    .lsc-card2{background:var(--card);border:1px solid var(--hair);border-radius:var(--r-lg);
-               overflow:hidden;box-shadow:var(--shadow);}
-    .lsc-hdr2{display:flex;align-items:center;gap:0.6rem;padding:1rem 1.15rem 0.7rem;flex-wrap:wrap;}
-    .lsc-sym2{font-size:1.35rem;font-weight:700;color:var(--t1);letter-spacing:-0.025em;}
-    .lsc-name2{font-size:0.92rem;color:var(--t2);white-space:nowrap;overflow:hidden;
-               text-overflow:ellipsis;max-width:12rem;}
-    .lsc-price2{margin-left:auto;font-size:1.35rem;font-weight:600;color:var(--t1);
-                letter-spacing:-0.03em;font-variant-numeric:tabular-nums;white-space:nowrap;}
-    .lsc-price2 small{font-size:0.75rem;color:var(--t2);font-weight:500;margin-left:0.25rem;}
-    .lsc-strat2{display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;padding:0 1.15rem 0.9rem;}
-    .lsc-stats2{display:grid;grid-template-columns:repeat(4,1fr);margin:0 0.8rem;
-                border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);}
-    .lsc-stat2{padding:0.85rem 0.4rem;text-align:center;}
-    .lsc-stat2-v{font-size:1.4rem;font-weight:600;line-height:1;letter-spacing:-0.03em;
-                 font-variant-numeric:tabular-nums;margin-bottom:0.35rem;}
-    .lsc-stat2-l{font-size:0.75rem;font-weight:500;color:var(--t2);}
-    .lsc-ladder-wrap{padding:0.9rem 0.9rem 1rem;}
-    .lsc-when{margin-left:auto;display:inline-flex;align-items:center;gap:0.35rem;font-size:0.78rem;
-              font-weight:600;padding:0.28rem 0.7rem;border-radius:980px;white-space:nowrap;}
-    .lsc-when::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;}
     .lsc-regime2{font-size:0.78rem;font-weight:600;padding:0.25rem 0.7rem;border-radius:980px;
                  white-space:nowrap;}
 
-    /* buttons under each live card: Show chart · View strategy */
-    [class*="st-key-lsc_ctoggle_"] .stButton button,
-    [class*="st-key-lsc_goto_"] .stButton button{border-radius:980px!important;
-        font-size:0.85rem!important;color:var(--blue)!important;min-height:2.2rem!important;
-        margin-top:0.5rem!important;box-shadow:none!important;background:transparent!important;
-        border:none!important;}
-    [class*="st-key-lsc_ctoggle_"] .stButton button:hover,
+    /* "View strategy" in an opened row */
+    [class*="st-key-lsc_goto_"] .stButton button{font-size:0.88rem!important;color:var(--blue)!important;
+        min-height:2.3rem!important;background:var(--card)!important;box-shadow:none!important;}
     [class*="st-key-lsc_goto_"] .stButton button:hover{background:var(--blue-bg)!important;}
     [class*="st-key-lsc_goto_"] .stButton button p{color:var(--blue)!important;font-weight:600!important;}
-
-    /* live card = entry plan: strategy line, then the price ladder */
-    .lsc-card2 .lsc-ladder-wrap{margin:0 0.8rem;padding:0.9rem 0 1rem;border-top:1px solid var(--hair);}
     .lsc-more{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:600;
         padding:0.18rem 0.6rem;border-radius:980px;background:var(--blue-bg);color:var(--blue);
         white-space:nowrap;cursor:help;}
@@ -2205,18 +2199,23 @@ def render_auto_scanner_page() -> None:
 
     /* ── round 2: critique fixes ─────────────────────────────────────────── */
     /* segmented control (Short | Medium | Long | Days) */
+    .st-key-sc_market_box [role="radiogroup"],
     .st-key-sc_seg_box [role="radiogroup"],
     [class*="st-key-sc_flt_f"] [role="radiogroup"]{background:var(--fill)!important;border-radius:13px!important;
         padding:4px!important;display:inline-flex!important;gap:2px!important;flex-wrap:nowrap!important;}
+    .st-key-sc_market_box [role="radiogroup"] button,
     .st-key-sc_seg_box [role="radiogroup"] button,
     [class*="st-key-sc_flt_f"] [role="radiogroup"] button{background:transparent!important;border:none!important;
         box-shadow:none!important;border-radius:10px!important;color:var(--t2)!important;
-        min-height:2.4rem!important;padding:0 1.6rem!important;font-weight:500!important;}
+        min-height:2.4rem!important;padding:0 1.15rem!important;font-weight:500!important;}
+    .st-key-sc_market_box [role="radiogroup"] button p,
     .st-key-sc_seg_box [role="radiogroup"] button p,
     [class*="st-key-sc_flt_f"] [role="radiogroup"] button p{font-size:0.95rem!important;color:inherit!important;
         font-weight:inherit!important;}
+    .st-key-sc_market_box [role="radiogroup"] button:hover,
     .st-key-sc_seg_box [role="radiogroup"] button:hover,
     [class*="st-key-sc_flt_f"] [role="radiogroup"] button:hover{color:var(--t1)!important;}
+    .st-key-sc_market_box [role="radiogroup"] button[aria-checked="true"],
     .st-key-sc_seg_box [role="radiogroup"] button[aria-checked="true"],
     [class*="st-key-sc_flt_f"] [role="radiogroup"] button[aria-checked="true"]{
         background:#FFFFFF!important;color:var(--t1)!important;font-weight:600!important;
@@ -2290,16 +2289,6 @@ def render_auto_scanner_page() -> None:
     details.sc-alts .sc-rcard-inds{padding:0.5rem 0.5rem 0.4rem;}
     details.sc-alts .sc-rcard-stats{margin:0 0.2rem;}
     details.sc-alts .sc-rcard-cap{margin:0 0.5rem 0.6rem;}
-
-    /* live card price levels: no stripes, neutral numbers, colour on the % line only */
-    .lsc-lc-bar{display:none;}
-    .lsc-lc{background:var(--fill);border:none;}
-    .lsc-lv{color:var(--t1)!important;}
-
-    /* chart surface */
-    [class*="st-key-lsc_chartwrap_"]{background:var(--card);border:1px solid var(--hair);
-        border-radius:var(--r-lg);box-shadow:var(--shadow);padding:0.4rem 0.6rem 0.2rem;margin-top:0.5rem;}
-    [class*="st-key-lsc_chartwrap_"] .lsc-card2{border:none!important;box-shadow:none!important;margin:0!important;}
 
     /* ── round 3: coloured indicator chips + table-style stock cards ─────── */
     .sc-chip-ind{display:inline-flex;align-items:center;font-size:0.84rem;font-weight:600;
@@ -2437,33 +2426,7 @@ def render_auto_scanner_page() -> None:
     .sc-grid details.sc-more>summary{padding:0.6rem 1.2rem;}
     @media (max-width:900px){ .sc-grid{grid-template-columns:minmax(0,1fr);} }
 
-    /* live signals table (under the Live Signal Check cards) */
-    .lsc-tbl-hd{display:flex;align-items:baseline;gap:0.7rem;margin:1.8rem 0 0.2rem;}
-    .lsc-tbl-t{font-size:1.15rem;font-weight:700;color:var(--t1);letter-spacing:-0.02em;}
     .lsc-tbl-s{font-size:0.86rem;color:var(--t2);}
-    .lsc-tbl-wrap{background:var(--card);border:1px solid var(--hair);border-radius:var(--r-lg);
-        box-shadow:var(--shadow);overflow:auto;max-height:660px;margin:0.4rem 0 0.4rem;}
-    .stApp table.lsc-tbl{width:100%;border-collapse:separate!important;border-spacing:0;margin:0!important;
-        font-size:0.86rem;color:var(--t1);font-variant-numeric:tabular-nums;border:none!important;}
-    .stApp table.lsc-tbl th,.stApp table.lsc-tbl td{border:none!important;
-        border-bottom:1px solid var(--hair)!important;padding:0.62rem 0.8rem!important;
-        text-align:right;white-space:nowrap;}
-    .stApp table.lsc-tbl thead th{position:sticky;top:0;z-index:2;background:var(--inset)!important;
-        color:var(--t2);font-size:0.74rem;font-weight:600;vertical-align:bottom;line-height:1.25;}
-    .stApp table.lsc-tbl tbody tr:nth-child(even) td{background:#FAFAFC;}
-    .stApp table.lsc-tbl tbody tr:hover td{background:var(--blue-bg);}
-    .stApp table.lsc-tbl tbody tr:last-child td{border-bottom:none!important;}
-    .stApp table.lsc-tbl .l{text-align:left;}
-    .stApp table.lsc-tbl .c{text-align:center;}
-    .stApp table.lsc-tbl .rk{text-align:center;color:var(--t3);font-weight:600;width:2.6rem;}
-    .stApp table.lsc-tbl .rk.top{color:var(--blue);}
-    .stApp table.lsc-tbl .nm{font-weight:600;max-width:13rem;overflow:hidden;text-overflow:ellipsis;}
-    .stApp table.lsc-tbl .sym{font-weight:600;}
-    .stApp table.lsc-tbl .muted{color:var(--t3);}
-    .stApp table.lsc-tbl .up{color:var(--green);font-weight:600;}
-    .stApp table.lsc-tbl .dn{color:var(--red);font-weight:600;}
-    .stApp table.lsc-tbl .wr{font-weight:700;font-size:0.92rem;}
-    .stApp table.lsc-tbl .few{color:var(--orange);font-weight:600;}
     .st-key-lsc_xlsx [data-testid="stDownloadButton"] button{background:var(--card)!important;
         border:1px solid var(--hair)!important;color:var(--blue)!important;font-weight:600!important;
         border-radius:980px!important;min-height:2.4rem!important;box-shadow:var(--shadow)!important;}
@@ -2471,6 +2434,227 @@ def render_auto_scanner_page() -> None:
         font-weight:600!important;}
     .st-key-lsc_xlsx [data-testid="stDownloadButton"] button:hover{background:var(--blue-bg)!important;}
     .lsc-regime2{background:var(--fill);color:var(--t1);}
+
+    /* ── Live Signal Check: the table ────────────────────────────────────────
+       One grid per row. .lt-lv holds the entry plan's five numbers: they join the
+       row's own grid on wide screens and become their own strip on narrow ones. */
+    .st-key-lsc_tbl{background:var(--card);border:1px solid var(--hair);border-radius:var(--r-lg);
+        box-shadow:var(--shadow);overflow:clip;gap:0!important;margin:0.15rem 0 0.7rem;}
+    .st-key-lsc_tbl [data-testid="stMarkdownContainer"]{margin-bottom:0!important;}
+    .st-key-lsc_tbl>[data-testid="stElementContainer"]:first-child{position:sticky;top:0;z-index:5;}
+    .lt-g{display:grid;align-items:center;column-gap:0.9rem;padding:0.78rem 1.15rem;
+        grid-template-columns:2rem minmax(8.5rem,1.05fr) 6.4rem minmax(16rem,2.7fr)
+            5.4rem repeat(3,minmax(4.3rem,0.55fr)) 5.2rem 3.4rem 3.6rem 0.8rem;}
+    .lt-lv{display:contents;}
+    .lt-head{background:var(--inset);padding-top:0.62rem;padding-bottom:0.62rem;font-size:0.75rem;
+        font-weight:600;color:var(--t2);line-height:1.25;}
+    .lt-row{border-top:1px solid var(--hair);font-variant-numeric:tabular-nums;color:var(--t1);
+        transition:background .15s ease;}
+    .lt-rk{text-align:center;font-weight:600;font-size:0.9rem;color:var(--t3);}
+    .lt-rk.top{color:var(--blue);}
+    .lt-st{min-width:0;display:flex;flex-direction:column;gap:0.05rem;}
+    .lt-sym{font-size:1.02rem;font-weight:700;letter-spacing:-0.015em;color:var(--t1);}
+    .lt-nm{font-size:0.8rem;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .lt-sig b{display:flex;align-items:center;gap:0.35rem;font-size:0.84rem;font-weight:600;
+        color:var(--t1);white-space:nowrap;}
+    .lt-sig b::before{content:'';flex:none;width:6px;height:6px;border-radius:50%;background:var(--d);}
+    .lt-sig small{display:block;font-size:0.74rem;color:var(--t2);margin-top:0.1rem;white-space:nowrap;}
+    .lt-str{min-width:0;display:flex;flex-direction:column;gap:0.35rem;}
+    .lt-str-t{display:flex;flex-wrap:wrap;align-items:center;gap:0.3rem;}
+    .lt-str-t .lsc-regime2{font-size:0.72rem;padding:0.18rem 0.6rem;cursor:help;}
+    .lt-chips{display:flex;flex-wrap:wrap;align-items:center;row-gap:0.25rem;}
+    .lt-chips .sc-chip-ind{font-size:0.76rem;padding:0.16rem 0.55rem;}
+    .lt-chips .sc-chip-plus{margin:0 0.2rem;font-size:0.76rem;}
+    .lt-n{text-align:right;font-size:0.92rem;font-weight:600;color:var(--t1);white-space:nowrap;}
+    .lt-n small{display:block;font-size:0.74rem;font-weight:600;color:var(--t2);margin-top:0.1rem;}
+    .lt-n .up{color:var(--green);}
+    .lt-n .dn{color:var(--red);}
+    .lt-n .few{color:var(--orange);}
+    .lt-wr{font-size:1.02rem;font-weight:700;}
+    .lt-head .lt-n{font-size:0.75rem;font-weight:600;color:var(--t2);white-space:normal;}
+    .lt-chev{width:0.5rem;height:0.5rem;justify-self:end;border-right:2px solid var(--t4);
+        border-bottom:2px solid var(--t4);transform:rotate(-45deg);transition:transform .2s ease;}
+    .lt-open{background:var(--blue-bg);}
+    .lt-open .lt-chev{transform:rotate(45deg);border-color:var(--blue);}
+
+    /* A row is a tap target: an invisible button is spread over its HTML. The
+       regime and validation badges sit above it, so they still open the guide. */
+    [class*="st-key-lsc_row_"]{position:relative;gap:0!important;scroll-margin-top:2.6rem;}
+    [class*="st-key-lsc_row_"]:hover .lt-row:not(.lt-open){background:#F5F8FD;}
+    [class*="st-key-lsc_row_"]:hover .lt-chev{border-color:var(--blue);}
+    [class*="st-key-lsc_row_"]:has(button:focus-visible) .lt-row{box-shadow:inset 0 0 0 2px var(--blue);}
+    .stApp [class*="st-key-lsc_open_"]{position:absolute!important;inset:0;z-index:2;
+        width:auto!important;height:auto!important;margin:0!important;}
+    .stApp [class*="st-key-lsc_open_"] .stButton,
+    .stApp [class*="st-key-lsc_open_"] .stButton>*{width:100%!important;height:100%!important;}
+    .stApp [class*="st-key-lsc_open_"] .stButton button{width:100%!important;height:100%!important;
+        min-height:0!important;padding:0!important;border-radius:0!important;opacity:0!important;
+        cursor:pointer!important;}
+    .lt-row [data-sg]{position:relative;z-index:3;}
+
+    /* what a tapped row opens: its chart and "View strategy" */
+    [class*="st-key-lsc_panel_"]{background:var(--inset);border-top:1px solid var(--hair);
+        padding:0.7rem 1.15rem 0.9rem;gap:0.55rem!important;}
+    [class*="st-key-lsc_panel_"] [data-testid="stPlotlyChart"]{background:#FFFFFF;
+        border:1px solid var(--hair);border-radius:var(--r-md);overflow:hidden;}
+    .lt-leg{display:flex;flex-wrap:wrap;align-items:center;gap:0.4rem;}
+    .lt-leg .sc-vb{cursor:default;}
+    .lt-leg-sig{background:var(--orange-bg);color:var(--orange);}
+    .lt-nochart{padding:1.2rem;text-align:center;font-size:0.88rem;color:var(--t2);}
+
+    /* Below laptop width the numbers no longer fit one line. The header row goes
+       and every number carries its own label. */
+    @media (max-width:1279px){
+      .sc-pts{grid-template-columns:repeat(4,minmax(0,1fr));}
+      .lt-head{display:none;}
+      .lt-g.lt-row{grid-template-columns:2rem minmax(0,1fr) auto auto 0.8rem;gap:0.55rem 0.9rem;
+          align-items:start;grid-template-areas:"rk st wr tr chev" ". str str str str"
+              ". sig sig sig sig" ". lv lv lv lv";}
+      .lt-rk{grid-area:rk;padding-top:0.15rem;}
+      .lt-st{grid-area:st;}
+      .lt-str{grid-area:str;}
+      .lt-sig{grid-area:sig;}
+      .lt-wr{grid-area:wr;}
+      .lt-tr{grid-area:tr;}
+      .lt-chev{grid-area:chev;margin-top:0.55rem;}
+      .lt-sig b{display:inline-flex;}
+      .lt-sig small{display:inline;margin:0 0 0 0.45rem;}
+      .lt-lv{grid-area:lv;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0.5rem;
+          padding:0.55rem 0.75rem;border-radius:var(--r-sm);background:var(--inset);}
+      .lt-lv .lt-n{text-align:left;}
+      .lt-row .lt-n::before{content:attr(data-l);display:block;font-size:0.7rem;font-weight:500;
+          color:var(--t2);margin-bottom:0.1rem;}
+    }
+
+    .st-key-lsc_xlsx [data-testid="stCaptionContainer"] p{color:var(--t3)!important;}
+
+    /* commodity prices */
+    .sc-h3{display:flex;flex-wrap:wrap;align-items:baseline;gap:0.1rem 0.5rem;font-size:1.05rem;font-weight:700;
+        color:var(--t1);letter-spacing:-0.015em;margin:1.2rem 0 0.55rem;}
+    .sc-h3-s{font-size:0.82rem;font-weight:400;color:var(--t2);letter-spacing:0;}
+    .sc-pts{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:0.5rem;margin-bottom:0.8rem;}
+    .sc-pt{background:var(--card);border:1px solid var(--hair);border-radius:var(--r-md);
+        padding:0.6rem 0.75rem;box-shadow:var(--shadow-sm);min-width:0;}
+    .sc-pt-n{font-size:0.8rem;font-weight:600;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .sc-pt-v{font-size:1.1rem;font-weight:600;color:var(--t1);letter-spacing:-0.02em;
+        font-variant-numeric:tabular-nums;margin-top:0.1rem;}
+    .sc-pt-s{font-size:0.72rem;color:var(--t3);margin-top:0.1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .sc-pt-s .up{color:var(--green);font-weight:600;}
+    .sc-pt-s .dn{color:var(--red);font-weight:600;}
+
+    /* a stock card's latest price */
+    .sc-px{margin-left:auto;font-size:1.02rem;font-weight:600;color:var(--t1);white-space:nowrap;
+        font-variant-numeric:tabular-nums;letter-spacing:-0.015em;}
+    .sc-px small{font-size:0.72rem;font-weight:500;color:var(--t2);margin-left:0.2rem;letter-spacing:0;}
+    .sc-stock-hdr .sc-px+.sc-cfire,.sc-stock-hdr .sc-px+.sc-ct{margin-left:0!important;}
+    [data-testid="stHorizontalBlock"]:has(.st-key-lsc_xlsx) [data-testid="stMarkdownContainer"]{
+        margin-bottom:0!important;}
+
+    /* ── smaller screens (this CSS only exists on the Strategy Scanner page) ── */
+    @media (max-width:1500px){
+      .main .block-container,div.block-container{padding-left:1.5rem!important;padding-right:1.5rem!important;}
+      [class*="st-key-sc_flt_f"] [role="radiogroup"] button{padding:0 0.6rem!important;}
+    }
+    @media (max-width:1279px){
+      /* Market / Period / Run Scan: each on its own line */
+      [data-testid="stHorizontalBlock"]:has(.st-key-sc_market_box){flex-wrap:wrap!important;row-gap:0.55rem!important;}
+      [data-testid="stHorizontalBlock"]:has(.st-key-sc_market_box)>[data-testid="stColumn"]{
+          flex:1 1 100%!important;width:100%!important;min-width:100%!important;}
+      /* filters: wrap instead of squeezing */
+      [data-testid="stHorizontalBlock"]:has([class*="st-key-sc_flt_f"]){flex-wrap:wrap!important;row-gap:0.3rem!important;}
+      [data-testid="stHorizontalBlock"]:has([class*="st-key-sc_flt_f"])>[data-testid="stColumn"]{
+          flex:0 1 auto!important;width:auto!important;min-width:0!important;}
+      /* a column with nothing in it (no days box, no Clear filters) takes no room */
+      [data-testid="stHorizontalBlock"]:has(.st-key-sc_market_box)>[data-testid="stColumn"]:not(:has([data-testid="stElementContainer"])),
+      [data-testid="stHorizontalBlock"]:has([class*="st-key-sc_flt_f"])>[data-testid="stColumn"]:not(:has([data-testid="stElementContainer"])){display:none!important;}
+    }
+    @media (max-width:860px){
+      .sc-tb{flex-wrap:wrap;gap:1rem 1.8rem;}
+      .sc-tb>div:first-child{flex:1 1 100%;}
+    }
+    @media (max-width:640px){
+      .main .block-container,div.block-container{padding:0.7rem 0.8rem 3.5rem!important;}
+      /* the app's floating translate button covers less of the page */
+      #translate-fab-btn{transform:scale(0.78);transform-origin:bottom left;}
+      /* Back on top, then the title, then four KPIs in one line */
+      [data-testid="stHorizontalBlock"]:has(>[data-testid="stColumn"] .st-key-sc_back){
+          flex-direction:column-reverse!important;gap:0.35rem!important;}
+      .st-key-sc_back .stButton button{width:auto!important;}
+      .sc-tb{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0.7rem 0.4rem;margin-bottom:0.9rem;}
+      .sc-tb>div:first-child{grid-column:1/-1;margin:0!important;}
+      .sc-title{font-size:1.7rem;}
+      .sc-sub{font-size:0.86rem;line-height:1.4;}
+      .sc-kpi{text-align:left;min-width:0;}
+      .sc-kv{font-size:1.2rem;}
+      .sc-kl{font-size:0.68rem;line-height:1.25;}
+      .sc-kl .qg{display:none;}
+      /* segmented controls fill the width, with their text as tight as it stays readable */
+      .st-key-sc_market_box [data-testid="stElementContainer"],.st-key-sc_seg_box [data-testid="stElementContainer"],
+      [class*="st-key-sc_flt_f"] [data-testid="stElementContainer"],
+      .st-key-sc_market_box [data-testid="stButtonGroup"],.st-key-sc_seg_box [data-testid="stButtonGroup"],
+      [class*="st-key-sc_flt_f"] [data-testid="stButtonGroup"]{width:100%!important;}
+      .st-key-sc_market_box [role="radiogroup"],.st-key-sc_seg_box [role="radiogroup"],
+      [class*="st-key-sc_flt_f"] [role="radiogroup"]{display:flex!important;width:100%!important;
+          min-width:100%!important;}
+      .st-key-sc_market_box [role="radiogroup"] button,.st-key-sc_seg_box [role="radiogroup"] button,
+      [class*="st-key-sc_flt_f"] [role="radiogroup"] button{flex:1 1 auto!important;min-width:0!important;
+          padding:0 0.5rem!important;}
+      .st-key-sc_market_box [role="radiogroup"] button p,.st-key-sc_seg_box [role="radiogroup"] button p,
+      [class*="st-key-sc_flt_f"] [role="radiogroup"] button p{font-size:0.84rem!important;white-space:nowrap;}
+      /* filters: one per line, full width */
+      [data-testid="stHorizontalBlock"]:has([class*="st-key-sc_flt_f"])>[data-testid="stColumn"]{
+          flex:1 1 100%!important;width:100%!important;}
+      [data-testid="stHorizontalBlock"]:has([class*="st-key-sc_flt_f"])>[data-testid="stColumn"]:not(:has(*)){display:none!important;}
+      /* commodity prices: one line to swipe, gold and silver first */
+      .sc-pts{display:flex;overflow-x:auto;gap:0.45rem;margin:0 -0.8rem 0.6rem;padding:0.1rem 0.8rem 0.3rem;
+          scrollbar-width:none;}
+      .sc-pts::-webkit-scrollbar{display:none;}
+      .sc-pt{flex:0 0 7.4rem;}
+      /* section titles */
+      .lsc-section-hdr{margin:1.4rem 0 0.9rem;}
+      .lsc-section-label,.sc-h2-t{font-size:1.25rem;}
+      .sc-h2{flex-wrap:wrap;gap:0.2rem 0.6rem;margin-top:2rem!important;}
+      .sc-h2-s{font-size:0.84rem;line-height:1.4;}
+      .sc-h2-c{margin-left:0;}
+      .sc-legend{gap:0.3rem 0.7rem;font-size:0.76rem;margin-bottom:0.8rem;}
+      /* the table: a compact card per row */
+      .st-key-lsc_tbl{border-radius:var(--r-md);}
+      .lt-g.lt-row{grid-template-columns:1.5rem minmax(0,1fr) auto auto 0.6rem;gap:0.45rem 0.6rem;
+          padding:0.7rem 0.75rem;grid-template-areas:"rk st wr tr chev" "str str str str str"
+              "sig sig sig sig sig" "lv lv lv lv lv";}
+      .lt-sym{font-size:1rem;}
+      .lt-nm{font-size:0.76rem;}
+      .lt-lv{gap:0.3rem;padding:0.5rem 0.55rem;}
+      .lt-lv .lt-n{font-size:0.82rem;}
+      .lt-lv .lt-n small{font-size:0.7rem;}
+      .lt-row .lt-n::before{content:attr(data-s);font-size:0.66rem;}
+      .lt-qw{display:none;}
+      /* on a phone the whole row is the tap target, badges included */
+      .lt-row [data-sg]{position:static;z-index:auto;}
+      .lt-wr{font-size:1rem;}
+      [class*="st-key-lsc_panel_"]{padding:0.6rem 0.55rem 0.7rem;}
+      [data-testid="stHorizontalBlock"]:has(.st-key-lsc_xlsx){gap:0.4rem!important;}
+      /* stock cards in Scanned Strategies */
+      .sc-grid{gap:0.8rem;}
+      .sc-grid .sc-stock-hdr{padding:0.8rem 0.85rem 0.7rem;gap:0.5rem;flex-wrap:wrap;}
+      .sc-sym{font-size:1.15rem;}
+      .sc-sname{font-size:0.82rem;max-width:100%;}
+      .sc-grid .sc-tr{padding:0.75rem 0.85rem;gap:0.5rem 0.55rem;}
+      .sc-grid .sc-tr-n{font-size:0.98rem;}
+      .sc-tr-l{font-size:0.66rem;width:auto;}
+      .sc-chip-ind{white-space:normal;}
+      .sc-grid details.sc-more>summary{padding:0.55rem 0.85rem;}
+      .sc-det-hint{display:none;}
+      .sc-det-body{padding:0.7rem 0.7rem;}
+      .sc-det-ind{flex-direction:column;gap:0.1rem;}
+      .sc-det-ind>b{flex:none;}
+      .sc-tl>span{padding-right:0.7rem;}
+    }
+    @media (max-width:370px){
+      .lt-lv{grid-template-columns:repeat(3,minmax(0,1fr));}
+      .st-key-sc_market_box [role="radiogroup"] button p,.st-key-sc_seg_box [role="radiogroup"] button p,
+      [class*="st-key-sc_flt_f"] [role="radiogroup"] button p{font-size:0.78rem!important;}
+    }
 
     /* fewer "?" marks: the regime pill tooltip is enough */
     .sc-rcard-top .sc-help-pill{display:none;}
@@ -2561,6 +2745,12 @@ def render_auto_scanner_page() -> None:
             _t = '✕ Failed test' if _r == 'lost' else 'Not validated'
             _tip = _VAL_BADGE_TIP.get(_r, _VAL_BADGE_TIP['few'])
         return f"<span class='sc-vb sc-vb-{_k}' data-sg='18' title='{_tip}'>{_t}</span>"
+
+    def _val_text(cb) -> str:
+        """The badge's wording without its mark (the Excel file's Validation column)."""
+        if _is_validated(cb):
+            return 'Validated'
+        return 'Failed test' if (cb or {}).get('fail_reason', 'few') == 'lost' else 'Not validated'
 
     def _q(sg) -> str:
         """A small "؟" that opens the Arabic guide on its section `sg` (the
@@ -2845,14 +3035,14 @@ def render_auto_scanner_page() -> None:
     # filter would keep in Live Signal Check).
     _n_fire_val = sum(1 for row in (st.session_state.sc_results or [])
                       if any(_is_validated(c) for c in _live_combos(row)))
-    _upd = (st.session_state.get('_sc_full_cache') or {}).get(f"{st.session_state.sc_period}|v3")
+    _upd = (st.session_state.get('_sc_full_cache') or {}).get(f"{_mk}|{st.session_state.sc_period}|v3")
     _upd_txt = _time.strftime('%H:%M', _time.localtime(_upd[0])) if _upd else '—'
     _tl, _tr = st.columns([1, 0.12])
     with _tl:
         st.markdown(
             "<div class='sc-tb'>"
             "<div style='margin-right:auto;'><div class='sc-title'>Strategy Scanner</div>"
-            "<div class='sc-sub'>The best indicator strategies for every Tadawul stock, "
+            f"<div class='sc-sub'>The best indicator strategies for {_M['everything']}, "
             "in every market regime.</div></div>"
             f"<div class='sc-kpi'><div class='sc-kv' style='color:var(--green);'>{_n_fire}</div>"
             f"<div class='sc-kl'>Live signals{_q(10)}</div></div>"
@@ -2860,7 +3050,7 @@ def render_auto_scanner_page() -> None:
             f"<div class='sc-kl'>Validated{_q(18)}</div></div>"
             f"<div class='sc-kpi'><div class='sc-kv'>{_n_res}<span style='color:var(--t4);"
             f"font-weight:500;'>/{len(_ALL_SYMS)}</span></div>"
-            f"<div class='sc-kl'>Stocks scanned{_q(1)}</div></div>"
+            f"<div class='sc-kl'>{_M['nouns'].capitalize()} scanned{_q(1)}</div></div>"
             f"<div class='sc-kpi'><div class='sc-kv'>{_upd_txt}</div>"
             f"<div class='sc-kl'>Updated{_q(12)}</div></div>"
             "</div>",
@@ -2918,19 +3108,40 @@ def render_auto_scanner_page() -> None:
                         "score past trades. " + " · ".join(
                             f"{k}: {_PCFG[k][0]} days" for k in ('Short', 'Medium', 'Long'))
                         + ". Longer periods give more reliable stats.")
-    _SCAN_HELP = ("Run the scanner across all Tadawul symbols for the selected period. "
+    _SCAN_HELP = (f"Run the scanner across all {_M['in_text']} for the selected period. "
                   "Recomputes regime, fits strategies, and detects which ones are "
                   "currently firing.")
-    _DAYS_HELP = (f"Scan the last N TRADING days ({_DAYS_MIN}-{_DAYS_MAX}). Tadawul runs "
-                  "Sunday-Thursday, so weekends are never counted — 30 means 30 real "
+    _DAYS_HELP = (f"Scan the last N TRADING days ({_DAYS_MIN}-{_DAYS_MAX}). {_M['days_note']} "
+                  "weekends are never counted — 30 means 30 real "
                   "sessions (~6 weeks). Extra history is still loaded behind the scenes "
                   "to warm up long indicators like SMA 200, but only signals inside your "
                   "window are scored. Short windows give few signals and thin results — "
                   "below ~120 days expect many empty regimes.")
 
-    # Row: [Short | Medium | Long | Days] segmented control · days box · Run Scan
-    # Trading days, not calendar days: Tadawul runs Sun-Thu, and the data has
-    # no Fri/Sat bars at all, so 30 here means 30 real sessions (~6 weeks).
+    def _on_market():
+        _v = st.session_state.get('sc_market_seg')
+        if not _v:                       # tapping the active segment clears it
+            st.session_state.sc_market_seg = st.session_state.sc_market
+            return
+        st.session_state.sc_market = _v
+        # sc_requested stays as it is: with a scan on screen the new market is
+        # scanned right away (or restored from its 20-minute cache); before the
+        # first scan the page still waits for Run Scan.
+        st.session_state.sc_results         = None
+        st.session_state.sc_done            = False
+        st.session_state.sc_focus           = None
+        st.session_state.sc_show_all_strats = False
+        st.session_state.lsc_show_all       = False
+        st.session_state.lsc_open           = None
+        st.session_state.sc_search_q        = ''
+
+    if not st.session_state.get('sc_market_seg'):
+        st.session_state.sc_market_seg = _mk
+
+    # Row: Market · [Short | Medium | Long | Days] segmented control · days box · Run Scan
+    # Trading days, not calendar days: both stock markets run Sun-Thu, futures
+    # Mon-Fri, and the data has no bars on their weekends at all, so 30 here means
+    # 30 real sessions (~6 weeks).
     _days_active = _sc_days_selected(st.session_state.sc_period)
     _cur_seg = 'Days' if _days_active else st.session_state.sc_period
 
@@ -2947,15 +3158,23 @@ def render_auto_scanner_page() -> None:
 
     if not st.session_state.get('sc_seg'):
         st.session_state.sc_seg = _cur_seg
-    _r1 = st.columns([4.2, 1.1, 1.5], gap="medium", vertical_alignment="center")
+    _r1 = st.columns([3.3, 3.6, 1.05, 1.25], gap="medium", vertical_alignment="bottom")
     with _r1[0]:
+        st.markdown(f"<div class='sc-flt-l'>Market{_q(21)}</div>", unsafe_allow_html=True)
+        with st.container(key="sc_market_box"):
+            st.segmented_control(
+                "Market", list(MARKETS), format_func=lambda _k: MARKETS[_k]['label'],
+                key="sc_market_seg", on_change=_on_market, selection_mode="single",
+                label_visibility="collapsed")
+    with _r1[1]:
+        st.markdown(f"<div class='sc-flt-l'>Period{_q(2)}</div>", unsafe_allow_html=True)
         with st.container(key="sc_seg_box"):
             st.segmented_control(
                 "Period", _PERIODS + ['Days'], key="sc_seg", on_change=_on_seg,
                 selection_mode="single", label_visibility="collapsed",
                 help=_PERIOD_LBL_HELP + " Days = choose your own number of "
                      f"trading days ({_DAYS_MIN}-{_DAYS_MAX}).")
-    with _r1[1]:
+    with _r1[2]:
         if _days_active:
             with st.container(key="sc_days_box"):
                 _dn = st.number_input(
@@ -2970,7 +3189,7 @@ def render_auto_scanner_page() -> None:
                 st.session_state.sc_done      = False
                 st.session_state.sc_requested = False
                 st.rerun()
-    with _r1[2]:
+    with _r1[3]:
         with st.container(key="sc_run"):
             if st.button("Run Scan", key="sc_run_btn", use_container_width=True,
                          help=_SCAN_HELP):
@@ -2990,7 +3209,7 @@ def render_auto_scanner_page() -> None:
         # Reuse a finished result for this period if it's still fresh (20 min,
         # matching the underlying data cache) so repeat runs are instant.
         _sc_cache = st.session_state.setdefault('_sc_full_cache', {})
-        _cached   = _sc_cache.get(f"{_sel_period}|v3")
+        _cached   = _sc_cache.get(f"{_mk}|{_sel_period}|v3")
         if _cached is not None and (_time.time() - _cached[0]) < 1200:
             st.session_state.sc_results         = _cached[1]
             if len(_cached) > 2:
@@ -3008,9 +3227,9 @@ def render_auto_scanner_page() -> None:
         #    6mo/2y (the scoring window has to be long enough to split into a
         #    fitted half and a held-back half), so a cold run takes longer.
         try:
-            with st.spinner("Downloading Tadawul history in one request… "
+            with st.spinner(f"Downloading {_M['in_text']} history in one request… "
                             "(up to ~2 min cold for 5 years of data)"):
-                _raw = download_all_raw(tuple(_ALL_SYMS), _sel_period, _v=19)
+                _raw = download_all_raw(tuple(_ALL_SYMS), _sel_period, _v=19, clean=_M['clean'])
         except Exception:
             # Download failed (network / cold connection). Reset so the button
             # returns to a ready state instead of leaving the UI stuck loading.
@@ -3036,7 +3255,7 @@ def render_auto_scanner_page() -> None:
                     _out.append(_data)
             if _i % 3 == 0 or _i == _tot - 1:
                 _prog.progress((_i + 1) / _tot,
-                               text=f"Analysing {_sym.replace('.SR','')} ({_i+1}/{_tot})")
+                               text=f"Analysing {_short(_sym)} ({_i+1}/{_tot})")
         _prog.empty()
         # Keep the raw OHLCV so Live Signal Check cards can reuse it instead of
         # re-downloading every firing stock one by one.
@@ -3048,7 +3267,7 @@ def render_auto_scanner_page() -> None:
         # '|v3': results from before rows without a close were dropped and the
         # 7 indicators were corrected
         # (they showed 'nan' prices) must not be reused.
-        _sc_cache[f"{_sel_period}|v3"] = (_time.time(), _out, _raw)
+        _sc_cache[f"{_mk}|{_sel_period}|v3"] = (_time.time(), _out, _raw)
         st.rerun()
 
     if not st.session_state.sc_requested:
@@ -3056,9 +3275,9 @@ def render_auto_scanner_page() -> None:
             "<div style='background:#FFFFFF;border:1px solid #DEDEE3;"
             "border-radius:12px;padding:4rem 2rem;text-align:center;'>"
             "<div style='font-size:1rem;font-weight:800;color:#6E6E75;'>"
-            "Choose a period above, then tap ↻ Run Scan</div>"
-            "<div style='font-size:0.68rem;color:#6E6E75;margin-top:0.5rem;'>"
-            "The scanner does not run automatically — pick Short / Medium / Long, "
+            "Choose a market and a period above, then tap Run Scan</div>"
+            "<div style='font-size:0.8rem;color:#6E6E75;margin-top:0.5rem;'>"
+            "The scanner does not run automatically — pick a market and Short / Medium / Long, "
             "then start the scan.</div></div>",
             unsafe_allow_html=True)
         return
@@ -3118,22 +3337,45 @@ def render_auto_scanner_page() -> None:
             "No profitable strategy found</div>"
             "<div style='font-size:0.66rem;color:#6E6E75;margin-top:0.5rem;"
             "line-height:1.5;'>"
-            f"None of the {len(_rows_all)} scanned stocks had an indicator combo "
+            f"None of the {len(_rows_all)} scanned {_M['nouns']} had an indicator combo "
             "that made money in any regime over this period."
             "</div></div>",
             unsafe_allow_html=True)
         return
 
+    # ── commodities: every price at a glance, gold and silver first ──────────
+    # Gold and silver have to be visible whether or not they have a signal today.
+    if _mk == 'COM':
+        _px_dfs = (st.session_state.get('_sc_raw') or {}).get('dfs') or {}
+        _px_tiles = ''
+        for _s, _nm in _ticker_map.items():
+            _d = _px_dfs.get(_s)
+            if _d is None or len(_d) < 2:
+                continue
+            _c0, _c1 = float(_d['Close'].iloc[-2]), float(_d['Close'].iloc[-1])
+            _chg = round((_c1 / _c0 - 1) * 100, 1) if _c0 else 0.0
+            _px_tiles += (
+                f"<div class='sc-pt'><div class='sc-pt-n'>{_nm}</div>"
+                f"<div class='sc-pt-v'>{_fp(_c1)}</div><div class='sc-pt-s'>"
+                f"<span class='{'up' if _chg > 0 else 'dn' if _chg < 0 else ''}'>"
+                f"{'+' if _chg > 0 else '−' if _chg < 0 else ''}{abs(_chg):.1f}%</span> · "
+                f"{_unit_of(_s)}</div></div>")
+        if _px_tiles:
+            st.markdown(
+                f"<div class='sc-h3'>Commodity prices{_q(21)}"
+                "<span class='sc-h3-s'>latest price · change from the session before</span></div>"
+                f"<div class='sc-pts'>{_px_tiles}</div>",
+                unsafe_allow_html=True)
+
     # ── search bar (styled in the page CSS block) ────────────────────────────
     with st.container(key="sc_search_box"):
         _sc_query = st.text_input(
-            " ", placeholder="🔍  Search symbol or company name…",
+            " ", placeholder=f"🔍  {_M['search']}",
             key="sc_search_q", label_visibility="collapsed")
     _sc_q = (_sc_query or '').strip().lower()
     if _sc_q:
         _rows = [r for r in _rows
-                 if _sc_q in r['_sym'].replace('.SR', '').lower()
-                 or _sc_q in (r.get('_sname') or '').lower()]
+                 if _sc_q in _search_text(r['_sym'], r.get('_sname') or '')]
 
     # ── filter: decides which strategies every section below shows ───────────
     _REGIMES = ('TREND', 'RANGE', 'VOLATILE')
@@ -3156,19 +3398,21 @@ def render_auto_scanner_page() -> None:
         for _k, _v in _F_DEF:
             st.session_state[_k] = _v
 
-    _fc = st.columns([1.3, 1, 1.45, 1.5, 0.75], gap="medium", vertical_alignment="bottom")
-    # Each filter label has a "؟" to the guide: what the filter does (10), what
-    # a market regime is (3), what Validated means (18).
-    for _col, (_key, _dflt), _flbl, _fsg, _opts in zip(
-            _fc, _F_DEF, ('Win rate', 'Trades', 'Market regime', 'Validation'), (10, 10, 3, 18),
-            (_F_WR, _F_TR, _F_RG, _F_VA)):
-        with _col:
-            st.markdown(f"<div class='sc-flt-l'>{_flbl}{_q(_fsg)}</div>", unsafe_allow_html=True)
-            with st.container(key=f"sc_flt_{_key[3:]}"):
-                st.segmented_control(
-                    _flbl, list(_opts), key=_key, on_change=_keep_one,
-                    args=(_key, _dflt), selection_mode="single",
-                    label_visibility="collapsed")
+    # On a phone the filters fold away, or the table would start two screens down.
+    with (st.expander("Filters") if _PHONE else st.container()):
+        _fc = st.columns([1.3, 1, 1.45, 1.5, 0.75], gap="medium", vertical_alignment="bottom")
+        # Each filter label has a "؟" to the guide: what the filter does (10), what
+        # a market regime is (3), what Validated means (18).
+        for _col, (_key, _dflt), _flbl, _fsg, _opts in zip(
+                _fc, _F_DEF, ('Win rate', 'Trades', 'Market regime', 'Validation'), (10, 10, 3, 18),
+                (_F_WR, _F_TR, _F_RG, _F_VA)):
+            with _col:
+                st.markdown(f"<div class='sc-flt-l'>{_flbl}{_q(_fsg)}</div>", unsafe_allow_html=True)
+                with st.container(key=f"sc_flt_{_key[3:]}"):
+                    st.segmented_control(
+                        _flbl, list(_opts), key=_key, on_change=_keep_one,
+                        args=(_key, _dflt), selection_mode="single",
+                        label_visibility="collapsed")
     _f_wr = _F_WR[st.session_state.sc_f_wr]
     _f_tr = _F_TR[st.session_state.sc_f_tr]
     _f_rg = _F_RG[st.session_state.sc_f_rg]
@@ -3200,7 +3444,7 @@ def render_auto_scanner_page() -> None:
     _rows = [r for r in _rows if any(_strats(r, _rn) for _rn in _REGIMES)]
     if _f_on:
         st.markdown(
-            f"<div class='sc-flt-sum'><b>{len(_rows)}</b> of {_n_searched} stocks have a "
+            f"<div class='sc-flt-sum'><b>{len(_rows)}</b> of {_n_searched} {_M['nouns']} have a "
             "strategy that matches the filter</div>",
             unsafe_allow_html=True)
     if not _rows:
@@ -3208,10 +3452,10 @@ def render_auto_scanner_page() -> None:
             "<div style='background:var(--card);border:1px solid var(--hair);"
             "border-radius:var(--r-lg);padding:3rem 1.5rem;text-align:center;'>"
             "<div style='font-size:1.05rem;font-weight:600;color:var(--t1);'>"
-            "No stock matches</div>"
+            f"No {_M['noun']} matches</div>"
             "<div style='font-size:0.9rem;color:var(--t2);margin-top:0.4rem;'>"
             + ("Try a lower win rate, fewer trades, another market regime or Validation All."
-               if _f_on else "Try another symbol or company name.")
+               if _f_on else "Try another symbol or name.")
             + "</div></div>",
             unsafe_allow_html=True)
         return
@@ -3260,8 +3504,8 @@ def render_auto_scanner_page() -> None:
         + f"</div>"
         f"<div class='lsc-section-line-r'></div>"
         f"</div>"
-        f"<div class='sc-h2-s' style='margin:-0.6rem 0 1.2rem;'>Stocks where a strategy for "
-        f"today's market regime started a buy signal in the last {_LIVE_MAX_AGE + 1} trading days. "
+        f"<div class='sc-h2-s' style='margin:-0.6rem 0 1.2rem;'>{_M['nouns'].capitalize()} where a "
+        f"strategy for today's market regime started a buy signal in the last {_LIVE_MAX_AGE + 1} trading days. "
         f"Highest win rate first.</div>" + _IND_LEGEND,
         unsafe_allow_html=True)
 
@@ -3273,20 +3517,14 @@ def render_auto_scanner_page() -> None:
             "text-transform:uppercase;letter-spacing:1.2px;'>No best-fit signals</div>"
             "<div style='font-size:0.62rem;color:#6E6E75;margin-top:0.4rem;'>"
             + ("No live signal matches the filter" if _f_on else
-               f"No stock's current-regime strategy triggered in the last "
+               f"No {_M['noun']}'s current-regime strategy triggered in the last "
                f"{_LIVE_MAX_AGE + 1} trading days")
             + "</div></div>",
             unsafe_allow_html=True)
     else:
-        # chart expand state
-        if 'lsc_chart_open' not in st.session_state:
-            st.session_state.lsc_chart_open = {}
-
         _LSC_PREVIEW = 10
         if 'lsc_show_all' not in st.session_state:
             st.session_state.lsc_show_all = False
-        _fire_rows_shown = (_fire_rows if st.session_state.lsc_show_all
-                            else _fire_rows[:_LSC_PREVIEW])
         _raw_cache = st.session_state.get('_sc_raw') or {}
         _raw_dfs   = (_raw_cache.get('dfs') or {}) if _raw_cache.get('period') == _sel_period else {}
 
@@ -3295,25 +3533,31 @@ def render_auto_scanner_page() -> None:
             df = _raw_dfs.get(sym)
             if df is None:
                 from scanner_engine import get_stock_df as _gsd
-                df = _gsd(sym, _sel_period, _v=2)
+                df = _gsd(sym, _sel_period, _v=2, clean=_M['clean'])
             return df
 
-        # ── price levels of a live signal (shared by the cards and the table) ──
+        # ── price levels of a live signal ─────────────────────────────────────
         _RR_COL = {'Great': '#1B7A36', 'Good': '#A34800', 'Weak': '#C1121F'}
         _lv_cache = st.session_state.setdefault('_lsc_levels', {})
 
         def _lsc_levels(sym, df, price):
             """Entry / stop / targets from the stock's price structure, with the %
-            distances and risk:reward the cards and the table show. None when they
-            can't be computed. Cached: the table needs every live stock each rerun."""
+            distances and risk:reward the table shows. None when they can't be
+            computed. Cached: the table needs every live stock each rerun."""
             if df is None or price <= 0:
                 return None
             key = (_sel_period, sym, len(df), round(price, 4))
             if key not in _lv_cache:
                 try:
                     from _levels import compute_structural_levels
-                    lv = compute_structural_levels(df, price, True)
-                    en, sl, t1, t2 = lv['entry'], lv['stop'], lv['t1'], lv['t2']
+                    # _levels rounds to 2 decimals, far too coarse for a 0.30 EGP
+                    # stock or 2.90 USD natural gas, so those are computed on
+                    # scaled prices. Saudi stocks keep the levels they always had.
+                    k = 1 if _mk == 'SA' or price >= 10 else 100 if price >= 1 else 1000
+                    if k > 1:
+                        df = df.assign(**{c: df[c] * k for c in ('Open', 'High', 'Low', 'Close')})
+                    lv = compute_structural_levels(df, price * k, True)
+                    en, sl, t1, t2 = (lv[n] / k for n in ('entry', 'stop', 't1', 't2'))
                     rp  = round(abs(en - sl) / en * 100, 1) if en else 0
                     t1p = round((t1 - en) / en * 100, 1) if en else 0
                     t2p = round((t2 - en) / en * 100, 1) if en else 0
@@ -3333,742 +3577,13 @@ def render_auto_scanner_page() -> None:
             st.session_state.sc_focus = sym
             st.session_state.sc_focus_nonce = st.session_state.get('sc_focus_nonce', 0) + 1
 
-        for _ri in range(0, len(_fire_rows_shown), 2):
-            _pair = _fire_rows_shown[_ri:_ri + 2]
-            # Always 2 columns so a lone last card keeps the same width.
-            _grid = st.columns(2, gap="medium")
-            # Full-width area under this pair: an opened chart renders here
-            # instead of inside its card's column (which left the other column
-            # empty next to a tall chart).
-            _chart_area = st.container()
-            for _lsc_pos, (_col_slot, _row) in enumerate(zip(_grid, _pair), _ri + 1):
-             with _col_slot:
-              _sym        = _row['_sym']
-              _sname      = _row['_sname']
-              _sym_d      = _sym.replace('.SR', '')
-              _regs       = _row.get('regimes', {})
-              _price      = float(_row.get('price', 0) or 0)
-              _cur_regime = _row.get('current_regime', 'RANGE')
-              _df_f       = _stock_df(_sym)
+        def _toggle_row(sym):
+            # One row open at a time; tapping it again closes it.
+            st.session_state.lsc_open = None if st.session_state.get('lsc_open') == sym else sym
+            st.session_state.lsc_open_nonce = st.session_state.get('lsc_open_nonce', 0) + 1
 
-              # Only the CURRENT regime's strategies count (do not advertise
-              # off-regime signals). The highest-ranked live one leads the card;
-              # any other live ones are listed under it.
-              _live = _live_shown(_row)
-              if not _live:
-                  continue
-
-              _best_rname = _cur_regime
-              _best_combo = _live[0]
-              # Rank of the leading live strategy within its regime (1 = best),
-              # in the same order Scanned Strategies lists them.
-              _reg_list = _strats(_row, _cur_regime)
-              _best_rank = next((_i + 1 for _i, _c in enumerate(_reg_list)
-                                 if _c is _best_combo), 1)
-              _same_df = _sym in _raw_dfs   # same bars the engine indexed
-              _best_col   = _REGIME_COLORS.get(_best_rname, '#5C5C63')
-              _inds   = _best_combo.get('indicators', [])
-              _alts   = _live[1:]
-
-              # price ladder
-              _ladder = ''; _en = _sl_p = _t1 = _t2 = 0.0
-              _lvx = _lsc_levels(_sym, _df_f, _price)
-              if _lvx:
-                  try:
-                      _en, _sl_p, _t1, _t2 = _lvx['entry'], _lvx['stop'], _lvx['t1'], _lvx['t2']
-                      _eq   = _lvx['quality']
-                      _rp, _t1p, _t2p, _rr = (_lvx['sl_pct'], _lvx['t1_pct'],
-                                              _lvx['t2_pct'], _lvx['rr'])
-                      _rr_c = _RR_COL[_lvx['rr_label']]
-                      # tooltip text per quality level
-                      _eq_tips = {
-                          'OPTIMAL':  'Price is right at structural support — best possible entry. Low risk of stop hunt.',
-                          'GOOD':     'Price is near support but slightly extended. Still a valid entry with manageable risk.',
-                          'ELEVATED': 'Price has moved away from support. Risk is higher — consider waiting for a pullback.',
-                          'CHASING':  'Price is far from support. Entering here risks a large stop or getting caught in a reversal.',
-                      }
-                      _eq_tip = _eq_tips.get(_eq, '')
-                      _eq_html = (
-                          f"<div class='lsc-lp' style='color:var(--t2);font-weight:500;' "
-                          f"title='{_eq_tip}'>{_eq.title()} entry</div>"
-                      ) if _eq else ''
-                      # Ordered low → high price: Stop, Entry, Target 1, Target 2.
-                      _ladder = (
-                          f"<div class='lsc-ladder'>"
-                          f"<div class='lsc-lc'><div class='lsc-ll'>{_term('Stop loss', 11)}</div>"
-                          f"<div class='lsc-lv'>{_sl_p:.2f}</div>"
-                          f"<div class='lsc-lp' style='color:var(--red);'>−{_rp}%</div></div>"
-                          f"<div class='lsc-lc' style='background:var(--blue-bg);'>"
-                          f"<div class='lsc-ll'>{_term('Entry', 11)}</div>"
-                          f"<div class='lsc-lv'>{_en:.2f}</div>{_eq_html}</div>"
-                          f"<div class='lsc-lc'><div class='lsc-ll'>{_term('Target 1', 11)}</div>"
-                          f"<div class='lsc-lv'>{_t1:.2f}</div>"
-                          f"<div class='lsc-lp' style='color:var(--green);'>+{_t1p}%</div></div>"
-                          f"<div class='lsc-lc'><div class='lsc-ll'>{_term('Target 2', 11)}</div>"
-                          f"<div class='lsc-lv'>{_t2:.2f}</div>"
-                          f"<div class='lsc-lp' style='color:var(--green);'>+{_t2p}%</div></div>"
-                          f"<div class='lsc-lc'><div class='lsc-ll'>{_term('Risk : Reward', 19)}</div>"
-                          f"<div class='lsc-lv'>1 : {_rr:.1f}</div>"
-                          f"<div class='lsc-lp' data-sg='19' style='color:{_rr_c};'>"
-                          f"{_lvx['rr_label']}"
-                          f"</div></div>"
-                          f"</div>")
-                  except Exception:
-                      pass
-
-              # ── Compute "when did this strategy fire" (date + time) ───────
-              # Used inline next to the indicators row. No volume/trend/earnings
-              # context badges — the user only cares about the signal itself.
-              _fire_when_txt = ''
-              _fire_when_c   = '#A34800'
-              _eng_age  = _best_combo.get('signal_age')
-              _eng_date = _best_combo.get('signal_date')
-              if _eng_age is not None and _eng_date:
-                  # The engine already found the signal bar — no need to
-                  # rebuild every indicator for each card on every rerun.
-                  _label = ('Latest session' if _eng_age == 0 else
-                            '1 session earlier' if _eng_age == 1 else
-                            f'{_eng_age} sessions earlier')
-                  _fire_when_txt = f"{_label} · {_eng_date} 15:00"
-                  _fire_when_c = ('#1B7A36' if _eng_age == 0 else
-                                  '#1B7A36' if _eng_age == 1 else
-                                  '#A34800' if _eng_age <= 5 else '#C1121F')
-              elif _df_f is not None and len(_df_f) >= 21:
-                  try:
-                      import numpy as _np2
-                      from scanner_engine import _build_states as _bs2
-                      _st2 = _bs2(_df_f)
-                      _N2 = len(_df_f)
-                      if _inds and all(k in _st2 for k in _inds):
-                          _ca2 = _st2[_inds[0]].copy()
-                          for _ik2 in _inds[1:]:
-                              _ca2 = _ca2 & _st2[_ik2]
-                          _ed2 = _np2.zeros(_N2, dtype=_np2.int8)
-                          _ed2[1:] = ((_ca2[1:] == 1) & (_ca2[:-1] == 0)).astype(_np2.int8)
-                          _fires2 = _np2.where(_ed2 == 1)[0]
-                          if len(_fires2):
-                              _last_fire_i = int(_fires2[-1])
-                              _bars_ago    = _N2 - 1 - _last_fire_i
-                              # daily bars — show date + close-time (15:00 KSA)
-                              _fire_ts = (_df_f['Date'].iloc[_last_fire_i]
-                                          if 'Date' in _df_f.columns else None)
-                              _fire_date_s = (str(_fire_ts)[:10]
-                                              if _fire_ts is not None else '')
-                              _label = ('Today' if _bars_ago == 0 else
-                                        '1 day ago' if _bars_ago == 1 else
-                                        f'{_bars_ago} days ago')
-                              # KSA market close is 15:00; daily bar closes then
-                              _fire_when_txt = (f"{_label} · {_fire_date_s} 15:00"
-                                                if _fire_date_s else _label)
-                              # Today=green (fresh), 1d=teal, ≤5d=amber, >5d=red
-                              _fire_when_c = ('#1B7A36' if _bars_ago == 0 else
-                                              '#1B7A36' if _bars_ago == 1 else
-                                              '#A34800' if _bars_ago <= 5 else
-                                              '#C1121F')
-                  except Exception:
-                      pass
-
-              # indicator tags
-              _ind_tags = _chips(_inds)
-
-              # rank medal color
-              # firing-time chip (solid-color filled, dark text)
-              _fire_chip = (
-                  f"<span style='margin-left:auto;font-size:0.6rem;font-weight:800;"
-                  f"padding:0.22rem 0.6rem;border-radius:6px;"
-                  f"background:{_fire_when_c};color:#FFFFFF;"
-                  f"text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;'>"
-                  f"{_fire_when_txt}</span>"
-              ) if _fire_when_txt else ''
-
-              # The card is the entry plan only. The strategy's numbers, and the
-              # other strategies that also signalled, live in Scanned Strategies
-              # (one tap away with "View strategy"), so only their count is here.
-              _more = (f"<span class='lsc-more' data-sg='10' title='{len(_alts)} more "
-                       f"{'strategy' if len(_alts) == 1 else 'strategies'} for this regime "
-                       f"also started a signal in the last {_LIVE_MAX_AGE + 1} trading days. "
-                       f"View strategy shows them.'>+{len(_alts)} more signalling</span>"
-                       if _alts else '')
-
-              # ── main card ─────────────────────────────────────────────────
-              _rank_lbl = ('Best fit' if _best_rank == 1 else f'Strategy #{_best_rank}')
-
-              st.markdown(
-                  "<div class='lsc-card2'>"
-                  # header: symbol · name · price
-                  "<div class='lsc-hdr2'>"
-                  f"<span class='sc-rank{' sc-rank-top' if _lsc_pos <= 3 else ''}' "
-                  f"title='Rank: highest win rate first'>{_lsc_pos}</span>"
-                  f"<span class='lsc-sym2'>{_sym_d}</span>"
-                  + (f"<span class='lsc-name2'>{_sname}</span>" if _sname else '')
-                  + f"<span class='lsc-price2'>{_price:.2f}<small>SAR</small></span>"
-                  "</div>"
-                  # regime · rank · validation · when
-                  "<div class='lsc-strat2' style='padding-bottom:0.6rem;'>"
-                  f"<span class='lsc-regime2' data-sg='3' title='{_REGIME_HELP.get(_best_rname, '')}'>"
-                  f"{_REGIME_ICON.get(_best_rname, '')} {_best_rname.title()} · {_rank_lbl}</span>"
-                  + _val_badge(_best_combo)
-                  + _more
-                  + (f"<span class='lsc-when' data-sg='5' style='background:{_fire_when_c}1a;"
-                     f"color:{_fire_when_c};'>{_fire_when_txt}</span>"
-                     if _fire_when_txt else '')
-                  + "</div>"
-                  # indicators
-                  f"<div class='lsc-strat2'>{_ind_tags}{_q(4)}</div>"
-                  + (f"<div class='lsc-ladder-wrap'>{_ladder}</div>" if _ladder else '')
-                  + "</div>",
-                  unsafe_allow_html=True)
-
-              # ── chart toggle · jump to the stock's strategies ─────────────────
-              _chart_key = f"lsc_chart_{_sym_d}"
-              _is_open   = st.session_state.lsc_chart_open.get(_chart_key, False)
-              _bc1, _bc2 = st.columns(2, gap="small")
-              with _bc1, st.container(key=f"lsc_ctoggle_{_sym_d}"):
-                  if st.button(
-                      f"{'Hide chart' if _is_open else 'Show chart'}",
-                      key=f"lsc_chart_btn_{_sym_d}",
-                      use_container_width=True):
-                      st.session_state.lsc_chart_open[_chart_key] = not _is_open
-                      st.rerun()
-              with _bc2, st.container(key=f"lsc_goto_{_sym_d}"):
-                  st.button("View strategy ↓", key=f"lsc_goto_btn_{_sym_d}",
-                            on_click=_goto_strategy, args=(_sym_d,),
-                            use_container_width=True,
-                            help="Jump to this stock's strategies in Scanned Strategies")
-
-              # ── chart (shown when open) ───────────────────────────────────────
-              if _is_open and _df_f is not None:
-                with _chart_area, st.container(key=f"lsc_chartwrap_{_sym_d}"):
-                    try:
-                        import plotly.graph_objects as go
-                        import numpy as _np
-                        import pandas as _pd
-                        from scanner_engine import _build_states
-
-                        _states_all = _build_states(_df_f)
-                        _N = len(_df_f)
-
-                        # Match scanner_engine._eval filters so chart markers count
-                        # equals the Wins/Losses/Total numbers in the box:
-                        #   1. drop fires too close to the end (need `hold` bars to resolve)
-                        #   2. keep only fires that happened in the card's target regime
-                        from scanner_engine import _regime_arr as _rg_arr_fn
-                        from scanner_engine import resolve_period as _rp_pre
-                        _pcfg_sel_pre = st.session_state.get('sc_period', 'Medium')
-                        _, _, _hold_pre, _, _, _ = _rp_pre(_pcfg_sel_pre)
-                        try:
-                            _reg_arr_chart = _rg_arr_fn(_df_f)
-                        except Exception:
-                            _reg_arr_chart = None
-
-                        if _inds and all(k in _states_all for k in _inds):
-                            _combo_arr = _states_all[_inds[0]].copy()
-                            for _ik in _inds[1:]:
-                                _combo_arr = _combo_arr & _states_all[_ik]
-                            _edge = _np.zeros(_N, dtype=_np.int8)
-                            _edge[1:] = ((_combo_arr[1:] == 1) & (_combo_arr[:-1] == 0)).astype(_np.int8)
-                            _raw_idxs = _np.where(_edge == 1)[0]
-                            # filter 1: drop fires with < hold bars remaining (can't resolve)
-                            _raw_idxs = _raw_idxs[_raw_idxs < _N - _hold_pre]
-                            # filter 2: keep only fires in this card's target regime
-                            if _reg_arr_chart is not None:
-                                _raw_idxs = _np.array([i for i in _raw_idxs
-                                                       if i < len(_reg_arr_chart)
-                                                       and _reg_arr_chart[i] == _best_rname])
-                            _fire_idxs     = set(_raw_idxs.tolist())
-                            # On the engine's own bars, mark exactly the trades
-                            # behind the card's Wins/Losses/Total (held-back for
-                            # validated strategies, fitted otherwise).
-                            if _same_df and _best_combo.get('signal_idxs') is not None:
-                                _fire_idxs = {int(_i) for _i in _best_combo['signal_idxs']}
-                            # Live signal = the bar the card's signal started on.
-                            _cur_firing    = _eng_age is not None and _eng_age <= _LIVE_MAX_AGE
-                            _ind_states    = {k: bool(int(_states_all[k][-1]) == 1)
-                                              for k in _inds if k in _states_all}
-                        else:
-                            _fire_idxs  = set()
-                            _cur_firing = False
-                            _ind_states = {}
-
-                        # Show enough history that every counted signal is visible.
-                        # The Total/Wins/Losses numbers in the box come from ALL fires
-                        # in the lookback window — so the chart must span at least back
-                        # to the earliest fire, plus a small padding for context.
-                        _first_fire = (min(_fire_idxs) if _fire_idxs else _N - 60)
-                        _tail_min   = max(60, _N - _first_fire + 10)  # at least 60 bars
-                        _offset     = max(0, _N - _tail_min)
-                        _cdf      = _df_f.iloc[_offset:].copy().reset_index(drop=True)
-                        _today_s  = str(_cdf['Date'].iloc[-1])[:10] if 'Date' in _cdf.columns else ''
-                        _xd       = (_pd.to_datetime(_cdf['Date'])
-                                     if 'Date' in _cdf.columns else list(range(len(_cdf))))
-
-                        # rich per-candle hover: OHLC + day change%, no guessing
-                        _chg_pct = ((_cdf['Close'] - _cdf['Open']) / _cdf['Open'] * 100).round(2)
-                        _hover_txt = [
-                            f"<b>{str(_cdf['Date'].iloc[_i])[:10] if 'Date' in _cdf.columns else _i}</b><br>"
-                            f"Open&nbsp;&nbsp;{_cdf['Open'].iloc[_i]:.2f}<br>"
-                            f"High&nbsp;&nbsp;{_cdf['High'].iloc[_i]:.2f}<br>"
-                            f"Low&nbsp;&nbsp;&nbsp;{_cdf['Low'].iloc[_i]:.2f}<br>"
-                            f"Close&nbsp;{_cdf['Close'].iloc[_i]:.2f}<br>"
-                            f"Chg&nbsp;&nbsp;&nbsp;{_chg_pct.iloc[_i]:+.2f}%"
-                            for _i in range(len(_cdf))
-                        ]
-
-                        # Row 1: price. Row 2: proof panel — one strip per
-                        # indicator showing the days its condition is true.
-                        from plotly.subplots import make_subplots as _mksub
-                        _n_proof = len(_inds) + 2          # + "All agree" + regime
-                        fig = _mksub(rows=2, cols=1, shared_xaxes=True,
-                                     vertical_spacing=0.035,
-                                     row_heights=[0.68, 0.32] if _n_proof <= 5 else [0.6, 0.4])
-                        fig.add_trace(go.Candlestick(
-                            x=_xd,
-                            open=_cdf['Open'], high=_cdf['High'],
-                            low=_cdf['Low'],   close=_cdf['Close'],
-                            increasing_line_color='#1FA855', decreasing_line_color='#E0282E',
-                            increasing_fillcolor='#1FA855', decreasing_fillcolor='#E0282E',
-                            line_width=1.4, whiskerwidth=0.85,
-                            text=_hover_txt, hoverinfo='text', name=''))
-
-                        # ── indicator overlays — the actual lines/bands whose
-                        # crossover made the strategy fire, drawn on real price
-                        # data so it's visible proof, not just a stat box.
-                        _OVERLAY_COLORS = {
-                            'EMA': ('#0063D1', '#8E3FBA'), 'SMA': ('#0063D1', '#8E3FBA'),
-                            'WMA': ('#A33A00',), 'HULL': ('#086F8C',), 'VWAP': ('#A34800',),
-                            'PSAR': ('#D4153F',), 'KELT': ('#A2845E', '#A2845E'),
-                            'DONCH': ('#15704A', '#15704A'), 'BB': ('#8E3FBA', '#8E3FBA'),
-                        }
-                        try:
-                            import pandas_ta as _ta_ov
-                            _c_full = _df_f['Close'].astype(float)
-                            _h_full = _df_f['High'].astype(float)
-                            _l_full = _df_f['Low'].astype(float)
-                            for _ov_k in _inds:
-                                if _ov_k == 'EMA':
-                                    _e20 = _ta_ov.ema(_c_full, 20); _e50 = _ta_ov.ema(_c_full, 50)
-                                    if _e20 is not None:
-                                        fig.add_trace(go.Scatter(x=_xd, y=_e20.iloc[_offset:],
-                                            mode='lines', line=dict(color='#0063D1', width=1.3),
-                                            name='EMA 20', hovertemplate='EMA20 %{y:.2f}<extra></extra>'))
-                                    if _e50 is not None:
-                                        fig.add_trace(go.Scatter(x=_xd, y=_e50.iloc[_offset:],
-                                            mode='lines', line=dict(color='#8E3FBA', width=1.3),
-                                            name='EMA 50', hovertemplate='EMA50 %{y:.2f}<extra></extra>'))
-                                elif _ov_k == 'SMA':
-                                    _s50 = _c_full.rolling(50).mean(); _s200 = _c_full.rolling(200).mean()
-                                    fig.add_trace(go.Scatter(x=_xd, y=_s50.iloc[_offset:],
-                                        mode='lines', line=dict(color='#0063D1', width=1.3),
-                                        name='SMA 50', hovertemplate='SMA50 %{y:.2f}<extra></extra>'))
-                                    fig.add_trace(go.Scatter(x=_xd, y=_s200.iloc[_offset:],
-                                        mode='lines', line=dict(color='#8E3FBA', width=1.3),
-                                        name='SMA 200', hovertemplate='SMA200 %{y:.2f}<extra></extra>'))
-                                elif _ov_k == 'WMA':
-                                    _w20 = _ta_ov.wma(_c_full, 20)
-                                    if _w20 is not None:
-                                        fig.add_trace(go.Scatter(x=_xd, y=_w20.iloc[_offset:],
-                                            mode='lines', line=dict(color='#A33A00', width=1.3),
-                                            name='WMA 20', hovertemplate='WMA20 %{y:.2f}<extra></extra>'))
-                                elif _ov_k == 'HULL':
-                                    _hl = _ta_ov.hma(_c_full, 16)
-                                    if _hl is not None:
-                                        fig.add_trace(go.Scatter(x=_xd, y=_hl.iloc[_offset:],
-                                            mode='lines', line=dict(color='#086F8C', width=1.3),
-                                            name='Hull MA', hovertemplate='Hull %{y:.2f}<extra></extra>'))
-                                elif _ov_k == 'VWAP':
-                                    _tp_ov = (_h_full + _l_full + _c_full) / 3
-                                    _vo_ov = _df_f['Volume'].astype(float)
-                                    _vwap_ov = (_tp_ov * _vo_ov).rolling(20).sum() / _vo_ov.rolling(20).sum()
-                                    fig.add_trace(go.Scatter(x=_xd, y=_vwap_ov.iloc[_offset:],
-                                        mode='lines', line=dict(color='#A34800', width=1.3, dash='dot'),
-                                        name='VWAP', hovertemplate='VWAP %{y:.2f}<extra></extra>'))
-                                elif _ov_k == 'PSAR':
-                                    _psar_ov = _ta_ov.psar(_h_full, _l_full, _c_full)
-                                    if _psar_ov is not None:
-                                        _long_col = [c2 for c2 in _psar_ov.columns if 'PSARl' in c2]
-                                        if _long_col:
-                                            fig.add_trace(go.Scatter(
-                                                x=_xd, y=_psar_ov[_long_col[0]].iloc[_offset:],
-                                                mode='markers', marker=dict(color='#D4153F', size=3),
-                                                name='PSAR', hovertemplate='PSAR %{y:.2f}<extra></extra>'))
-                                elif _ov_k == 'BB':
-                                    _bb_ov = _ta_ov.bbands(_c_full, 20)
-                                    if _bb_ov is not None and _bb_ov.shape[1] >= 3:
-                                        fig.add_trace(go.Scatter(x=_xd, y=_bb_ov.iloc[_offset:, 2],
-                                            mode='lines', line=dict(color='#8E3FBA', width=1, dash='dot'),
-                                            name='BB Upper', hovertemplate='BB Up %{y:.2f}<extra></extra>'))
-                                        fig.add_trace(go.Scatter(x=_xd, y=_bb_ov.iloc[_offset:, 0],
-                                            mode='lines', line=dict(color='#8E3FBA', width=1, dash='dot'),
-                                            name='BB Lower', fill='tonexty',
-                                            fillcolor='rgba(175,82,222,0.05)',
-                                            hovertemplate='BB Low %{y:.2f}<extra></extra>'))
-                                elif _ov_k == 'DONCH':
-                                    _dc_ov = _h_full.rolling(20).max()
-                                    fig.add_trace(go.Scatter(x=_xd, y=_dc_ov.iloc[_offset:],
-                                        mode='lines', line=dict(color='#15704A', width=1.1, dash='dash'),
-                                        name='Donchian Hi', hovertemplate='Donch Hi %{y:.2f}<extra></extra>'))
-                        except Exception:
-                            pass
-
-                        # past fires — W/L outcome markers. Every trade is
-                        # re-simulated with scanner_engine.simulate_trade, the
-                        # exact function the backtest uses, so the markers and
-                        # the Past signals table add up to the card's numbers.
-                        from scanner_engine import simulate_trade as _sim_trade
-                        from scanner_engine import resolve_period as _rp_b
-                        _open_arr  = _df_f['Open'].values.astype(float)
-                        _close_arr = _df_f['Close'].values.astype(float)
-                        _high_arr  = _df_f['High'].values.astype(float)
-                        _low_arr   = _df_f['Low'].values.astype(float)
-                        _, _, _hold_b, _pt_b, _sl_b, _ = _rp_b(_sel_period)
-
-                        _win_x, _win_y   = [], []
-                        _loss_x, _loss_y = [], []
-                        _sig_history_rows = []   # collect per-signal details for table
-
-                        for _fi in sorted(_fire_idxs):
-                            _ci = _fi - _offset
-                            if _ci < 0 or _ci >= len(_cdf):
-                                continue
-                            _tr = _sim_trade(int(_fi), _open_arr, _high_arr, _low_arr,
-                                             _close_arr, _hold_b, _pt_b, _sl_b)
-                            if _tr is None:
-                                continue          # unresolved — not counted in the card either
-                            _xval = _xd.iloc[_ci] if hasattr(_xd, 'iloc') else _xd[_ci]
-                            _yval = float(_cdf['Low'].iloc[_ci]) * 0.991
-                            _e0, _e1 = _tr['entry_idx'], _tr['exit_idx']
-                            _entry_p = _tr['entry']
-                            _max_price = float(_np.max(_high_arr[_e0:_e1 + 1]))
-                            _min_price = float(_np.min(_low_arr[_e0:_e1 + 1]))
-                            _sig_history_rows.append({
-                                'date': str(_df_f['Date'].iloc[_fi])[:10] if 'Date' in _df_f.columns else '',
-                                'entry_date': str(_df_f['Date'].iloc[_e0])[:10] if 'Date' in _df_f.columns else '',
-                                'entry': round(_entry_p, 2),
-                                'exit': round(_tr['exit'], 2),
-                                'max_price': round(_max_price, 2),
-                                'min_price': round(_min_price, 2),
-                                'return_pct': round(_tr['ret'] * 100, 2),
-                                'max_gain_pct': round((_max_price - _entry_p) / _entry_p * 100, 2),
-                                'max_dd_pct': round((_min_price - _entry_p) / _entry_p * 100, 2),
-                                'bars_held': _e1 - _e0 + 1,
-                                'outcome': _tr['outcome'],
-                                'reason': _tr['reason'],
-                            })
-                            if _tr['outcome'] == 'win':
-                                _win_x.append(_xval);  _win_y.append(_yval)
-                            else:
-                                _loss_x.append(_xval); _loss_y.append(_yval)
-
-                        if _win_x:
-                            fig.add_trace(go.Scatter(
-                                x=_win_x, y=_win_y, mode='markers',
-                                marker=dict(symbol='triangle-up', size=15,
-                                            color='#1FA855', opacity=1.0,
-                                            line=dict(width=1.5, color='#1FA855')),
-                                hovertemplate='<b>Win ✓</b><extra></extra>', name='Win',
-                                showlegend=False))
-                        if _loss_x:
-                            fig.add_trace(go.Scatter(
-                                x=_loss_x, y=_loss_y, mode='markers',
-                                marker=dict(symbol='triangle-up', size=15,
-                                            color='#E0282E', opacity=1.0,
-                                            line=dict(width=1.5, color='#E0282E')),
-                                hovertemplate='<b>Loss ✗</b><extra></extra>', name='Loss',
-                                showlegend=False))
-
-                        # live-signal marker on the bar the signal started
-                        _lx  = _xd.iloc[-1] if hasattr(_xd, 'iloc') else _xd[-1]
-                        _lhi = float(_cdf['High'].iloc[-1])
-                        if _cur_firing:
-                            _si_c = max(0, len(_cdf) - 1 - int(_eng_age))
-                            _sx   = _xd.iloc[_si_c] if hasattr(_xd, 'iloc') else _xd[_si_c]
-                            _slo  = float(_cdf['Low'].iloc[_si_c])
-                            fig.add_trace(go.Scatter(
-                                x=[_sx], y=[_slo * 0.988],
-                                mode='markers+text',
-                                marker=dict(symbol='triangle-up', size=16,
-                                            color='#A34800', opacity=1.0,
-                                            line=dict(width=1, color='#A34800')),
-                                text=['SIGNAL'], textposition='bottom center',
-                                textfont=dict(size=8, color='#A34800'),
-                                hovertemplate=f'SIGNAL — {_eng_date}<extra></extra>', name='',
-                                showlegend=False))
-
-                        fig.add_annotation(
-                            x=_lx, y=_lhi,
-                            text=f'<b>{_today_s}</b>',
-                            showarrow=True, arrowhead=0, arrowcolor='#D2D2D7',
-                            arrowwidth=1, ax=0, ay=-22,
-                            font=dict(size=9, color='#A34800' if _cur_firing else '#5C5C63'),
-                            bgcolor='rgba(255,255,255,0.85)', borderpad=3)
-
-                        # levels
-                        if _ladder:
-                            for _lval, _lc, _ln, _ld in [
-                                (_en,   '#0063D1', 'Entry', 'dash'),
-                                (_t1,   '#1B7A36', 'T1',    'dot'),
-                                (_t2,   '#15704A', 'T2',    'dot'),
-                                (_sl_p, '#C1121F', 'Stop',  'dashdot')]:
-                                fig.add_hline(
-                                    row=1, col=1,
-                                    y=_lval, line_color=_lc, line_dash=_ld,
-                                    line_width=1.4, opacity=0.9,
-                                    annotation_text=f'<b>{_ln}</b> {_lval:.2f}',
-                                    annotation_font_color=_lc, annotation_font_size=9,
-                                    annotation_bgcolor='rgba(255,255,255,0.85)',
-                                    annotation_position='right')
-
-                        # ── proof panel ─────────────────────────────────────
-                        # One strip per indicator: coloured on the days its
-                        # condition is true (same _build_states the scan used),
-                        # then "All agree" (the AND) and the regime filter. A
-                        # trade is opened exactly where "All agree" switches
-                        # on during a day of this regime — that's what the
-                        # triangles on both rows mark.
-                        _proof_rows = []
-                        try:
-                            for _k in _inds:
-                                if _k in _states_all:
-                                    _ti = _IND_TYPE_OF.get(_k)
-                                    _proof_rows.append((_ind_label([_k]),
-                                                        _states_all[_k][_offset:].astype(int),
-                                                        _IND_TYPES[_ti][1] if _ti is not None else '#3F3F46'))
-                            if _inds and all(k in _states_all for k in _inds):
-                                _proof_rows.append(('All agree', _combo_arr[_offset:].astype(int), '#111114'))
-                            if _reg_arr_chart is not None:
-                                _proof_rows.append((f'{_best_rname.title()} regime',
-                                                    (_np.asarray(_reg_arr_chart[_offset:]) == _best_rname).astype(int),
-                                                    '#8A8A91'))
-                            # Drawn as a grey track + coloured squares on the
-                            # "true" days (a Heatmap on this category axis
-                            # crashes plotly.js in a subplot layout).
-                            _xl = list(_xd)
-                            for _lb, _z, _cl in _proof_rows:
-                                fig.add_trace(go.Scatter(
-                                    x=_xl, y=[_lb] * len(_xl), mode='lines',
-                                    line=dict(color='#EDEDF1', width=10),
-                                    hoverinfo='skip', showlegend=False), row=2, col=1)
-                                _on = [_xl[_q] for _q in range(len(_xl)) if _z[_q]]
-                                if _on:
-                                    fig.add_trace(go.Scatter(
-                                        x=_on, y=[_lb] * len(_on), mode='markers',
-                                        marker=dict(symbol='square', size=9, color=_cl,
-                                                    line=dict(width=0)),
-                                        hovertemplate=f'{_lb}: <b>true</b><br>%{{x|%d %b %Y}}<extra></extra>',
-                                        showlegend=False), row=2, col=1)
-                            # trade entries on the "All agree" strip
-                            if _win_x:
-                                fig.add_trace(go.Scatter(
-                                    x=_win_x, y=['All agree'] * len(_win_x), mode='markers',
-                                    marker=dict(symbol='triangle-up', size=11, color='#1FA855',
-                                                line=dict(width=1, color='#FFFFFF')),
-                                    hovertemplate='Signal → win<extra></extra>', showlegend=False),
-                                    row=2, col=1)
-                            if _loss_x:
-                                fig.add_trace(go.Scatter(
-                                    x=_loss_x, y=['All agree'] * len(_loss_x), mode='markers',
-                                    marker=dict(symbol='triangle-up', size=11, color='#E0282E',
-                                                line=dict(width=1, color='#FFFFFF')),
-                                    hovertemplate='Signal → loss<extra></extra>', showlegend=False),
-                                    row=2, col=1)
-                        except Exception:
-                            _proof_rows = []
-
-                        fig.update_layout(
-                            xaxis2=dict(type='date', tickformat='%d %b', showgrid=False,
-                                        tickfont=dict(size=10, color='#3F3F46'), nticks=10),
-                            yaxis2=dict(type='category', autorange='reversed', showgrid=False,
-                                        side='left', automargin=True, ticksuffix='  ',
-                                        tickfont=dict(size=11, color='#111114')),
-                        )
-                        fig.update_layout(
-                            paper_bgcolor='#FFFFFF', plot_bgcolor='#FFFFFF',
-                            margin=dict(l=110 if _proof_rows else 4, r=86, t=32, b=10),
-                            height=440 + 30 * len(_proof_rows),
-                            font=dict(family='sans-serif'),
-                            xaxis=dict(showgrid=True, gridcolor='#DEDEE3', zeroline=False,
-                                       rangeslider=dict(visible=False),
-                                       type='date', tickformat='%d %b',
-                                       tickfont=dict(size=10, color='#5C5C63'), nticks=10),
-                            yaxis=dict(showgrid=True, gridcolor='#DEDEE3', zeroline=False,
-                                       tickfont=dict(size=10, color='#5C5C63'), side='right'),
-                            legend=dict(orientation='h', yanchor='bottom', y=1.01,
-                                        xanchor='left', x=0, font=dict(size=9, color='#3F3F46'),
-                                        bgcolor='rgba(255,255,255,0)'),
-                            showlegend=False,
-                            hoverlabel=dict(bgcolor='#F2F2F5', bordercolor='#DEDEE3',
-                                             font=dict(size=11, color='#111114', family='monospace')))
-                        fig.update_xaxes(showspikes=True, spikecolor='#D2D2D7', spikethickness=1,
-                                          spikemode='across', spikedash='dot')
-                        fig.update_yaxes(showspikes=True, spikecolor='#D2D2D7', spikethickness=1,
-                                          spikemode='across', spikedash='dot')
-
-                        # indicator pills
-                        _ind_pills = ''.join(
-                            f"<span style='display:inline-flex;align-items:center;gap:0.25rem;"
-                            f"padding:0.15rem 0.5rem;border-radius:20px;font-size:0.6rem;"
-                            f"font-weight:900;"
-                            f"background:{'rgba(52,199,89,0.14)' if _ind_states.get(k) else 'rgba(255,59,48,0.08)'};"
-                            f"border:1px solid {'rgba(52,199,89,0.4)' if _ind_states.get(k) else 'rgba(255,59,48,0.22)'};"
-                            f"color:{'#1B7A36' if _ind_states.get(k) else '#C1121F'};'>"
-                            f"{'●' if _ind_states.get(k) else '○'}&thinsp;{_ind_label([k])}</span>"
-                            for k in _inds)
-
-                        _fire_lbl = (
-                            f"<span class='lsc-when' style='background:var(--orange-bg);"
-                            f"color:var(--orange);'>Signal · {_eng_date or _today_s}</span>"
-                            if _cur_firing else
-                            f"<span style='color:var(--t3);font-size:0.8rem;'>Last bar {_today_s}</span>")
-
-                        st.markdown(
-                            "<div class='lsc-card2' style='margin-top:0.4rem;border-radius:var(--r-lg) var(--r-lg) 0 0;"
-                            "border-bottom:none;box-shadow:none;'>"
-                            "<div class='lsc-hdr2' style='padding-bottom:0.5rem;'>"
-                            f"<span style='font-size:1rem;font-weight:600;color:var(--t1);'>Signal history · {_sym_d}"
-                            f"<span style='font-weight:400;color:var(--t2);margin-left:0.4rem;'>{_sname}</span></span>"
-                            "<span class='sc-vb sc-vb-ok'>▲ Win</span>"
-                            "<span class='sc-vb sc-vb-bad'>▲ Loss</span>"
-                            f"<span style='margin-left:auto;'>{_fire_lbl}</span></div>"
-                            f"<div class='lsc-strat2' style='padding-bottom:0.6rem;'>{_ind_pills}</div>"
-                            "</div>",
-                            unsafe_allow_html=True)
-                        # theme=None: keep this light chart's own colours (the
-                        # Streamlit theme follows the app's dark mode).
-                        st.plotly_chart(fig, use_container_width=True, theme=None,
-                                        config={'displayModeBar': False,
-                                                'modeBarButtonsToRemove': [
-                                                    'lasso2d', 'select2d', 'autoScale2d'],
-                                                'displaylogo': False,
-                                                'scrollZoom': True})
-
-                        # Build Signal History Table HTML
-                        _table_html = ""
-                        if _sig_history_rows:
-                            _sorted_rows = sorted(_sig_history_rows, key=lambda x: x['date'], reverse=True)
-                            _tbody_rows = ""
-                            for _ridx, _r in enumerate(_sorted_rows):
-                                _is_win    = _r['outcome'] == 'win'
-                                _out_color = '#1FA855' if _is_win else '#E0282E'
-                                _out_rgb   = '47,211,174' if _is_win else '255,95,90'
-                                _out_badge = (
-                                    f"<span class='sc-vb sc-vb-{'ok' if _is_win else 'bad'}'>"
-                                    f"{'Win' if _is_win else 'Loss'}</span>")
-
-                                _ret_color = ('#1FA855' if _r['return_pct'] > 0
-                                              else '#E0282E' if _r['return_pct'] < 0 else '#5C5C63')
-                                _ret_val = f"{_r['return_pct']:+.2f}%"
-                                _max_gain_val = f"{_r['max_gain_pct']:+.2f}%"
-                                _max_dd_val   = f"{_r['max_dd_pct']:+.2f}%"
-
-                                _reason_txt = {'target': 'hit target', 'stop': 'hit stop',
-                                               'time': 'time exit'}.get(_r.get('reason'), '')
-                                _row_tip = (
-                                    f"Signal on {_r['date']} (all indicators agreed at that close); "
-                                    f"entered next day {_r.get('entry_date', '')} at the open {_r['entry']:.2f}, "
-                                    f"exited {_r['exit']:.2f} ({_reason_txt}) after {_r['bars_held']} day(s) — "
-                                    f"{_r['outcome'].upper()} ({_ret_val}). "
-                                    f"Best case reached {_r['max_price']:.2f} ({_max_gain_val}), "
-                                    f"worst case dipped to {_r['min_price']:.2f} ({_max_dd_val})."
-                                )
-                                _row_bg = '#FFFFFF' if _ridx % 2 == 0 else '#F9F9FB'
-
-                                _tbody_rows += (
-                                    f"<tr class='sig-hist-row' title='{_row_tip}' "
-                                    f"style='background:{_row_bg};border-bottom:1px solid #DEDEE3;'>"
-                                    f"<td style='padding:0.6rem 0.5rem;white-space:nowrap;"
-                                    f"color:#3F3F46;font-weight:700;vertical-align:middle;'>{_r['date']}</td>"
-                                    f"<td style='padding:0.6rem 0.5rem;vertical-align:middle;'>{_out_badge}</td>"
-                                    f"<td style='padding:0.6rem 0.5rem;text-align:right;font-weight:800;"
-                                    f"vertical-align:middle;color:#111114;'>{_r['entry']:.2f}</td>"
-                                    f"<td style='padding:0.6rem 0.5rem;text-align:right;vertical-align:middle;'>"
-                                    f"<span style='color:#1FA855;font-weight:700;'>{_r['max_price']:.2f}</span><br/>"
-                                    f"<span style='font-size:0.56rem;font-weight:800;color:#1FA855;"
-                                    f"background:rgba(47,211,174,0.1);padding:1px 5px;border-radius:8px;'>{_max_gain_val}</span></td>"
-                                    f"<td style='padding:0.6rem 0.5rem;text-align:right;vertical-align:middle;'>"
-                                    f"<span style='color:#E0282E;font-weight:700;'>{_r['min_price']:.2f}</span><br/>"
-                                    f"<span style='font-size:0.56rem;font-weight:800;color:#E0282E;"
-                                    f"background:rgba(255,95,90,0.1);padding:1px 5px;border-radius:8px;'>{_max_dd_val}</span></td>"
-                                    f"<td style='padding:0.6rem 0.5rem;text-align:right;color:#3F3F46;"
-                                    f"font-weight:700;vertical-align:middle;'>{_r['exit']:.2f}"
-                                    f"<div style='font-size:0.7rem;font-weight:500;color:#5C5C63;'>{_reason_txt}</div></td>"
-                                    f"<td style='padding:0.6rem 0.5rem;text-align:right;vertical-align:middle;'>"
-                                    f"<span style='color:{_ret_color};font-weight:900;background:rgba({_out_rgb},0.1);"
-                                    f"padding:2px 8px;border-radius:20px;'>{_ret_val}</span></td>"
-                                    f"<td style='padding:0.6rem 0.5rem;text-align:center;vertical-align:middle;'>"
-                                    f"<span style='color:#3F3F46;font-weight:700;background:#F2F2F5;"
-                                    f"border:1px solid #DEDEE3;padding:2px 8px;border-radius:20px;"
-                                    f"font-size:0.58rem;'>{_r['bars_held']}d</span></td>"
-                                    f"</tr>"
-                                )
-
-                            _table_html = (
-                                f"<style>"
-                                f".sig-hist-scroll::-webkit-scrollbar {{ width: 6px; height: 6px; }}"
-                                f".sig-hist-scroll::-webkit-scrollbar-track {{ background: #FFFFFF; }}"
-                                f".sig-hist-scroll::-webkit-scrollbar-thumb {{ background: #F2F2F5; border-radius: 6px; }}"
-                                f".sig-hist-scroll::-webkit-scrollbar-thumb:hover {{ background: #F2F2F5; }}"
-                                f".sig-hist-row {{ transition: background .12s ease; cursor: help; }}"
-                                f".sig-hist-row:hover {{ background: #F2F2F5 !important; }}"
-                                f"</style>"
-                                f"<div style='margin:0 0 0.5rem;background:var(--card);"
-                                f"border:1px solid var(--hair);border-top:none;"
-                                f"border-radius:0 0 var(--r-lg) var(--r-lg);padding:0.9rem 1rem 1rem;overflow:hidden;'>"
-                                f"<div style='display:flex;align-items:baseline;gap:0.5rem;margin-bottom:0.6rem;'>"
-                                f"<span style='font-size:1rem;font-weight:600;color:var(--t1);'>Past signals</span>"
-                                f"<span style='font-size:0.85rem;color:var(--t2);'>{len(_sorted_rows)}</span>"
-                                f"<span style='margin-left:auto;font-size:0.75rem;color:var(--t3);'>"
-                                f"Hover a row for details</span>"
-                                f"</div>"
-                                f"<div class='sig-hist-scroll' style='overflow-x:auto;max-height:280px;overflow-y:auto;"
-                                f"border-radius:12px;border:1px solid var(--hair);'>"
-                                f"<table style='width:100%;border-collapse:collapse;font-size:0.82rem;"
-                                f"color:var(--t1);line-height:1.35;font-variant-numeric:tabular-nums;'>"
-                                f"<thead style='position:sticky;top:0;z-index:1;'>"
-                                f"<tr style='border-bottom:1px solid var(--hair);color:var(--t2);font-size:0.75rem;"
-                                f"text-align:left;background:var(--inset);'>"
-                                f"<th style='padding:0.55rem 0.6rem;font-weight:500;'>Date</th>"
-                                f"<th style='padding:0.55rem 0.6rem;font-weight:500;'>Outcome</th>"
-                                f"<th style='padding:0.55rem 0.6rem;font-weight:500;text-align:right;'>Entry</th>"
-                                f"<th style='padding:0.55rem 0.6rem;font-weight:500;text-align:right;'>Highest</th>"
-                                f"<th style='padding:0.55rem 0.6rem;font-weight:500;text-align:right;'>Lowest</th>"
-                                f"<th style='padding:0.55rem 0.6rem;font-weight:500;text-align:right;'>Exit</th>"
-                                f"<th style='padding:0.55rem 0.6rem;font-weight:500;text-align:right;'>Return</th>"
-                                f"<th style='padding:0.55rem 0.6rem;font-weight:500;text-align:center;'>Days</th>"
-                                f"</tr>"
-                                f"</thead>"
-                                f"<tbody>"
-                                f"{_tbody_rows}"
-                                f"</tbody>"
-                                f"</table>"
-                                f"</div>"
-                                f"</div>"
-                            )
-                        else:
-                            _table_html = (
-                                f"<div style='margin:0 0 0.5rem;background:var(--card);"
-                                f"border:1px solid var(--hair);border-top:none;"
-                                f"border-radius:0 0 var(--r-lg) var(--r-lg);padding:1.1rem;text-align:center;'>"
-                                f"<span style='font-size:0.85rem;color:var(--t3);'>"
-                                f"No past signals recorded in this regime</span>"
-                                f"</div>"
-                            )
-                        st.markdown(_table_html, unsafe_allow_html=True)
-                    except Exception:
-                        pass
-
-              st.markdown("<div style='height:1rem;'></div>", unsafe_allow_html=True)
-
-        # ── expand / collapse button for Section 2 ────────────────────────────
-        if len(_fire_rows) > _LSC_PREVIEW:
-            _lsc_lbl = (f"Show all {len(_fire_rows)} signals  ↓"
-                        if not st.session_state.lsc_show_all else "Show less ↑")
-            if st.button(_lsc_lbl, key="lsc_expand", use_container_width=True):
-                st.session_state.lsc_show_all = not st.session_state.lsc_show_all
-                st.rerun()
-
-        # ── every live signal as one table, downloadable as Excel ─────────────
-        # Same rows and order as the cards (all of them, not just the preview),
-        # so the table and the file always follow the filters above.
+        # ── every live signal, one row each: the table and the Excel file ─────
+        # All of them, not just the preview, so the file always follows the filters.
         import html as _html
         import math as _math
         from datetime import datetime as _dt, timedelta as _td, timezone as _tz
@@ -4079,12 +3594,20 @@ def render_auto_scanner_page() -> None:
 
         _tbl = []
         for _r in _fire_rows:
-            _cb = _live_shown(_r)[0]
+            _live = _live_shown(_r)
+            _cb = _live[0]
+            _rg = _r.get('current_regime', 'RANGE')
             _p = float(_r.get('price', 0) or 0)
             _lv = _lsc_levels(_r['_sym'], _stock_df(_r['_sym']), _p) or {}
+            # Rank of the leading live strategy within its regime (1 = best), in
+            # the same order Scanned Strategies lists them.
+            _srk = next((_i + 1 for _i, _c in enumerate(_strats(_r, _rg)) if _c is _cb), 1)
+            _nm, _un = _r.get('_sname') or '', _unit_of(_r['_sym'])
             _tbl.append({
-                'name': _r.get('_sname') or '', 'symbol': _r['_sym'].replace('.SR', ''),
-                'date': f"{_cb['signal_date']} 15:00" if _cb.get('signal_date') else '',
+                # the Excel file's columns
+                'name': f"{_nm} ({_un})" if _un else _nm, 'symbol': _short(_r['_sym']),
+                'date': f"{_cb.get('signal_date') or ''} {_M['close']}".strip()
+                        if _cb.get('signal_date') else '',
                 'price': _fin(_p), 'entry': _fin(_lv.get('entry')), 'stop': _fin(_lv.get('stop')),
                 'sl_pct': _fin(_lv.get('sl_pct')), 't1': _fin(_lv.get('t1')),
                 't1_pct': _fin(_lv.get('t1_pct')), 't2': _fin(_lv.get('t2')),
@@ -4092,93 +3615,566 @@ def render_auto_scanner_page() -> None:
                 'rr_label': _lv.get('rr_label', ''),
                 'win_rate': float(_cb.get('win_rate', 0) or 0),
                 'trades': int(_cb.get('total', 0) or 0),
-                'wins': int(_cb.get('wins', 0) or 0), 'losses': int(_cb.get('losses', 0) or 0)})
+                'wins': int(_cb.get('wins', 0) or 0), 'losses': int(_cb.get('losses', 0) or 0),
+                'regime': _rg.title(), 'validation': _val_text(_cb),
+                'indicators': _ind_label(_cb.get('indicators', [])),
+                # the page only
+                'row': _r, 'combo': _cb, 'more': len(_live) - 1,
+                'rank_lbl': 'Best fit' if _srk == 1 else f'Strategy #{_srk}',
+                'quality': _lv.get('quality', '')})
 
         _now = _dt.now(_tz(_td(hours=3)))                  # Riyadh time
         _filters = (f"Win rate {st.session_state.sc_f_wr} · Trades {st.session_state.sc_f_tr} · "
                     f"Market regime {st.session_state.sc_f_rg} · "
                     f"Validation {st.session_state.sc_f_va}"
                     + (f' · Search "{_sc_query.strip()}"' if _sc_q else ''))
+        _mk_title = _M['label'].title()
         try:
             _xlsx = build_live_signal_xlsx(
-                _tbl, f"LIVE SIGNAL CHECK | {len(_tbl)} Stocks",
-                f"Source: Strategy Scanner · Period: {_sc_period_label(_sel_period)} · "
+                _tbl, f"LIVE SIGNAL CHECK | {len(_tbl)} {_mk_title}",
+                f"Source: Strategy Scanner · Market: {_M['label']} · "
+                f"Period: {_sc_period_label(_sel_period)} · "
                 f"Filters: {_filters} · Highest win rate first · "
-                f"Generated {_now:%Y-%m-%d %H:%M} (Riyadh)")
+                f"Generated {_now:%Y-%m-%d %H:%M} (Riyadh)", currency=_M['cur'],
+                name_head=f"{_M['noun'].title()} Name" if _mk != 'COM' else 'Commodity')
         except ImportError:                                 # xlsxwriter not installed
             _xlsx = None
 
-        _tt, _tb = st.columns([1, 0.2], vertical_alignment="bottom")
+        _tt, _tb = st.columns([1, 0.2], vertical_alignment="center")
         with _tt:
             st.markdown(
-                f"<div class='lsc-tbl-hd'><span class='lsc-tbl-t'>All live signals{_q(10)}</span>"
-                f"<span class='lsc-tbl-s'>{len(_tbl)} stocks · same order as the cards · "
-                "prices in SAR</span></div>",
+                f"<div class='lsc-tbl-s'>{_prices_note()}. Tap a row for its chart.</div>",
                 unsafe_allow_html=True)
         with _tb, st.container(key="lsc_xlsx"):
             if _xlsx:
                 st.download_button(
                     "Download Excel", data=_xlsx,
-                    file_name=f"Live_Signal_Check_{len(_tbl)}_Stocks_with_Win_Rate_"
-                              f"{_now:%Y-%m-%d}.xlsx",
+                    file_name=f"Live_Signal_Check_{len(_tbl)}_{_mk_title.replace(' ', '_')}"
+                              f"_with_Win_Rate_{_now:%Y-%m-%d}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     icon=":material/download:", on_click="ignore",
                     use_container_width=True, key="lsc_xlsx_btn")
             else:
                 st.caption("Excel export needs the xlsxwriter package.")
 
-        def _px(v):
-            return f"{v:,.2f}" if v is not None else '—'
-
         def _pc(v, sign):
             return f"{sign}{v:.1f}%" if v is not None else '—'
 
-        def _rrt(v):
-            return f"1 : {v:.1f}" if v is not None else '—'
+        def _lt_n(label, short, val, sub='', cls='') -> str:
+            """A number cell. Its label only shows when the header row is hidden
+            (narrow screens), and phones use the shorter one."""
+            return (f"<div class='lt-n{cls}' data-l='{label}' data-s='{short}'>{val}"
+                    + (f"<small>{sub}</small>" if sub else '') + "</div>")
 
-        # Headers that need explaining open their guide section when clicked.
-        _ths = ("<th class='c'>#</th><th class='l'>Stock</th><th class='c'>Symbol</th>"
-                f"<th class='c'>{_term('Analysis date', 5)}</th><th>Price</th>"
-                f"<th>{_term('Entry', 11)}</th><th>{_term('Stop loss', 11)}</th><th>Stop %</th>"
-                f"<th>{_term('Target 1', 11)}</th><th>T1 %</th>"
-                f"<th>{_term('Target 2', 11)}</th><th>T2 %</th>"
-                f"<th class='c'>{_term('Risk : Reward', 19)}</th>"
-                f"<th class='c'>{_term('Rating', 19)}</th><th>{_term('Win rate', 7)}</th>"
-                f"<th class='c'>{_term('Trades', 7)}</th>"
-                "<th class='c'>Wins</th><th class='c'>Losses</th>")
-        _trs = ''.join(
-            "<tr>"
-            f"<td class='rk{' top' if _i <= 3 else ''}'>{_i}</td>"
-            f"<td class='l nm' title='{_html.escape(_t['name'], quote=True)}'>"
-            f"{_html.escape(_t['name'])}</td>"
-            f"<td class='c sym'>{_t['symbol']}</td>"
-            f"<td class='c muted'>{_t['date'] or '—'}</td>"
-            f"<td>{_px(_t['price'])}</td><td>{_px(_t['entry'])}</td><td>{_px(_t['stop'])}</td>"
-            f"<td class='dn'>{_pc(_t['sl_pct'], '−')}</td>"
-            f"<td>{_px(_t['t1'])}</td><td class='up'>{_pc(_t['t1_pct'], '+')}</td>"
-            f"<td>{_px(_t['t2'])}</td><td class='up'>{_pc(_t['t2_pct'], '+')}</td>"
-            f"<td class='c'>{_rrt(_t['rr'])}</td>"
-            f"<td class='c' style='color:{_RR_COL.get(_t['rr_label'], 'var(--t3)')};"
-            f"font-weight:600;'>{_t['rr_label'] or '—'}</td>"
-            f"<td class='wr' style='color:{_wr_col(_t['win_rate'])};'>{_t['win_rate']:.0f}%</td>"
-            + (f"<td class='c few' title='Fewer than 10 trades: weak evidence'>{_t['trades']}</td>"
-               if _t['trades'] < 10 else f"<td class='c'>{_t['trades']}</td>")
-            + f"<td class='c up'>{_t['wins']}</td><td class='c dn'>{_t['losses']}</td>"
-            + "</tr>"
-            for _i, _t in enumerate(_tbl, 1))
-        st.markdown(
-            f"<div class='lsc-tbl-wrap'><table class='lsc-tbl'><thead><tr>{_ths}</tr></thead>"
-            f"<tbody>{_trs}</tbody></table></div>",
-            unsafe_allow_html=True)
+        def _lt_row(t, pos, is_open) -> str:
+            """One row of the table: the stock, its signal, the strategy behind it,
+            the entry plan and the strategy's record."""
+            _age = _sig_age(t['combo']) or 0
+            _when = ('Latest session' if _age == 0 else
+                     '1 session earlier' if _age == 1 else f'{_age} sessions earlier')
+            _big, _small = _sym_labels(t['row']['_sym'], t['row'].get('_sname') or '')
+            _rgn = t['row'].get('current_regime', 'RANGE')
+            _rr_txt = f"1 : {t['rr']:.1f}" if t['rr'] is not None else '—'
+            _few = t['trades'] < 10
+            return (
+                f"<div class='lt-g lt-row{' lt-open' if is_open else ''}' data-sym='{t['symbol']}'>"
+                f"<div class='lt-rk{' top' if pos <= 3 else ''}'>{pos}</div>"
+                f"<div class='lt-st'><b class='lt-sym'>{_html.escape(_big)}</b>"
+                + (f"<span class='lt-nm'>{_html.escape(_small)}</span>" if _small else '')
+                + "</div>"
+                f"<div class='lt-sig'><b style='--d:{'var(--green)' if _age <= 1 else 'var(--orange)'};'>"
+                f"{t['combo'].get('signal_date') or '—'}</b><small>{_when}</small></div>"
+                "<div class='lt-str'><div class='lt-str-t'>"
+                f"<span class='lsc-regime2' data-sg='3' title='{_REGIME_HELP.get(_rgn, '')}'>"
+                f"{_REGIME_ICON.get(_rgn, '')} {_rgn.title()} · {t['rank_lbl']}</span>"
+                + _val_badge(t['combo'])
+                + (f"<span class='lsc-more' data-sg='10' title='{t['more']} more "
+                   f"{'strategy' if t['more'] == 1 else 'strategies'} for this regime also "
+                   f"started a signal in the last {_LIVE_MAX_AGE + 1} trading days. "
+                   f"View strategy shows them.'>+{t['more']} more signalling</span>"
+                   if t['more'] else '')
+                + f"</div><div class='lt-chips'>{_chips(t['combo'].get('indicators', []))}</div></div>"
+                "<div class='lt-lv'>"
+                + _lt_n('Entry', 'Entry', _fp(t['entry'] if t['entry'] is not None else t['price']),
+                        f"{t['quality'].title()}<span class='lt-qw'> entry</span>" if t['quality'] else '')
+                + _lt_n('Stop loss', 'Stop', _fp(t['stop']),
+                        f"<span class='dn'>{_pc(t['sl_pct'], '−')}</span>")
+                + _lt_n('Target 1', 'T1', _fp(t['t1']), f"<span class='up'>{_pc(t['t1_pct'], '+')}</span>")
+                + _lt_n('Target 2', 'T2', _fp(t['t2']), f"<span class='up'>{_pc(t['t2_pct'], '+')}</span>")
+                + _lt_n('Risk : Reward', 'R:R', _rr_txt,
+                        f"<span style='color:{_RR_COL.get(t['rr_label'], 'var(--t3)')};'>"
+                        f"{t['rr_label'] or '—'}</span>")
+                + "</div>"
+                + _lt_n('Win rate', 'Win rate',
+                        f"<span style='color:{_wr_col(t['win_rate'])};'>{t['win_rate']:.0f}%</span>",
+                        cls=' lt-wr')
+                + _lt_n('Trades', 'Trades',
+                        f"<span class='few'>{t['trades']}</span>" if _few else t['trades'],
+                        f"<span class='up'>{t['wins']}W</span> · <span class='dn'>{t['losses']}L</span>",
+                        cls=' lt-tr')
+                + "<div class='lt-chev'></div></div>")
+
+        def _signal_panel(t) -> None:
+            """What a tapped row opens: "View strategy ↓" and the signal's chart."""
+            _row        = t['row']
+            _sym_d      = t['symbol']
+            _df_f       = _stock_df(_row['_sym'])
+            _same_df    = _row['_sym'] in _raw_dfs      # same bars the engine indexed
+            _best_combo = t['combo']
+            _best_rname = _row.get('current_regime', 'RANGE')
+            _inds       = _best_combo.get('indicators', [])
+            _eng_age    = _best_combo.get('signal_age')
+            _eng_date   = _best_combo.get('signal_date')
+            _en, _sl_p, _t1, _t2 = t['entry'], t['stop'], t['t1'], t['t2']
+            _ladder     = None not in (_en, _sl_p, _t1, _t2)
+            with st.container(key=f"lsc_panel_{_sym_d}"):
+                _pl, _pr = st.columns([1, 0.2], vertical_alignment="center")
+                with _pl:
+                    st.markdown(
+                        "<div class='lt-leg'><span class='sc-vb sc-vb-ok'>▲ Win</span>"
+                        "<span class='sc-vb sc-vb-bad'>▲ Loss</span>"
+                        "<span class='sc-vb lt-leg-sig'>▲ Signal"
+                        + (f" · {_eng_date}" if _eng_date else '') + "</span>"
+                        f"{_q(17)}</div>",
+                        unsafe_allow_html=True)
+                with _pr, st.container(key=f"lsc_goto_{_sym_d}"):
+                    st.button("View strategy ↓", key=f"lsc_goto_btn_{_sym_d}",
+                              on_click=_goto_strategy, args=(_sym_d,),
+                              use_container_width=True,
+                              help=f"Jump to this {_M['noun']}'s strategies in Scanned Strategies")
+                try:
+                    if _df_f is None:
+                        raise ValueError('no price data')
+                    import plotly.graph_objects as go
+                    import numpy as _np
+                    import pandas as _pd
+                    from scanner_engine import _build_states
+
+                    _states_all = _build_states(_df_f)
+                    _N = len(_df_f)
+
+                    # Match scanner_engine._eval filters so chart markers count
+                    # equals the Wins/Losses/Total numbers in the box:
+                    #   1. drop fires too close to the end (need `hold` bars to resolve)
+                    #   2. keep only fires that happened in the card's target regime
+                    from scanner_engine import _regime_arr as _rg_arr_fn
+                    from scanner_engine import resolve_period as _rp_pre
+                    _pcfg_sel_pre = st.session_state.get('sc_period', 'Medium')
+                    _, _, _hold_pre, _, _, _ = _rp_pre(_pcfg_sel_pre)
+                    try:
+                        _reg_arr_chart = _rg_arr_fn(_df_f)
+                    except Exception:
+                        _reg_arr_chart = None
+
+                    if _inds and all(k in _states_all for k in _inds):
+                        _combo_arr = _states_all[_inds[0]].copy()
+                        for _ik in _inds[1:]:
+                            _combo_arr = _combo_arr & _states_all[_ik]
+                        _edge = _np.zeros(_N, dtype=_np.int8)
+                        _edge[1:] = ((_combo_arr[1:] == 1) & (_combo_arr[:-1] == 0)).astype(_np.int8)
+                        _raw_idxs = _np.where(_edge == 1)[0]
+                        # filter 1: drop fires with < hold bars remaining (can't resolve)
+                        _raw_idxs = _raw_idxs[_raw_idxs < _N - _hold_pre]
+                        # filter 2: keep only fires in this card's target regime
+                        if _reg_arr_chart is not None:
+                            _raw_idxs = _np.array([i for i in _raw_idxs
+                                                   if i < len(_reg_arr_chart)
+                                                   and _reg_arr_chart[i] == _best_rname])
+                        _fire_idxs     = set(_raw_idxs.tolist())
+                        # On the engine's own bars, mark exactly the trades
+                        # behind the card's Wins/Losses/Total (held-back for
+                        # validated strategies, fitted otherwise).
+                        if _same_df and _best_combo.get('signal_idxs') is not None:
+                            _fire_idxs = {int(_i) for _i in _best_combo['signal_idxs']}
+                        # Live signal = the bar the card's signal started on.
+                        _cur_firing    = _eng_age is not None and _eng_age <= _LIVE_MAX_AGE
+                    else:
+                        _fire_idxs  = set()
+                        _cur_firing = False
+
+                    # Show enough history that every counted signal is visible.
+                    # The Total/Wins/Losses numbers in the box come from ALL fires
+                    # in the lookback window — so the chart must span at least back
+                    # to the earliest fire, plus a small padding for context.
+                    _first_fire = (min(_fire_idxs) if _fire_idxs else _N - 60)
+                    _tail_min   = max(60, _N - _first_fire + 10)  # at least 60 bars
+                    _offset     = max(0, _N - _tail_min)
+                    _cdf      = _df_f.iloc[_offset:].copy().reset_index(drop=True)
+                    _today_s  = str(_cdf['Date'].iloc[-1])[:10] if 'Date' in _cdf.columns else ''
+                    _xd       = (_pd.to_datetime(_cdf['Date'])
+                                 if 'Date' in _cdf.columns else list(range(len(_cdf))))
+
+                    # Prices under 1 (EGX penny stocks) need a third decimal.
+                    _pf = '.3f' if float(_cdf['Close'].iloc[-1]) < 1 else '.2f'
+                    # rich per-candle hover: OHLC + day change%, no guessing
+                    _chg_pct = ((_cdf['Close'] - _cdf['Open']) / _cdf['Open'] * 100).round(2)
+                    _hover_txt = [
+                        f"<b>{str(_cdf['Date'].iloc[_i])[:10] if 'Date' in _cdf.columns else _i}</b><br>"
+                        f"Open&nbsp;&nbsp;{_cdf['Open'].iloc[_i]:{_pf}}<br>"
+                        f"High&nbsp;&nbsp;{_cdf['High'].iloc[_i]:{_pf}}<br>"
+                        f"Low&nbsp;&nbsp;&nbsp;{_cdf['Low'].iloc[_i]:{_pf}}<br>"
+                        f"Close&nbsp;{_cdf['Close'].iloc[_i]:{_pf}}<br>"
+                        f"Chg&nbsp;&nbsp;&nbsp;{_chg_pct.iloc[_i]:+.2f}%"
+                        for _i in range(len(_cdf))
+                    ]
+
+                    # Row 1: price. Row 2: proof panel — one strip per
+                    # indicator showing the days its condition is true.
+                    from plotly.subplots import make_subplots as _mksub
+                    _n_proof = len(_inds) + 2          # + "All agree" + regime
+                    fig = _mksub(rows=2, cols=1, shared_xaxes=True,
+                                 vertical_spacing=0.035,
+                                 row_heights=[0.68, 0.32] if _n_proof <= 5 else [0.6, 0.4])
+                    fig.add_trace(go.Candlestick(
+                        x=_xd,
+                        open=_cdf['Open'], high=_cdf['High'],
+                        low=_cdf['Low'],   close=_cdf['Close'],
+                        increasing_line_color='#1FA855', decreasing_line_color='#E0282E',
+                        increasing_fillcolor='#1FA855', decreasing_fillcolor='#E0282E',
+                        line_width=1.4, whiskerwidth=0.85,
+                        text=_hover_txt, hoverinfo='text', name=''))
+
+                    # ── indicator overlays — the actual lines/bands whose
+                    # crossover made the strategy fire, drawn on real price
+                    # data so it's visible proof, not just a stat box.
+                    _OVERLAY_COLORS = {
+                        'EMA': ('#0063D1', '#8E3FBA'), 'SMA': ('#0063D1', '#8E3FBA'),
+                        'WMA': ('#A33A00',), 'HULL': ('#086F8C',), 'VWAP': ('#A34800',),
+                        'PSAR': ('#D4153F',), 'KELT': ('#A2845E', '#A2845E'),
+                        'DONCH': ('#15704A', '#15704A'), 'BB': ('#8E3FBA', '#8E3FBA'),
+                    }
+                    try:
+                        import pandas_ta as _ta_ov
+                        _c_full = _df_f['Close'].astype(float)
+                        _h_full = _df_f['High'].astype(float)
+                        _l_full = _df_f['Low'].astype(float)
+                        for _ov_k in _inds:
+                            if _ov_k == 'EMA':
+                                _e20 = _ta_ov.ema(_c_full, 20); _e50 = _ta_ov.ema(_c_full, 50)
+                                if _e20 is not None:
+                                    fig.add_trace(go.Scatter(x=_xd, y=_e20.iloc[_offset:],
+                                        mode='lines', line=dict(color='#0063D1', width=1.3),
+                                        name='EMA 20', hovertemplate='EMA20 %{y:.2f}<extra></extra>'))
+                                if _e50 is not None:
+                                    fig.add_trace(go.Scatter(x=_xd, y=_e50.iloc[_offset:],
+                                        mode='lines', line=dict(color='#8E3FBA', width=1.3),
+                                        name='EMA 50', hovertemplate='EMA50 %{y:.2f}<extra></extra>'))
+                            elif _ov_k == 'SMA':
+                                _s50 = _c_full.rolling(50).mean(); _s200 = _c_full.rolling(200).mean()
+                                fig.add_trace(go.Scatter(x=_xd, y=_s50.iloc[_offset:],
+                                    mode='lines', line=dict(color='#0063D1', width=1.3),
+                                    name='SMA 50', hovertemplate='SMA50 %{y:.2f}<extra></extra>'))
+                                fig.add_trace(go.Scatter(x=_xd, y=_s200.iloc[_offset:],
+                                    mode='lines', line=dict(color='#8E3FBA', width=1.3),
+                                    name='SMA 200', hovertemplate='SMA200 %{y:.2f}<extra></extra>'))
+                            elif _ov_k == 'WMA':
+                                _w20 = _ta_ov.wma(_c_full, 20)
+                                if _w20 is not None:
+                                    fig.add_trace(go.Scatter(x=_xd, y=_w20.iloc[_offset:],
+                                        mode='lines', line=dict(color='#A33A00', width=1.3),
+                                        name='WMA 20', hovertemplate='WMA20 %{y:.2f}<extra></extra>'))
+                            elif _ov_k == 'HULL':
+                                _hl = _ta_ov.hma(_c_full, 16)
+                                if _hl is not None:
+                                    fig.add_trace(go.Scatter(x=_xd, y=_hl.iloc[_offset:],
+                                        mode='lines', line=dict(color='#086F8C', width=1.3),
+                                        name='Hull MA', hovertemplate='Hull %{y:.2f}<extra></extra>'))
+                            elif _ov_k == 'VWAP':
+                                _tp_ov = (_h_full + _l_full + _c_full) / 3
+                                _vo_ov = _df_f['Volume'].astype(float)
+                                _vwap_ov = (_tp_ov * _vo_ov).rolling(20).sum() / _vo_ov.rolling(20).sum()
+                                fig.add_trace(go.Scatter(x=_xd, y=_vwap_ov.iloc[_offset:],
+                                    mode='lines', line=dict(color='#A34800', width=1.3, dash='dot'),
+                                    name='VWAP', hovertemplate='VWAP %{y:.2f}<extra></extra>'))
+                            elif _ov_k == 'PSAR':
+                                _psar_ov = _ta_ov.psar(_h_full, _l_full, _c_full)
+                                if _psar_ov is not None:
+                                    _long_col = [c2 for c2 in _psar_ov.columns if 'PSARl' in c2]
+                                    if _long_col:
+                                        fig.add_trace(go.Scatter(
+                                            x=_xd, y=_psar_ov[_long_col[0]].iloc[_offset:],
+                                            mode='markers', marker=dict(color='#D4153F', size=3),
+                                            name='PSAR', hovertemplate='PSAR %{y:.2f}<extra></extra>'))
+                            elif _ov_k == 'BB':
+                                _bb_ov = _ta_ov.bbands(_c_full, 20)
+                                if _bb_ov is not None and _bb_ov.shape[1] >= 3:
+                                    fig.add_trace(go.Scatter(x=_xd, y=_bb_ov.iloc[_offset:, 2],
+                                        mode='lines', line=dict(color='#8E3FBA', width=1, dash='dot'),
+                                        name='BB Upper', hovertemplate='BB Up %{y:.2f}<extra></extra>'))
+                                    fig.add_trace(go.Scatter(x=_xd, y=_bb_ov.iloc[_offset:, 0],
+                                        mode='lines', line=dict(color='#8E3FBA', width=1, dash='dot'),
+                                        name='BB Lower', fill='tonexty',
+                                        fillcolor='rgba(175,82,222,0.05)',
+                                        hovertemplate='BB Low %{y:.2f}<extra></extra>'))
+                            elif _ov_k == 'DONCH':
+                                _dc_ov = _h_full.rolling(20).max()
+                                fig.add_trace(go.Scatter(x=_xd, y=_dc_ov.iloc[_offset:],
+                                    mode='lines', line=dict(color='#15704A', width=1.1, dash='dash'),
+                                    name='Donchian Hi', hovertemplate='Donch Hi %{y:.2f}<extra></extra>'))
+                    except Exception:
+                        pass
+
+                    # past fires — W/L outcome markers. Every trade is
+                    # re-simulated with scanner_engine.simulate_trade, the
+                    # exact function the backtest uses, so the markers and
+                    # the Past signals table add up to the card's numbers.
+                    from scanner_engine import simulate_trade as _sim_trade
+                    from scanner_engine import resolve_period as _rp_b
+                    _open_arr  = _df_f['Open'].values.astype(float)
+                    _close_arr = _df_f['Close'].values.astype(float)
+                    _high_arr  = _df_f['High'].values.astype(float)
+                    _low_arr   = _df_f['Low'].values.astype(float)
+                    _, _, _hold_b, _pt_b, _sl_b, _ = _rp_b(_sel_period)
+
+                    _win_x, _win_y, _win_t    = [], [], []
+                    _loss_x, _loss_y, _loss_t = [], [], []
+                    _REASON = {'target': 'Hit target', 'stop': 'Hit stop', 'time': 'Time limit'}
+                    _msize  = 10 if _PHONE else 15
+
+                    for _fi in sorted(_fire_idxs):
+                        _ci = _fi - _offset
+                        if _ci < 0 or _ci >= len(_cdf):
+                            continue
+                        _tr = _sim_trade(int(_fi), _open_arr, _high_arr, _low_arr,
+                                         _close_arr, _hold_b, _pt_b, _sl_b)
+                        if _tr is None:
+                            continue          # unresolved — not counted in the card either
+                        _xval = _xd.iloc[_ci] if hasattr(_xd, 'iloc') else _xd[_ci]
+                        _yval = float(_cdf['Low'].iloc[_ci]) * 0.991
+                        _won  = _tr['outcome'] == 'win'
+                        _txt  = (f"<b>{'Win' if _won else 'Loss'} {_tr['ret'] * 100:+.1f}%</b><br>"
+                                 f"Signal {str(_df_f['Date'].iloc[_fi])[:10]}<br>"
+                                 f"Bought {_tr['entry']:{_pf}} · sold {_tr['exit']:{_pf}}<br>"
+                                 f"{_REASON.get(_tr['reason'], '')} · "
+                                 f"{_tr['exit_idx'] - _tr['entry_idx'] + 1} days")
+                        if _won:
+                            _win_x.append(_xval);  _win_y.append(_yval);  _win_t.append(_txt)
+                        else:
+                            _loss_x.append(_xval); _loss_y.append(_yval); _loss_t.append(_txt)
+
+                    if _win_x:
+                        fig.add_trace(go.Scatter(
+                            x=_win_x, y=_win_y, mode='markers', text=_win_t,
+                            marker=dict(symbol='triangle-up', size=_msize,
+                                        color='#1FA855', opacity=1.0,
+                                        line=dict(width=1.5, color='#1FA855')),
+                            hovertemplate='%{text}<extra></extra>', name='Win',
+                            showlegend=False))
+                    if _loss_x:
+                        fig.add_trace(go.Scatter(
+                            x=_loss_x, y=_loss_y, mode='markers', text=_loss_t,
+                            marker=dict(symbol='triangle-up', size=_msize,
+                                        color='#E0282E', opacity=1.0,
+                                        line=dict(width=1.5, color='#E0282E')),
+                            hovertemplate='%{text}<extra></extra>', name='Loss',
+                            showlegend=False))
+
+                    # live-signal marker on the bar the signal started
+                    _lx  = _xd.iloc[-1] if hasattr(_xd, 'iloc') else _xd[-1]
+                    _lhi = float(_cdf['High'].iloc[-1])
+                    if _cur_firing:
+                        _si_c = max(0, len(_cdf) - 1 - int(_eng_age))
+                        _sx   = _xd.iloc[_si_c] if hasattr(_xd, 'iloc') else _xd[_si_c]
+                        _slo  = float(_cdf['Low'].iloc[_si_c])
+                        fig.add_trace(go.Scatter(
+                            x=[_sx], y=[_slo * 0.988],
+                            mode='markers+text',
+                            marker=dict(symbol='triangle-up', size=_msize + 1,
+                                        color='#A34800', opacity=1.0,
+                                        line=dict(width=1, color='#A34800')),
+                            text=['SIGNAL'], textposition='bottom center',
+                            textfont=dict(size=8, color='#A34800'),
+                            hovertemplate=f'SIGNAL — {_eng_date}<extra></extra>', name='',
+                            showlegend=False))
+
+                    fig.add_annotation(
+                        x=_lx, y=_lhi,
+                        text=f'<b>{_today_s}</b>',
+                        showarrow=True, arrowhead=0, arrowcolor='#D2D2D7',
+                        arrowwidth=1, ax=0, ay=-22,
+                        font=dict(size=9, color='#A34800' if _cur_firing else '#5C5C63'),
+                        bgcolor='rgba(255,255,255,0.85)', borderpad=3)
+
+                    # levels
+                    if _ladder:
+                        for _lval, _lc, _ln, _ld in [
+                            (_en,   '#0063D1', 'Entry', 'dash'),
+                            (_t1,   '#1B7A36', 'T1',    'dot'),
+                            (_t2,   '#15704A', 'T2',    'dot'),
+                            (_sl_p, '#C1121F', 'Stop',  'dashdot')]:
+                            fig.add_hline(
+                                row=1, col=1,
+                                y=_lval, line_color=_lc, line_dash=_ld,
+                                line_width=1.4, opacity=0.9,
+                                annotation_text=f'<b>{_ln}</b> {_lval:{_pf}}',
+                                annotation_font_color=_lc,
+                                annotation_font_size=8 if _PHONE else 9,
+                                annotation_bgcolor='rgba(255,255,255,0.85)',
+                                annotation_position=({'T1': 'bottom left', 'Stop': 'bottom left'}.get(_ln, 'top left')
+                                                         if _PHONE else 'right'))
+
+                    # ── proof panel ─────────────────────────────────────
+                    # One strip per indicator: coloured on the days its
+                    # condition is true (same _build_states the scan used),
+                    # then "All agree" (the AND) and the regime filter. A
+                    # trade is opened exactly where "All agree" switches
+                    # on during a day of this regime — that's what the
+                    # triangles on both rows mark.
+                    _proof_rows = []
+                    try:
+                        for _k in _inds:
+                            if _k in _states_all:
+                                _ti = _IND_TYPE_OF.get(_k)
+                                _proof_rows.append((_ind_label([_k]),
+                                                    _states_all[_k][_offset:].astype(int),
+                                                    _IND_TYPES[_ti][1] if _ti is not None else '#3F3F46'))
+                        if _inds and all(k in _states_all for k in _inds):
+                            _proof_rows.append(('All agree', _combo_arr[_offset:].astype(int), '#111114'))
+                        if _reg_arr_chart is not None:
+                            _proof_rows.append((f'{_best_rname.title()} regime',
+                                                (_np.asarray(_reg_arr_chart[_offset:]) == _best_rname).astype(int),
+                                                '#8A8A91'))
+                        # Drawn as a grey track + coloured squares on the
+                        # "true" days (a Heatmap on this category axis
+                        # crashes plotly.js in a subplot layout).
+                        _xl = list(_xd)
+                        for _lb, _z, _cl in _proof_rows:
+                            fig.add_trace(go.Scatter(
+                                x=_xl, y=[_lb] * len(_xl), mode='lines',
+                                line=dict(color='#EDEDF1', width=6 if _PHONE else 10),
+                                hoverinfo='skip', showlegend=False), row=2, col=1)
+                            _on = [_xl[_q] for _q in range(len(_xl)) if _z[_q]]
+                            if _on:
+                                fig.add_trace(go.Scatter(
+                                    x=_on, y=[_lb] * len(_on), mode='markers',
+                                    marker=dict(symbol='square', size=5 if _PHONE else 9, color=_cl,
+                                                line=dict(width=0)),
+                                    hovertemplate=f'{_lb}: <b>true</b><br>%{{x|%d %b %Y}}<extra></extra>',
+                                    showlegend=False), row=2, col=1)
+                        # trade entries on the "All agree" strip
+                        if _win_x:
+                            fig.add_trace(go.Scatter(
+                                x=_win_x, y=['All agree'] * len(_win_x), mode='markers',
+                                marker=dict(symbol='triangle-up', size=8 if _PHONE else 11, color='#1FA855',
+                                            line=dict(width=1, color='#FFFFFF')),
+                                hovertemplate='Signal → win<extra></extra>', showlegend=False),
+                                row=2, col=1)
+                        if _loss_x:
+                            fig.add_trace(go.Scatter(
+                                x=_loss_x, y=['All agree'] * len(_loss_x), mode='markers',
+                                marker=dict(symbol='triangle-up', size=8 if _PHONE else 11, color='#E0282E',
+                                            line=dict(width=1, color='#FFFFFF')),
+                                hovertemplate='Signal → loss<extra></extra>', showlegend=False),
+                                row=2, col=1)
+                    except Exception:
+                        _proof_rows = []
+
+                    fig.update_layout(
+                        xaxis2=dict(type='date', tickformat='%d %b', showgrid=False,
+                                    tickfont=dict(size=10, color='#3F3F46'), nticks=5 if _PHONE else 10),
+                        yaxis2=dict(type='category', autorange='reversed', showgrid=False,
+                                    side='left', automargin=True, ticksuffix='  ',
+                                    tickfont=dict(size=9 if _PHONE else 11, color='#111114')),
+                    )
+                    fig.update_layout(
+                        paper_bgcolor='#FFFFFF', plot_bgcolor='#FFFFFF',
+                        margin=(dict(l=4, r=38, t=26, b=26) if _PHONE else
+                                dict(l=110 if _proof_rows else 4, r=86, t=32, b=30)),
+                        height=(280 + 22 * len(_proof_rows) if _PHONE
+                                else 440 + 30 * len(_proof_rows)),
+                        dragmode=False if _PHONE else 'zoom',
+                        font=dict(family='sans-serif'),
+                        xaxis=dict(showgrid=True, gridcolor='#DEDEE3', zeroline=False,
+                                   rangeslider=dict(visible=False),
+                                   type='date', tickformat='%d %b',
+                                   tickfont=dict(size=10, color='#5C5C63'), nticks=5 if _PHONE else 10),
+                        yaxis=dict(showgrid=True, gridcolor='#DEDEE3', zeroline=False,
+                                   tickfont=dict(size=9 if _PHONE else 10, color='#5C5C63'), side='right'),
+                        legend=dict(orientation='h', yanchor='bottom', y=1.01,
+                                    xanchor='left', x=0, font=dict(size=9, color='#3F3F46'),
+                                    bgcolor='rgba(255,255,255,0)'),
+                        showlegend=False,
+                        hoverlabel=dict(bgcolor='#F2F2F5', bordercolor='#DEDEE3',
+                                         font=dict(size=11, color='#111114', family='monospace')))
+                    fig.update_xaxes(showspikes=True, spikecolor='#D2D2D7', spikethickness=1,
+                                      spikemode='across', spikedash='dot')
+                    fig.update_yaxes(showspikes=True, spikecolor='#D2D2D7', spikethickness=1,
+                                      spikemode='across', spikedash='dot')
+                    # theme=None: keep this light chart's own colours (the
+                    # Streamlit theme follows the app's dark mode). On a phone the
+                    # chart must not catch the finger: the page has to keep scrolling.
+                    st.plotly_chart(fig, use_container_width=True, theme=None,
+                                    config={'displayModeBar': False,
+                                            'modeBarButtonsToRemove': [
+                                                'lasso2d', 'select2d', 'autoScale2d'],
+                                            'displaylogo': False,
+                                            'scrollZoom': not _PHONE})
+                except Exception:
+                    st.markdown("<div class='lt-nochart'>The chart couldn't be drawn. "
+                                "Tap Run Scan and try again.</div>",
+                                unsafe_allow_html=True)
+
+        # ── the table ─────────────────────────────────────────────────────────
+        # Each row is a container holding its HTML and an invisible button spread
+        # over it (see the .lt-* CSS), so a tap works natively, with no script,
+        # and the opened chart can sit right under its row.
+        _lt_head = (
+            "<div class='lt-g lt-head'><div class='lt-rk'>#</div>"
+            f"<div>{_M['noun'].title()}</div>"
+            f"<div>{_term('Signal', 5)}</div>"
+            f"<div>{_term('Strategy', 4)} · regime · {_term('validation', 18)}</div>"
+            "<div class='lt-lv'>"
+            f"<div class='lt-n' title='The latest price in the data'>{_term('Entry', 11)}</div>"
+            f"<div class='lt-n'>{_term('Stop loss', 11)}</div>"
+            f"<div class='lt-n'>{_term('Target 1', 11)}</div>"
+            f"<div class='lt-n'>{_term('Target 2', 11)}</div>"
+            f"<div class='lt-n'>{_term('Risk : Reward', 19)}</div></div>"
+            f"<div class='lt-n'>{_term('Win rate', 7)}</div>"
+            f"<div class='lt-n'>{_term('Trades', 7)}</div><div></div></div>")
+        _open_sym = st.session_state.get('lsc_open')
+        with st.container(key="lsc_tbl"):
+            st.markdown(_lt_head, unsafe_allow_html=True)
+            for _lt_pos, _t in enumerate(
+                    _tbl if st.session_state.lsc_show_all else _tbl[:_LSC_PREVIEW], 1):
+                _sym_d = _t['symbol']
+                with st.container(key=f"lsc_row_{_sym_d}"):
+                    st.markdown(_lt_row(_t, _lt_pos, _sym_d == _open_sym), unsafe_allow_html=True)
+                    st.button(f"Chart of {_sym_d}", key=f"lsc_open_{_sym_d}",
+                              on_click=_toggle_row, args=(_sym_d,))
+                if _sym_d == _open_sym:
+                    _signal_panel(_t)
+
+        # The row just opened stays in view: opening it can close a tall chart above
+        # it, which moves it up by that chart's height. Runs once per tap.
+        _open_nonce = st.session_state.get('lsc_open_nonce')
+        if _open_sym and _open_nonce != st.session_state.get('lsc_open_done'):
+            st.session_state.lsc_open_done = _open_nonce
+            import streamlit.components.v1 as _components
+            _js = ("<script>(function go(n) {"
+                   " const el = window.parent.document.querySelector('.st-key-lsc_row_SYM');"
+                   " if (!el) { if (n < 50) setTimeout(function () { go(n + 1); }, 100); return; }"
+                   " const r = el.getBoundingClientRect();"
+                   " if (r.top < 0 || r.top > window.parent.innerHeight * 0.5)"
+                   "  el.scrollIntoView({behavior: 'smooth', block: 'start'});"
+                   "})(0);</script>").replace('SYM', _open_sym)
+            _components.html(f"{_js}<!-- {_open_nonce} -->", height=0)
+
+        # ── expand / collapse button for Section 2 ────────────────────────────
+        if len(_fire_rows) > _LSC_PREVIEW:
+            _lsc_lbl = (f"Show all {len(_fire_rows)} signals  ↓"
+                        if not st.session_state.lsc_show_all else "Show less ↑")
+            if st.button(_lsc_lbl, key="lsc_expand", use_container_width=True):
+                st.session_state.lsc_show_all = not st.session_state.lsc_show_all
+                st.rerun()
 
     # ══════════════════════════════════════════════════════════════════════════
     # SECTION 1 — Scanned Strategy Grid
     # ══════════════════════════════════════════════════════════════════════════
     st.markdown(
         f"<div class='sc-h2'><span class='sc-h2-t'>Scanned Strategies{_q(9)}</span>"
-        "<span class='sc-h2-s'>Up to 3 strategies per market regime for each stock · "
+        f"<span class='sc-h2-s'>Up to 3 strategies per market regime for each {_M['noun']} · "
         "highest win rate first, judged on today's regime (the first row of each card)</span>"
-        f"<span class='sc-h2-c'>{len(_rows)} stocks</span></div>"
+        f"<span class='sc-h2-c'>{len(_rows)} {_M['nouns']}</span></div>"
         "<div class='sc-summary'>"
         f"<span class='sc-chip'><b>{len(_all_combos):,}</b> strategies</span>"
         f"<span class='sc-chip' data-sg='18'><span class='sc-vb sc-vb-ok' style='padding:0 0.45rem;'>"
@@ -4187,12 +4183,14 @@ def render_auto_scanner_page() -> None:
         f"{len(_all_combos) - _n_val - _n_fail}</span> not validated</span>"
         f"<span class='sc-chip' data-sg='18'><span class='sc-vb sc-vb-bad' style='padding:0 0.45rem;'>"
         f"{_n_fail}</span> failed test</span>"
-        + (f"<span class='sc-chip'><b>{_rejected}</b> stocks without a profitable strategy</span>"
+        + (f"<span class='sc-chip'><b>{_rejected}</b> {_M['nouns']} without a profitable strategy</span>"
            if _rejected else '')
         + "</div>",
         unsafe_allow_html=True)
 
-    _PREVIEW_COUNT = 6                 # three rows of two cards
+    # Three rows of two cards. The 16 commodities all show: gold and silver must
+    # not hide behind "Show all" because of where their win rate ranks them.
+    _PREVIEW_COUNT = len(_rows) if _mk == 'COM' else 6
     _show_all_key  = 'sc_show_all_strats'
     if _show_all_key not in st.session_state:
         st.session_state[_show_all_key] = False
@@ -4202,7 +4200,7 @@ def render_auto_scanner_page() -> None:
     # strategy that signalled, and scroll there once.
     _focus = st.session_state.get('sc_focus')
     _focus_idx = next((i for i, r in enumerate(_rows)
-                       if r['_sym'].replace('.SR', '') == _focus), None)
+                       if _short(r['_sym']) == _focus), None)
     _rows_to_show = (_rows if st.session_state[_show_all_key]
                      else _rows[:max(_PREVIEW_COUNT, (_focus_idx or 0) + 1)])
 
@@ -4214,8 +4212,10 @@ def render_auto_scanner_page() -> None:
     # separates the rest.
     _cards_today, _cards_other = [], []
     for _pos, _row in enumerate(_rows_to_show, 1):
-        _sym_d = _row['_sym'].replace('.SR', '')
-        _sname = _row['_sname']
+        _sym_d = _short(_row['_sym'])
+        _sym_big, _sym_small = _sym_labels(_row['_sym'], _row['_sname'])
+        # A commodity's unit is already written under its name.
+        _card_cur = '' if _mk == 'COM' else (_unit_of(_row['_sym']) or _M['cur'])
         _cur_reg = _row.get('current_regime')
         _lists = {_rn: _strats(_row, _rn)
                   for _rn in sorted(_REGIMES, key=lambda _rn: _rn != _cur_reg)}
@@ -4247,8 +4247,10 @@ def render_auto_scanner_page() -> None:
             "<div class='sc-stock-hdr'>"
             f"<span class='sc-rank{' sc-rank-top' if _pos <= 3 else ''}' "
             f"title='Rank: highest win rate first'>{_pos}</span>"
-            f"<span class='sc-sym'>{_sym_d}</span>"
-            + (f"<span class='sc-sname'>{_sname}</span>" if _sname else '')
+            f"<span class='sc-sym'>{_sym_big}</span>"
+            + (f"<span class='sc-sname'>{_sym_small}</span>" if _sym_small else '')
+            + f"<span class='sc-px'>{_fp(float(_row.get('price', 0) or 0))}"
+            + (f"<small>{_card_cur}</small>" if _card_cur else '') + "</span>"
             + ("<span class='sc-cfire' data-sg='10' style='margin-left:auto;'>Live signal</span>"
                if _has_fire else
                f"<span class='sc-ct'>{len(_present)} of 3 regimes</span>")
@@ -4263,7 +4265,7 @@ def render_auto_scanner_page() -> None:
         st.markdown(
             "<div class='sc-grp'><b>No strategy for today's market regime"
             + (" matches the filter" if _f_on else "") + "</b> — "
-            f"the stocks below only have strategies for other regimes, ranked by "
+            f"the {_M['nouns']} below only have strategies for other regimes, ranked by "
             f"their best win rate.{_q(9)}</div>",
             unsafe_allow_html=True)
         st.markdown(f"<div class='sc-grid'>{''.join(_cards_other)}</div>",
@@ -4288,7 +4290,7 @@ def render_auto_scanner_page() -> None:
     if len(_rows) > _PREVIEW_COUNT:
         _remaining = len(_rows) - _PREVIEW_COUNT
         _btn_label = (
-            f"Show all {len(_rows)} stocks  ↓"
+            f"Show all {len(_rows)} {_M['nouns']}  ↓"
             if not st.session_state[_show_all_key]
             else "Show less ↑"
         )

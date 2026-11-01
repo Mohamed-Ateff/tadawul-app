@@ -1064,8 +1064,23 @@ def scan_all_stocks(symbols: tuple, period_key: str, _v: int = 20) -> dict:
     return out
 
 
+def drop_no_trade_bars(df: pd.DataFrame) -> pd.DataFrame:
+    """Remove the rows Yahoo fills in on days nothing traded, plus broken rows.
+
+    For commodity futures and many EGX stocks Yahoo returns rows with no volume
+    and High = Low = the last price. They are not sessions: they would count as
+    days in every indicator and flatten the ATR, and a trade could never hit its
+    target or stop on them. Rows with a price at or below zero are errors
+    (EGBE.CA has 258 with Low = 0)."""
+    no_trade = (df['Volume'].fillna(0) == 0) & (df['High'] == df['Low'])
+    broken = df[['Open', 'High', 'Low', 'Close']].isna().any(axis=1) | (
+        df[['Open', 'High', 'Low', 'Close']] <= 0).any(axis=1)
+    return df[~(no_trade | broken)].reset_index(drop=True)
+
+
 @st.cache_data(ttl=1200, show_spinner=False)
-def download_all_raw(symbols: tuple, period_key: str, _v: int = 19) -> dict:
+def download_all_raw(symbols: tuple, period_key: str, _v: int = 19,
+                     clean: bool = False) -> dict:
     """
     Batch-download all symbols in one yfinance call and return the cleaned
     OHLCV DataFrame per symbol: {symbol: df_or_None}. Cached 20 min.
@@ -1073,6 +1088,8 @@ def download_all_raw(symbols: tuple, period_key: str, _v: int = 19) -> dict:
     This is the fast part of a scan (~9s). It is split out from the heavy
     per-symbol analysis so the caller can run the analysis with a live
     progress bar instead of freezing on "Downloading…" for the whole scan.
+
+    `clean` also drops the no-trade bars (see drop_no_trade_bars).
     """
     import yfinance as yf
     import threading
@@ -1145,6 +1162,8 @@ def download_all_raw(symbols: tuple, period_key: str, _v: int = 19) -> dict:
             if 'Datetime' in df.columns:
                 df = df.rename(columns={'Datetime': 'Date'})
             df['Date'] = pd.to_datetime(df['Date'])
+            if clean:
+                df = drop_no_trade_bars(df)
             if len(df) < hold + 20:
                 dfs[sym] = None
                 continue
@@ -1177,7 +1196,8 @@ def _process_stock_df(symbol: str, period_key: str) -> dict | None:
 
 
 @st.cache_data(ttl=1200, show_spinner=False)
-def get_stock_df(symbol: str, period_key: str, _v: int = 8) -> 'pd.DataFrame | None':
+def get_stock_df(symbol: str, period_key: str, _v: int = 8,
+                 clean: bool = False) -> 'pd.DataFrame | None':
     """Fetch OHLCV df for a single symbol — used for price ladder / charts."""
     try:
         import yfinance as yf
@@ -1191,7 +1211,7 @@ def get_stock_df(symbol: str, period_key: str, _v: int = 8) -> 'pd.DataFrame | N
         if 'Datetime' in df.columns:
             df = df.rename(columns={'Datetime': 'Date'})
         df['Date'] = pd.to_datetime(df['Date'])
-        return df
+        return drop_no_trade_bars(df) if clean else df
     except Exception:
         return None
 

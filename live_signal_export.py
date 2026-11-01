@@ -27,6 +27,9 @@ COLUMNS = [
     ('Trades',                'trades',    9, 'int'),
     ('Wins',                  'wins',      8, 'wins'),
     ('Losses',                'losses',    8, 'losses'),
+    ('Market Regime',         'regime',   11, 'text'),
+    ('Validation',            'validation', 14, 'text'),
+    ('Indicators',            'indicators', 48, 'name'),
 ]
 
 NAVY, BLUE, BAND, GRID = '#0B2545', '#1F4E79', '#DDEBF7', '#C9D6E3'
@@ -36,10 +39,15 @@ RATING_COLOR = {'Great': GREEN, 'Good': ORANGE, 'Weak': RED}
 PCT = '"+"0.0%;"−"0.0%'          # signed, with a real minus sign
 
 
-def build_live_signal_xlsx(rows: list[dict], title: str, subtitle: str) -> bytes:
-    """rows: dicts with the COLUMNS keys; prices in SAR, the three % columns and
-    win_rate in percent (4.1 = 4.1%), sl_pct as a positive distance."""
+def build_live_signal_xlsx(rows: list[dict], title: str, subtitle: str,
+                           currency: str = 'SAR', name_head: str = 'Stock Name') -> bytes:
+    """rows: dicts with the COLUMNS keys; the three % columns and win_rate in percent
+    (4.1 = 4.1%), sl_pct as a positive distance. currency: the unit of the prices,
+    written in the headers; '' when each row has its own (commodities: its name
+    already says it). name_head: the first column's header."""
     import xlsxwriter
+
+    cur_head = f' ({currency})' if currency else ''
 
     buf = io.BytesIO()
     wb = xlsxwriter.Workbook(buf, {'in_memory': True})
@@ -71,6 +79,8 @@ def build_live_signal_xlsx(rows: list[dict], title: str, subtitle: str) -> bytes
                 kw.update(bold=True, align='left', indent=1)
             elif kind == 'price':
                 kw.update(num_format='#,##0.00')
+            elif kind == 'price3':              # prices under 1: 0.001 steps on the EGX
+                kw.update(num_format='0.000')
             elif kind == 'loss':
                 kw.update(num_format=PCT, font_color=RED)
             elif kind == 'gain':
@@ -99,7 +109,7 @@ def build_live_signal_xlsx(rows: list[dict], title: str, subtitle: str) -> bytes
     ws.set_row(3, 34)
     for c, (head, _key, width, _kind) in enumerate(COLUMNS):
         ws.set_column(c, c, width)
-        ws.write(3, c, head, head_f)
+        ws.write(3, c, head.replace(' (SAR)', cur_head).replace('Stock Name', name_head), head_f)
 
     first = 4
     for i, r in enumerate(rows):
@@ -107,7 +117,8 @@ def build_live_signal_xlsx(rows: list[dict], title: str, subtitle: str) -> bytes
         ws.set_row(row, 20)
         for c, (_head, key, _width, kind) in enumerate(COLUMNS):
             v = r.get(key)
-            f = cell(kind, band, r.get('rr_label', '') if kind == 'rating' else '')
+            small = kind == 'price' and v not in (None, '') and abs(float(v)) < 1
+            f = cell('price3' if small else kind, band, r.get('rr_label', '') if kind == 'rating' else '')
             if v is None or v == '':
                 ws.write_blank(row, c, None, f)
             elif kind == 'loss':
@@ -138,8 +149,10 @@ def build_live_signal_xlsx(rows: list[dict], title: str, subtitle: str) -> bytes
                    'past signals it is based on (fewer than 10 is weak evidence), split into Wins and '
                    'Losses. Risk : Reward = Target 1 gain ÷ stop-loss risk: Great from 1 : 2, Good from '
                    '1 : 1.5. Entry, stop and '
-                   'targets come from the stock\'s price structure. Prices in SAR. '
-                   'Not investment advice.', note_f)
+                   'targets come from the price structure. '
+                   + (f'Prices in {currency}. ' if currency else
+                      'Each commodity is priced in the unit after its name. ')
+                   + 'Not investment advice.', note_f)
 
     ws.freeze_panes(first, 1)
     ws.hide_gridlines(2)
