@@ -21,16 +21,16 @@ INFO = BLUE
 PURP = PURPLE
 GOLD = AMBER
 
-_NUM = "letter-spacing:-0.02em;font-variant-numeric:tabular-nums;"
+_NUM = "letter-spacing:-0.02em;"
 
 
 def _card_open(title, sub="", margin="1.2rem"):
     """White top-level card with a title + one-line subtitle header."""
     return (
-        f"<div style='background:{CARD};border:1px solid {HAIR};border-radius:18px;"
+        f"<div style='background:{CARD};border:none;border-radius:18px;"
         f"box-shadow:{SHADOW};overflow:hidden;margin-bottom:{margin};'>"
         f"<div style='padding:1.1rem 1.35rem 0.9rem;border-bottom:1px solid {HAIR};'>"
-        f"<div style='font-size:1.05rem;font-weight:700;color:{T1};letter-spacing:-0.01em;'>{title}</div>"
+        f"<div style='font-size:1.05rem;font-weight:600;color:{T1};letter-spacing:-0.01em;'>{title}</div>"
         + (f"<div style='font-size:0.85rem;color:{T3};margin-top:0.15rem;'>{sub}</div>" if sub else "")
         + "</div>"
     )
@@ -58,10 +58,10 @@ def _frame_key(df):
 # ── Cell builder (light tile inside a card grid) ──────────────────────────────
 def _cell(label, value, color, sub="", last=False):
     return (
-        f"<div style='background:{INSET};border:1px solid {HAIR};border-radius:14px;"
+        f"<div style='background:{INSET};border:none;border-radius:14px;"
         f"padding:0.95rem 1.05rem;display:flex;flex-direction:column;gap:0.3rem;min-width:0;'>"
         f"<div style='font-size:0.8rem;color:{T3};font-weight:600;'>{label}</div>"
-        f"<div style='font-size:1.3rem;font-weight:700;color:{color};line-height:1.2;{_NUM}'>{value}</div>"
+        f"<div style='font-size:1.3rem;font-weight:600;color:{color};line-height:1.2;{_NUM}'>{value}</div>"
         + (f"<div style='font-size:0.78rem;color:{T3};'>{sub}</div>" if sub else "")
         + f"</div>"
     )
@@ -87,7 +87,7 @@ def _factor_bar(label, score):
         f"<div style='margin-bottom:0.8rem;'>"
         f"<div style='display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.3rem;'>"
         f"<span style='font-size:0.85rem;color:{T2};font-weight:600;'>{label}</span>"
-        f"<span style='font-size:0.88rem;font-weight:700;color:{col};{_NUM}'>{score}</span>"
+        f"<span style='font-size:0.88rem;font-weight:600;color:{col};{_NUM}'>{score}</span>"
         f"</div>"
         f"<div style='background:{FILL};border-radius:999px;height:6px;overflow:hidden;'>"
         f"<div style='width:{pct}%;height:100%;background:{col};"
@@ -100,7 +100,7 @@ def _factor_bar(label, score):
 def _horizon_card(label, ml_data, ana_data, cp):
     if not ml_data and not ana_data:
         return (
-            f"<div style='background:{INSET};border:1px solid {HAIR};"
+            f"<div style='background:{INSET};border:none;"
             f"border-radius:14px;padding:1rem 1.1rem;'>"
             f"<div style='font-size:0.95rem;color:{T1};font-weight:600;margin-bottom:0.5rem;'>{label}</div>"
             f"<div style='font-size:0.85rem;color:{T3};'>Insufficient data</div>"
@@ -118,7 +118,7 @@ def _horizon_card(label, ml_data, ana_data, cp):
     ana_col = BULL if ana_wr >= 55 else (BEAR if ana_wr <= 45 else NEUT)
 
     return (
-        f"<div style='background:{INSET};border:1px solid {HAIR};"
+        f"<div style='background:{INSET};border:none;"
         f"border-radius:14px;padding:1rem 1.1rem;'>"
         f"<div style='display:flex;justify-content:space-between;align-items:center;"
         f"gap:0.5rem;margin-bottom:0.75rem;'>"
@@ -130,7 +130,7 @@ def _horizon_card(label, ml_data, ana_data, cp):
         # ML row
         f"<div style='margin-bottom:0.6rem;'>"
         f"<div style='font-size:0.8rem;color:{T3};font-weight:600;margin-bottom:0.2rem;'>ML prediction</div>"
-        f"<div style='font-size:1.25rem;font-weight:700;color:{ml_col};{_NUM}'>"
+        f"<div style='font-size:1.25rem;font-weight:600;color:{ml_col};{_NUM}'>"
         f"{ml_up:.0f}% UP &nbsp;·&nbsp; {ml_dir}</div>"
         f"<div style='font-size:0.8rem;color:{T3};'>Accuracy {ml_acc:.0f}%</div>"
         f"</div>"
@@ -140,7 +140,7 @@ def _horizon_card(label, ml_data, ana_data, cp):
         # Analogue row
         f"<div>"
         f"<div style='font-size:0.8rem;color:{T3};font-weight:600;margin-bottom:0.2rem;'>Historical analogues</div>"
-        f"<div style='font-size:1.25rem;font-weight:700;color:{ana_col};{_NUM}'>"
+        f"<div style='font-size:1.25rem;font-weight:600;color:{ana_col};{_NUM}'>"
         f"{ana_wr:.0f}% win rate</div>"
         f"<div style='font-size:0.8rem;color:{T3};'>"
         f"Avg return {ana_ret:+.2f}% · {ana_n} setups</div>"
@@ -326,14 +326,14 @@ def strategy_lab_tab(
     # DECISION BOX
     # ══════════════════════════════════════════════════════════════════════════
     st.markdown(
-        f"<div style='background:{CARD};border:1px solid {HAIR};"
+        f"<div style='background:{CARD};border:none;"
         f"border-radius:18px;box-shadow:{SHADOW};"
         f"overflow:hidden;margin-bottom:1.4rem;'>"
 
         # Header
         f"<div style='padding:1.5rem 1.6rem 1.2rem;'>"
         f"<div style='font-size:0.88rem;color:{T3};font-weight:600;margin-bottom:0.55rem;'>AI analysis</div>"
-        f"<div style='font-size:3rem;font-weight:700;color:{display_col};"
+        f"<div style='font-size:3rem;font-weight:600;color:{display_col};"
         f"letter-spacing:-0.03em;line-height:1;'>{display_dec}</div>"
         f"<div style='font-size:0.92rem;color:{T2};margin-top:0.65rem;"
         f"font-weight:500;line-height:1.55;'>{dec_reason}</div>"

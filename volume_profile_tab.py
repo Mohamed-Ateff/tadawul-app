@@ -19,13 +19,13 @@ BG    = CARD
 BG2   = INSET
 BDR   = HAIR
 
-_NUM = "letter-spacing:-0.02em;font-variant-numeric:tabular-nums;"
+_NUM = "letter-spacing:-0.02em;"
 
 
 def _sec(title, color=INFO, sub=""):
     return (
         f"<div style='margin:2.2rem 0 0.9rem;'>"
-        f"<div style='font-size:1.25rem;font-weight:700;color:{T1};"
+        f"<div style='font-size:1.25rem;font-weight:600;color:{T1};"
         f"letter-spacing:-0.015em;line-height:1.3;'>{title}</div>"
         + (f"<div style='font-size:0.88rem;color:{T3};margin-top:0.2rem;'>{sub}</div>" if sub else "")
         + "</div>"
@@ -354,7 +354,7 @@ def _build_vp_chart(df, vp, sig, current_price, tail=90):
         elif vols_l[i] <= p20 and vols_l[i] > 0:
             bar_colors.append(rgba(RED, 0.30))
         else:
-            bar_colors.append(rgba("#8A8A91", 0.30))
+            bar_colors.append(rgba("#86868B", 0.30))
 
     fig.add_trace(go.Bar(
         x=[v / max_v for v in vols_l], y=mids,
@@ -472,7 +472,7 @@ def volume_profile_tab(df, current_price):
     }
 
     _vp_metrics_html = "".join([
-        f"<div style='background:{INSET};border:1px solid {HAIR};border-radius:14px;"
+        f"<div style='background:{INSET};border:none;border-radius:14px;"
         f"padding:0.95rem 1.1rem;min-width:0;'>"
         f"<div style='display:flex;align-items:center;margin-bottom:0.45rem;'>"
         f"<span style='width:8px;height:8px;border-radius:50%;background:{_mc};"
@@ -480,7 +480,7 @@ def volume_profile_tab(df, current_price):
         f"<div style='font-size:0.82rem;color:{T3};font-weight:600;'>{_mn}</div>"
         + _vptip(_vp_metric_tooltips.get(_mn, ""))
         + f"</div>"
-        f"<div style='font-size:1.45rem;font-weight:700;color:{T1};line-height:1.15;{_NUM}'>{_mv:.2f}</div>"
+        f"<div style='font-size:1.45rem;font-weight:600;color:{T1};line-height:1.15;{_NUM}'>{_mv:.2f}</div>"
         f"<div style='font-size:0.82rem;color:{T3};margin-top:0.25rem;{_NUM}'>{_ms}</div>"
         f"</div>"
         for _mn, _mv, _mc, _ms in [
@@ -492,21 +492,21 @@ def volume_profile_tab(df, current_price):
     ])
 
     st.markdown(
-        f"<div style='background:{CARD};border:1px solid {HAIR};border-radius:18px;"
+        f"<div style='background:{CARD};border:none;border-radius:18px;"
         f"box-shadow:{SHADOW};margin-bottom:1.4rem;'>"
         f"<div style='padding:1.4rem 1.6rem 1.1rem;'>"
         f"<div style='font-size:0.85rem;color:{T3};font-weight:600;margin-bottom:0.6rem;'>"
         f"Volume profile decision</div>"
         f"<div style='display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap;'>"
-        f"<div style='font-size:2.3rem;font-weight:700;color:{_vp_vc};"
+        f"<div style='font-size:2.3rem;font-weight:600;color:{_vp_vc};"
         f"line-height:1;letter-spacing:-0.02em;'>{_vp_verdict}</div>"
         f"<div style='flex:1;min-width:200px;'>"
         f"<span style='display:inline-block;font-size:0.88rem;font-weight:600;color:{_vp_vc};"
         f"background:{_vp_vbg};border-radius:980px;padding:0.3rem 0.8rem;line-height:1.4;'>{_vp_sub}</span>"
         f"</div>"
-        f"<div style='text-align:center;background:{INSET};border:1px solid {HAIR};"
+        f"<div style='text-align:center;background:{INSET};border:none;"
         f"border-radius:14px;padding:0.7rem 1.2rem;flex-shrink:0;'>"
-        f"<div style='font-size:1.6rem;font-weight:700;color:{T1};line-height:1;{_NUM}'>{_vp_conf}"
+        f"<div style='font-size:1.6rem;font-weight:600;color:{T1};line-height:1;{_NUM}'>{_vp_conf}"
         f"<span style='font-size:0.85rem;font-weight:600;color:{T3};'>/100</span></div>"
         f"<div style='display:flex;align-items:center;justify-content:center;gap:0.1rem;margin-top:0.3rem;'>"
         f"<div style='font-size:0.8rem;color:{T3};font-weight:600;'>Score</div>"
@@ -534,25 +534,25 @@ def volume_profile_tab(df, current_price):
 
         "<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0.7rem;margin:0.8rem 0;'>"
 
-        f"<div style='background:{AMBER_BG};border:1px solid {rgba(AMBER, 0.18)};border-radius:12px;padding:0.8rem 0.95rem;'>"
+        f"<div style='background:{AMBER_BG};border:none;border-radius:12px;padding:0.8rem 0.95rem;'>"
         f"<div style='font-size:0.9rem;font-weight:600;color:{AMBER};'>POC (Point of Control)</div>"
         f"<div style='font-size:0.85rem;color:{T2};line-height:1.55;margin-top:0.25rem;'>"
         "The single price with the highest traded volume. The market keeps coming back to this price "
         "like a magnet — it's where buyers and sellers agreed the most.</div></div>"
 
-        f"<div style='background:{PURPLE_BG};border:1px solid {rgba(PURPLE, 0.18)};border-radius:12px;padding:0.8rem 0.95rem;'>"
+        f"<div style='background:{PURPLE_BG};border:none;border-radius:12px;padding:0.8rem 0.95rem;'>"
         f"<div style='font-size:0.9rem;font-weight:600;color:{PURPLE};'>VWAP (Volume-Weighted Avg)</div>"
         f"<div style='font-size:0.85rem;color:{T2};line-height:1.55;margin-top:0.25rem;'>"
         "The average price weighted by how much was traded at each level. "
         "Big institutions use VWAP as their benchmark — above VWAP means buyers are winning, below means sellers.</div></div>"
 
-        f"<div style='background:{GREEN_BG};border:1px solid {rgba(GREEN, 0.18)};border-radius:12px;padding:0.8rem 0.95rem;'>"
+        f"<div style='background:{GREEN_BG};border:none;border-radius:12px;padding:0.8rem 0.95rem;'>"
         f"<div style='font-size:0.9rem;font-weight:600;color:{GREEN};'>VAL (Value Area Low)</div>"
         f"<div style='font-size:0.85rem;color:{T2};line-height:1.55;margin-top:0.25rem;'>"
         "The bottom of the zone where 70% of all trading happened. "
         "When price drops to VAL, smart money often steps in to buy — it's the discount zone.</div></div>"
 
-        f"<div style='background:{RED_BG};border:1px solid {rgba(RED, 0.16)};border-radius:12px;padding:0.8rem 0.95rem;'>"
+        f"<div style='background:{RED_BG};border:none;border-radius:12px;padding:0.8rem 0.95rem;'>"
         f"<div style='font-size:0.9rem;font-weight:600;color:{RED};'>VAH (Value Area High)</div>"
         f"<div style='font-size:0.85rem;color:{T2};line-height:1.55;margin-top:0.25rem;'>"
         "The top of the 70% volume zone. When price rises to VAH, sellers often show up — "
@@ -601,7 +601,7 @@ def volume_profile_tab(df, current_price):
         ("HVN below",  hvns_below[0] if hvns_below else None,  BULL,      "Strong support"),
     ]
 
-    _lvl_card = (f"background:{CARD};border:1px solid {HAIR};border-radius:16px;"
+    _lvl_card = (f"background:{CARD};border:none;border-radius:16px;"
                  f"box-shadow:{SHADOW};padding:1.1rem 0.9rem;text-align:center;min-height:8.9rem;"
                  f"box-sizing:border-box;")
     cols = st.columns(len(level_data), gap="small")
@@ -617,7 +617,7 @@ def volume_profile_tab(df, current_price):
                 st.markdown(
                     f"<div style='{_lvl_card}'>"
                     + _lbl_html +
-                    f"<div style='font-size:1.4rem;font-weight:700;color:{T4};line-height:1.15;'>—</div>"
+                    f"<div style='font-size:1.4rem;font-weight:600;color:{T4};line-height:1.15;'>—</div>"
                     f"<div style='font-size:0.8rem;color:{T3};margin-top:0.3rem;'>{desc}</div>"
                     f"</div>",
                     unsafe_allow_html=True,
@@ -627,7 +627,7 @@ def volume_profile_tab(df, current_price):
                 st.markdown(
                     f"<div style='{_lvl_card}'>"
                     + _lbl_html +
-                    f"<div style='font-size:1.4rem;font-weight:700;color:{T1};line-height:1.15;{_NUM}'>${price:.2f}</div>"
+                    f"<div style='font-size:1.4rem;font-weight:600;color:{T1};line-height:1.15;{_NUM}'>${price:.2f}</div>"
                     f"<div style='font-size:0.85rem;font-weight:600;color:{T2};margin-top:0.3rem;{_NUM}'>{dist}</div>"
                     f"<div style='font-size:0.8rem;color:{T3};margin-top:0.15rem;'>{desc}</div>"
                     f"</div>",
@@ -636,7 +636,7 @@ def volume_profile_tab(df, current_price):
 
     if lvns_above and abs(lvns_above[0] - current_price) / max(current_price, 1) < 0.03:
         st.markdown(
-            f"<div style='background:{CARD};border:1px solid {HAIR};"
+            f"<div style='background:{CARD};border:none;"
             f"border-radius:14px;margin-top:0.8rem;padding:0.85rem 1.1rem;"
             f"font-size:0.88rem;color:{T2};line-height:1.5;'>"
             f"<span style='color:{BULL};font-weight:600;'>LVN just above ({lvns_above[0]:.2f}): </span>"
@@ -645,7 +645,7 @@ def volume_profile_tab(df, current_price):
         )
     if lvns_below and abs(lvns_below[0] - current_price) / max(current_price, 1) < 0.03:
         st.markdown(
-            f"<div style='background:{CARD};border:1px solid {HAIR};"
+            f"<div style='background:{CARD};border:none;"
             f"border-radius:14px;margin-top:0.8rem;padding:0.85rem 1.1rem;"
             f"font-size:0.88rem;color:{T2};line-height:1.5;'>"
             f"<span style='color:{INFO};font-weight:600;'>Support zone ({lvns_below[0]:.2f}): </span>"
@@ -674,7 +674,7 @@ def volume_profile_tab(df, current_price):
 
     st.markdown(
         f"<div style='display:flex;gap:0.6rem 1.4rem;flex-wrap:wrap;align-items:center;"
-        f"padding:0.8rem 1.1rem;background:{CARD};border:1px solid {HAIR};"
+        f"padding:0.8rem 1.1rem;background:{CARD};border:none;"
         f"border-radius:14px;margin-bottom:0.5rem;'>"
         + "".join([
             f"<span style='display:inline-flex;align-items:center;gap:0.45rem;"
@@ -697,7 +697,7 @@ def volume_profile_tab(df, current_price):
 
     st.markdown(
         f"<div style='font-size:0.85rem;color:{T3};margin-top:1.5rem;line-height:1.5;"
-        f"padding:0.85rem 1.1rem;background:{INSET};border-radius:14px;border:1px solid {HAIR};'>"
+        f"padding:0.85rem 1.1rem;background:{INSET};border-radius:14px;border:none;'>"
         f"Volume Profile is computed from the full selected date range. "
         f"POC, VAH, and VAL shift as new data is added. Not financial advice."
         f"</div>",

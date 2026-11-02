@@ -45,10 +45,10 @@ def _glowbar(pct, color=BULL, height="6px"):
 
 
 _LBL = f"font-size:0.8rem;font-weight:600;color:{T3};"
-_NUM = "font-weight:700;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;line-height:1.15;"
+_NUM = "font-weight:600;letter-spacing:-0.02em;line-height:1.15;"
 _CHART_CARD_CSS = (
     "<style>.stApp .st-key-pa_chart_card{"
-    f"background:{CARD};border:1px solid {HAIR};border-radius:18px;box-shadow:{SHADOW};"
+    f"background:{CARD};border:none;border-radius:18px;box-shadow:{SHADOW};"
     "padding:0.9rem 1rem 0.6rem;gap:0;}</style>"
 )
 
@@ -407,10 +407,10 @@ def price_action_analysis_tab(df, info_icon):
         except Exception:
             pass
 
-    _tile = (f"background:{INSET};border:1px solid {HAIR};border-radius:14px;"
+    _tile = (f"background:{INSET};border:none;border-radius:14px;"
              f"padding:0.95rem 1.1rem;")
     st.markdown(
-        f"<div style='background:{CARD};border:1px solid {HAIR};border-radius:18px;"
+        f"<div style='background:{CARD};border:none;border-radius:18px;"
         f"box-shadow:{SHADOW};overflow:hidden;margin-bottom:1.4rem;'>"
         f"<div style='padding:1.4rem 1.6rem 1.2rem;"
         f"display:flex;align-items:flex-start;justify-content:space-between;gap:1.5rem;flex-wrap:wrap;'>"
@@ -484,11 +484,11 @@ def price_action_analysis_tab(df, info_icon):
         _is_cur = label == "Current"
         with col:
             st.markdown(
-                f"<div style='background:{CARD};border:1px solid {'rgba(0,99,209,0.35)' if _is_cur else HAIR};"
+                f"<div style='background:{CARD};border:1px solid {'rgba(0,113,227,0.35)' if _is_cur else HAIR};"
                 f"border-radius:16px;box-shadow:{SHADOW};padding:1rem 0.7rem;text-align:center;'>"
                 f"<div style='{_LBL}margin-bottom:0.45rem;'>{label}</div>"
                 f"<div style='font-size:1.3rem;{_NUM}color:{color};'>${price:.2f}</div>"
-                f"<div style='font-size:0.84rem;color:{T3};margin-top:0.3rem;font-variant-numeric:tabular-nums;'>{dist}</div>"
+                f"<div style='font-size:0.84rem;color:{T3};margin-top:0.3rem;'>{dist}</div>"
                 f"</div>",
                 unsafe_allow_html=True,
             )
@@ -513,21 +513,21 @@ def price_action_analysis_tab(df, info_icon):
                       else f"<span class='ap-pill'>Outside</span>")
         with col:
             st.markdown(
-                f"<div style='background:{CARD};border:1px solid {HAIR};"
+                f"<div style='background:{CARD};border:none;"
                 f"border-radius:18px;box-shadow:{SHADOW};padding:1.25rem 1.4rem;'>"
                 f"<div style='display:flex;justify-content:space-between;align-items:center;"
                 f"margin-bottom:0.6rem;'>"
                 f"<div style='font-size:0.95rem;color:{T1};font-weight:600;'>{label.capitalize()}</div>"
                 f"{in_html}</div>"
                 f"<div style='font-size:2rem;{_NUM}color:{col_accent};'>${lvl:.2f}</div>"
-                f"<div style='font-size:0.85rem;color:{T3};margin:0.3rem 0 0.9rem;font-variant-numeric:tabular-nums;'>"
+                f"<div style='font-size:0.85rem;color:{T3};margin:0.3rem 0 0.9rem;'>"
                 f"Band: ${zone_lo:.2f} \u2013 ${zone_hi:.2f}</div>"
                 f"<div style='display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;'>"
-                f"<div style='background:{INSET};border:1px solid {HAIR};border-radius:12px;padding:0.75rem 0.95rem;'>"
+                f"<div style='background:{INSET};border:none;border-radius:12px;padding:0.75rem 0.95rem;'>"
                 f"<div style='{_LBL}margin-bottom:0.25rem;'>Strength</div>"
-                f"<div style='font-size:1.1rem;font-weight:700;color:{_c(sc)};'>{strength_str.capitalize()}</div>"
+                f"<div style='font-size:1.1rem;font-weight:600;color:{_c(sc)};'>{strength_str.capitalize()}</div>"
                 f"</div>"
-                f"<div style='background:{INSET};border:1px solid {HAIR};border-radius:12px;padding:0.75rem 0.95rem;'>"
+                f"<div style='background:{INSET};border:none;border-radius:12px;padding:0.75rem 0.95rem;'>"
                 f"<div style='display:flex;align-items:baseline;justify-content:space-between;gap:0.5rem;'>"
                 f"<div style='{_LBL}margin-bottom:0.25rem;'>Touches</div>"
                 f"<div style='font-size:0.75rem;color:{T3};'>Strong at 5+</div></div>"

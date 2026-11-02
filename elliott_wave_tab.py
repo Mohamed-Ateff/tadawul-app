@@ -67,7 +67,7 @@ def _sec(title, color=INFO):
 def _glowbar(pct, color=BULL, height="7px"):
     pct = max(0, min(100, float(pct)))
     return (
-        f"<div style='background:#EDEDF1;border-radius:999px;height:{height};overflow:hidden;'>"
+        f"<div style='background:#EFEFF1;border-radius:999px;height:{height};overflow:hidden;'>"
         f"<div style='width:{pct}%;height:100%;"
         f"background:{color};border-radius:999px;'></div></div>"
     )
@@ -89,8 +89,8 @@ def _stat_pill(label, value, color, bg=None, tip=None):
         f"border-radius:14px;padding:0.9rem 1rem;text-align:center;'>"
         f"<div style='font-size:0.8rem;color:{T3};"
         f"font-weight:600;margin-bottom:0.35rem;'>{label}{_tip_html}</div>"
-        f"<div style='font-size:1.25rem;font-weight:700;color:{color};line-height:1.1;"
-        f"letter-spacing:-0.02em;font-variant-numeric:tabular-nums;'>{value}</div></div>"
+        f"<div style='font-size:1.25rem;font-weight:600;color:{color};line-height:1.1;"
+        f"letter-spacing:-0.02em;'>{value}</div></div>"
     )
 
 
@@ -916,14 +916,14 @@ def elliott_wave_tab(df, current_price):
     /* ─── Hero Card ─── */
     .ew-hero {
         background: #FFFFFF;
-        border: 1px solid #DEDEE3;
+        border: none;
         border-radius: 18px; overflow: hidden; margin-bottom: 1.4rem;
-        box-shadow: 0 1px 2px rgba(17,17,20,0.05),0 8px 24px rgba(17,17,20,0.06);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03),0 6px 20px rgba(0,0,0,0.045);
     }
     .ew-hero-header {
         padding: 1.5rem 1.8rem;
         display: flex; justify-content: space-between; align-items: center;
-        border-bottom: 1px solid #DEDEE3;
+        border-bottom: 1px solid #E8E8ED;
     }
     .ew-hero-body { padding: 1.4rem 1.8rem 1.2rem 1.8rem; }
 
@@ -931,7 +931,7 @@ def elliott_wave_tab(df, current_price):
     .ew-wave-badge {
         display: inline-flex; align-items: center; justify-content: center;
         width: 2.4rem; height: 2.4rem; border-radius: 50%;
-        font-size: 0.95rem; font-weight: 700; flex-shrink: 0;
+        font-size: 0.95rem; font-weight: 600; flex-shrink: 0;
         border: 1.5px solid; line-height: 1;
         transition: transform 0.2s ease;
     }
@@ -957,80 +957,70 @@ def elliott_wave_tab(df, current_price):
     .ew-tl-mpct {
         font-size: 0.75rem; font-weight: 600;
         margin-top: 0.2rem; white-space: nowrap;
-        font-variant-numeric: tabular-nums;
+        
     }
     .ew-tl-price {
-        font-size: 0.78rem; color: #5C5C63; font-weight: 600;
-        white-space: nowrap; font-variant-numeric: tabular-nums;
+        font-size: 0.78rem; color: #636366; font-weight: 600;
+        white-space: nowrap; 
     }
 
     /* ─── Fibonacci Row ─── */
     .ew-fib-row {
         display: flex; align-items: center; gap: 0.8rem;
         padding: 0.65rem 0.9rem; border-radius: 12px;
-        margin-bottom: 0.2rem; font-size: 0.85rem; color: #3F3F46;
+        margin-bottom: 0.2rem; font-size: 0.85rem; color: #424245;
         transition: background 0.15s ease;
     }
-    .ew-fib-row:hover { background: #F7F7FA; }
+    .ew-fib-row:hover { background: #F5F5F7; }
     .ew-fib-near {
-        background: rgba(161,92,0,0.08) !important;
-        border: 1px solid rgba(161,92,0,0.18);
+        background: rgba(255,149,0,0.08) !important;
     }
     .ew-fib-ext-near {
-        background: rgba(0,99,209,0.07) !important;
-        border: 1px solid rgba(0,99,209,0.18);
+        background: rgba(0,113,227,0.07) !important;
     }
 
     /* ─── Wave Detail Card ─── */
     .ew-wcard {
         background: #FFFFFF;
-        border: 1px solid #DEDEE3; border-radius: 16px;
+        border: none; border-radius: 16px;
         overflow: hidden; margin-bottom: 0.8rem;
-        box-shadow: 0 1px 2px rgba(17,17,20,0.05),0 8px 24px rgba(17,17,20,0.06);
-        transition: border-color 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03),0 6px 20px rgba(0,0,0,0.045);
     }
-    .ew-wcard:hover { border-color: #C9C9CF; }
     .ew-wcard-body { padding: 1.1rem 1.3rem; }
 
     /* ─── Diagnostic / Divergence Card ─── */
     .ew-diag {
-        background: #FFFFFF; border: 1px solid #DEDEE3;
+        background: #FFFFFF; border: none;
         border-radius: 14px; padding: 1rem 1.25rem;
-        margin-bottom: 0.6rem; color: #3F3F46;
-        transition: border-color 0.2s ease;
+        margin-bottom: 0.6rem; color: #424245;
     }
-    .ew-diag:hover { border-color: #C9C9CF; }
 
     /* ─── Note Card ─── */
     .ew-note {
-        background: #F7F7FA; border: 1px solid #DEDEE3;
+        background: #F5F5F7; border: none;
         border-radius: 12px; padding: 0.85rem 1.1rem;
-        margin-bottom: 0.45rem; color: #3F3F46;
-        transition: border-color 0.15s ease;
+        margin-bottom: 0.45rem; color: #424245;
     }
-    .ew-note:hover { border-color: #C9C9CF; }
 
     /* ─── Projection Target ─── */
     .ew-target {
-        background: #F7F7FA; border: 1px solid #DEDEE3;
+        background: #F5F5F7; border: none;
         border-radius: 14px; padding: 0.9rem 0.8rem;
         text-align: center;
-        transition: border-color 0.2s ease;
     }
-    .ew-target:hover { border-color: #C9C9CF; }
 
     /* ─── Divider ─── */
     .ew-divider {
         height: 1px; margin: 1rem 0;
-        background: #DEDEE3;
+        background: #E8E8ED;
     }
 
     /* ─── Active badge (no glow) ─── */
-    .ew-active { box-shadow: 0 0 0 3px rgba(0,99,209,0.18) !important; }
+    .ew-active { box-shadow: 0 0 0 3px rgba(0,113,227,0.18) !important; }
 
     /* ─── Fib distance bar ─── */
     .ew-fib-dist {
-        height: 4px; border-radius: 2px; background: #EDEDF1;
+        height: 4px; border-radius: 2px; background: #EFEFF1;
         flex: 1; overflow: hidden; min-width: 40px;
     }
     .ew-fib-dist-fill {
@@ -1042,35 +1032,35 @@ def elliott_wave_tab(df, current_price):
     .ew-tip {
         visibility: hidden; opacity: 0;
         position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
-        background: #FFFFFF; color: #3F3F46; border: 1px solid #DEDEE3;
+        background: #FFFFFF; color: #424245; border: 1px solid #E8E8ED;
         border-radius: 12px; padding: 0.6rem 0.75rem;
         font-size: 0.8rem; font-weight: 500; line-height: 1.5;
         white-space: normal; width: 220px; text-align: left;
         z-index: 100; pointer-events: none;
         transition: opacity 0.15s ease, visibility 0.15s ease;
-        box-shadow: 0 1px 2px rgba(17,17,20,0.06),0 10px 28px rgba(17,17,20,0.12);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.06),0 10px 28px rgba(0,0,0,0.12);
         text-transform: none; letter-spacing: 0;
     }
     .ew-tip::after {
         content: ''; position: absolute; top: 100%; left: 50%;
         transform: translateX(-50%);
-        border: 5px solid transparent; border-top-color: #DEDEE3;
+        border: 5px solid transparent; border-top-color: #E8E8ED;
     }
     span:hover > .ew-tip { visibility: visible; opacity: 1; }
 
     /* ─── Wave chart card ─── */
     .st-key-ew_chart_card {
-        background: #FFFFFF !important; border: 1px solid #DEDEE3 !important;
+        background: #FFFFFF !important; border: none !important;
         border-radius: 18px !important; padding: 1.3rem 1.4rem 0.9rem !important;
-        box-shadow: 0 1px 2px rgba(17,17,20,0.05),0 8px 24px rgba(17,17,20,0.06) !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03),0 6px 20px rgba(0,0,0,0.045) !important;
         margin-bottom: 1.2rem; gap: 0.6rem !important;
     }
 
     .ew-ctrl-tip {
         display: inline-flex; align-items: center; justify-content: center;
         width: 18px; height: 18px; border-radius: 50%;
-        background: #FFFFFF; border: 1px solid #C9C9CF;
-        font-size: 0.75rem; color: #5C5C63; font-weight: 600;
+        background: #FFFFFF; border: 1px solid #D2D2D7;
+        font-size: 0.75rem; color: #636366; font-weight: 600;
         cursor: help; margin-left: 0.35rem; position: relative;
     }
     .ew-ctrl-tip:hover > .ew-tip { visibility: visible; opacity: 1; }
@@ -1241,14 +1231,14 @@ def elliott_wave_tab(df, current_price):
             f"<div style='padding:1.5rem 1.6rem 1.2rem;'>"
             f"<div style='font-size:0.88rem;color:{T3};"
             f"font-weight:600;margin-bottom:0.45rem;'>Elliott Wave decision</div>"
-            f"<div style='font-size:2.6rem;font-weight:700;color:{_ew_dcol};"
+            f"<div style='font-size:2.6rem;font-weight:600;color:{_ew_dcol};"
             f"letter-spacing:-0.02em;line-height:1;'>{_ew_dv}</div>"
             f"<div style='font-size:0.95rem;color:{T2};margin-top:0.65rem;"
             f"font-weight:400;line-height:1.6;'>{_ew_dsub}</div>"
             f"</div>"
             f"<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));"
             f"gap:0.8rem;padding:0 1.6rem 1.4rem;'>"
-            f"<div style='padding:0.95rem 1.1rem;background:{INSET};border:1px solid {HAIR};border-radius:14px;'>"
+            f"<div style='padding:0.95rem 1.1rem;background:{INSET};border:none;border-radius:14px;'>"
             f"<div style='display:flex;align-items:center;margin-bottom:0.35rem;'>"
             f"<div style='font-size:0.82rem;color:{T3};"
             f"font-weight:600;'>Wave type</div>"
@@ -1256,10 +1246,10 @@ def elliott_wave_tab(df, current_price):
                       "Corrective = a 3-wave counter-move (A-B-C). "
                       "Impulse waves are the tradeable legs; corrective waves are the pauses.")
             + f"</div>"
-            f"<div style='font-size:1.2rem;font-weight:700;color:{hero_color};letter-spacing:-0.01em;'>{wtype}</div>"
+            f"<div style='font-size:1.2rem;font-weight:600;color:{hero_color};letter-spacing:-0.01em;'>{wtype}</div>"
             f"<div style='font-size:0.85rem;color:{T3};margin-top:0.2rem;'>{phase}</div>"
             f"</div>"
-            f"<div style='padding:0.95rem 1.1rem;background:{INSET};border:1px solid {HAIR};border-radius:14px;'>"
+            f"<div style='padding:0.95rem 1.1rem;background:{INSET};border:none;border-radius:14px;'>"
             f"<div style='display:flex;align-items:center;margin-bottom:0.35rem;'>"
             f"<div style='font-size:0.82rem;color:{T3};"
             f"font-weight:600;'>Wave score</div>"
@@ -1268,11 +1258,11 @@ def elliott_wave_tab(df, current_price):
                       "Gains points for Fibonacci alignment. "
                       "80+ = excellent. 60–79 = good. 40–59 = fair. Below 40 = weak count, treat with caution.")
             + f"</div>"
-            f"<div style='font-size:1.2rem;font-weight:700;color:{score_color};letter-spacing:-0.01em;"
-            f"font-variant-numeric:tabular-nums;'>{wscore}/100</div>"
+            f"<div style='font-size:1.2rem;font-weight:600;color:{score_color};letter-spacing:-0.01em;"
+            f"'>{wscore}/100</div>"
             f"<div style='font-size:0.85rem;color:{T3};margin-top:0.2rem;'>{_score_sub}</div>"
             f"</div>"
-            f"<div style='padding:0.95rem 1.1rem;background:{INSET};border:1px solid {HAIR};border-radius:14px;'>"
+            f"<div style='padding:0.95rem 1.1rem;background:{INSET};border:none;border-radius:14px;'>"
             f"<div style='display:flex;align-items:center;margin-bottom:0.35rem;'>"
             f"<div style='font-size:0.82rem;color:{T3};"
             f"font-weight:600;'>Current wave</div>"
@@ -1281,7 +1271,7 @@ def elliott_wave_tab(df, current_price):
                       "Waves 2, 4 are pullbacks — can be buying opportunities. "
                       "Waves A, B, C are corrective and usually less reliable for entries.")
             + f"</div>"
-            f"<div style='font-size:1.2rem;font-weight:700;color:{T1};letter-spacing:-0.01em;'>"
+            f"<div style='font-size:1.2rem;font-weight:600;color:{T1};letter-spacing:-0.01em;'>"
             f"Wave {current_wave_label}</div>"
             f"<div style='font-size:0.85rem;color:{T3};margin-top:0.2rem;'>{phase_detail}</div>"
             f"</div>"
@@ -1297,7 +1287,7 @@ def elliott_wave_tab(df, current_price):
     with st.container(key="ew_chart_card"):
         st.markdown(
             f"<div style='margin-bottom:0.2rem;'>"
-            f"<div style='font-size:1.25rem;font-weight:700;color:{T1};letter-spacing:-0.015em;'>Wave chart</div>"
+            f"<div style='font-size:1.25rem;font-weight:600;color:{T1};letter-spacing:-0.015em;'>Wave chart</div>"
             f"<div style='font-size:0.88rem;color:{T3};margin-top:0.15rem;'>"
             f"Detected wave count with Fibonacci levels near the price action.</div></div>",
             unsafe_allow_html=True,
@@ -1354,16 +1344,16 @@ def elliott_wave_tab(df, current_price):
             + f"</div>"
         )
 
-    _cell = (f"<div style='padding:0.95rem 1.1rem;background:{INSET};border:1px solid {HAIR};"
+    _cell = (f"<div style='padding:0.95rem 1.1rem;background:{INSET};border:none;"
              f"border-radius:14px;'>")
-    _val = "font-size:1.15rem;font-weight:700;letter-spacing:-0.01em;font-variant-numeric:tabular-nums;line-height:1.25;"
+    _val = "font-size:1.15rem;font-weight:600;letter-spacing:-0.01em;line-height:1.25;"
     _sub = f"font-size:0.85rem;color:{T3};margin-top:0.2rem;"
 
     st.markdown(
         f"<div style='background:#FFFFFF;border:1px solid {HAIR};box-shadow:{SHADOW};"
         f"border-radius:18px;margin-bottom:1.2rem;padding:1.3rem 1.4rem;'>"
         f"<div style='margin-bottom:1rem;'>"
-        f"<div style='font-size:1.25rem;font-weight:700;color:{T1};letter-spacing:-0.015em;'>Wave intel</div>"
+        f"<div style='font-size:1.25rem;font-weight:600;color:{T1};letter-spacing:-0.015em;'>Wave intel</div>"
         f"<div style='font-size:0.88rem;color:{T3};margin-top:0.15rem;'>"
         f"How trustworthy this count is, what comes next, and where the targets sit.</div></div>"
 
@@ -1433,14 +1423,14 @@ def elliott_wave_tab(df, current_price):
                     "The most watched levels are 1.618× and 2.618× the prior wave's length.")
                 + f"<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0.8rem;margin-top:0.3rem;'>"
                 + "".join(
-                    f"<div style='background:{INSET};border:1px solid {HAIR};"
+                    f"<div style='background:{INSET};border:none;"
                     f"border-radius:14px;padding:0.85rem 0.9rem;text-align:center;'>"
                     f"<div style='font-size:0.82rem;color:{T3};font-weight:600;"
-                    f"margin-bottom:0.3rem;font-variant-numeric:tabular-nums;'>{fl}</div>"
-                    f"<div style='font-size:1.3rem;font-weight:700;color:{T1};letter-spacing:-0.02em;"
-                    f"font-variant-numeric:tabular-nums;line-height:1.15;'>{tp:.2f}</div>"
+                    f"margin-bottom:0.3rem;'>{fl}</div>"
+                    f"<div style='font-size:1.3rem;font-weight:600;color:{T1};letter-spacing:-0.02em;"
+                    f"line-height:1.15;'>{tp:.2f}</div>"
                     f"<div style='display:inline-block;margin-top:0.4rem;font-size:0.78rem;font-weight:600;"
-                    f"padding:0.12rem 0.55rem;border-radius:980px;font-variant-numeric:tabular-nums;"
+                    f"padding:0.12rem 0.55rem;border-radius:980px;"
                     f"background:{(GREEN_BG if (tp - current_price) > 0 else RED_BG) if _pdir == 'Extension' else GREY_BG};"
                     f"color:{(BULL if (tp - current_price) > 0 else BEAR) if _pdir == 'Extension' else T2};'>"
                     f"{(tp / current_price - 1)*100:+.1f}%</div>"
@@ -1458,7 +1448,7 @@ def elliott_wave_tab(df, current_price):
                 "".join(
                     f"<div style='display:flex;align-items:flex-start;gap:0.55rem;margin-bottom:0.45rem;'>"
                     f"<span style='color:{BEAR if 'violation' in v.lower() else NEUT};"
-                    f"font-size:0.85rem;font-weight:700;flex-shrink:0;line-height:1.5;'>"
+                    f"font-size:0.85rem;font-weight:600;flex-shrink:0;line-height:1.5;'>"
                     f"{'✕' if 'violation' in v.lower() else '⚠'}</span>"
                     f"<span style='font-size:0.88rem;color:{T2};line-height:1.5;'>{v}</span>"
                     f"</div>"

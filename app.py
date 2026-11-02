@@ -70,19 +70,15 @@ st.set_page_config(
 
 
 
+# The design base comes first, so the page is light from its very first paint
+from apple_theme import apply_global_design
+apply_global_design()
+
 # Custom CSS for professional look
 
 st.markdown("""
 
 <style>
-
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-
-    .stApp, .stApp * { font-family: 'Inter', system-ui, -apple-system, sans-serif !important; }
-    .stApp { background: #111111 !important; }
-    section[data-testid="stSidebar"] { background: #111111 !important; }
-    [data-testid="stAppViewContainer"] { background: #111111 !important; }
-    [data-testid="stMain"] { background: #111111 !important; }
 
     #MainMenu, footer, header,
 
@@ -106,7 +102,7 @@ st.markdown("""
 
         font-size: 2.5rem;
 
-        font-weight: 700;
+        font-weight: 600;
 
         color: white;
 
@@ -122,7 +118,7 @@ st.markdown("""
 
     }
 
-    .regime-label { margin-top: -0.4rem; font-size: 1.8rem; line-height: 1.2; font-weight: 700; }
+    .regime-label { margin-top: -0.4rem; font-size: 1.8rem; line-height: 1.2; font-weight: 600; }
 
     .regime-trend { color: #26A69A; }
 
@@ -146,7 +142,7 @@ st.markdown("""
 
     h4 { margin-top: 0 !important; margin-bottom: 0.8rem !important; font-size: 1.1rem !important; color: #fff !important; }
 
-    .section-title { font-size: 1.5rem !important; font-weight: 700 !important; color: #ffffff !important; margin: 0 0 0.8rem 0 !important; padding: 0 !important; }
+    .section-title { font-size: 1.5rem !important; font-weight: 600 !important; color: #ffffff !important; margin: 0 0 0.8rem 0 !important; padding: 0 !important; }
 
     .action-card { background: transparent; padding: 0; border-radius: 0; margin-bottom: 0.5rem; border: none; }
 
@@ -160,7 +156,7 @@ st.markdown("""
 
     .rec-section { background: transparent; padding: 0; border-radius: 0; margin-bottom: 1rem; border: none; }
 
-    .rec-title { font-size: 1.1rem !important; font-weight: 700 !important; color: #ffffff !important; margin: 0 !important; padding: 0 !important; }
+    .rec-title { font-size: 1.1rem !important; font-weight: 600 !important; color: #ffffff !important; margin: 0 !important; padding: 0 !important; }
 
     /* Ensure recommendation section titles have no bottom spacing */
 
@@ -182,15 +178,15 @@ st.markdown("""
 
     .signal-card { background: transparent; padding: 0; border-radius: 0; margin-bottom: 1rem; border: none; }
 
-    .success-high { color: #26A69A; font-weight: 700; }
+    .success-high { color: #26A69A; font-weight: 600; }
 
-    .success-medium { color: #FFC107; font-weight: 700; }
+    .success-medium { color: #FFC107; font-weight: 600; }
 
-    .success-low { color: #FF6B6B; font-weight: 700; }
+    .success-low { color: #FF6B6B; font-weight: 600; }
 
     .metric-box { background: transparent; padding: 0; border-radius: 0; text-align: center; }
 
-    .big-number { font-size: 2rem; font-weight: 700; margin: 0.5rem 0; }
+    .big-number { font-size: 2rem; font-weight: 600; margin: 0.5rem 0; }
 
     /* Control layout styling */
 
@@ -475,7 +471,7 @@ st.markdown("""
         color: #555 !important;
         border-radius: 10px !important;
         font-size: 0.8rem !important;
-        font-weight: 700 !important;
+        font-weight: 600 !important;
         letter-spacing: 0.3px !important;
         padding: 0.55rem 1.15rem !important;
         border: 1px solid transparent !important;
@@ -490,7 +486,7 @@ st.markdown("""
         background: #272727 !important;
         color: #f0f0f0 !important;
         border: 1px solid #3a3a3a !important;
-        font-weight: 800 !important;
+        font-weight: 600 !important;
     }
     [data-testid="stTabs"] [data-baseweb="tab-border"],
     [data-testid="stTabs"] [data-baseweb="tab-highlight"] {
@@ -506,7 +502,7 @@ st.markdown("""
         border: 1px solid #272727 !important;
         color: #b0b0b0 !important;
         border-radius: 10px !important;
-        font-weight: 700 !important;
+        font-weight: 600 !important;
         letter-spacing: 0.2px !important;
         transition: all 0.18s ease !important;
     }
@@ -534,7 +530,7 @@ st.markdown("""
         border: 1px solid #272727 !important;
         border-radius: 14px !important;
     }
-    [data-testid="stExpander"] summary { color: #b0b0b0 !important; font-weight: 700 !important; }
+    [data-testid="stExpander"] summary { color: #b0b0b0 !important; font-weight: 600 !important; }
 
     /* ── Dividers ── */
     hr { border-color: #272727 !important; }
@@ -688,7 +684,7 @@ def main():
             }
             #translate-fab-btn .fab-icon {
                 font-size: 16px;
-                font-weight: 700;
+                font-weight: 600;
                 line-height: 1;
             }
             #translate-fab-btn .fab-dot {
@@ -831,7 +827,7 @@ def main():
                     'transition:color .2s,background .2s,border-color .2s,transform .15s;">' +
                     '<span class="sqnb-ico" style="display:inline-flex;align-items:center;opacity:' + (on ? '1' : '.45') + ';transition:opacity .2s;pointer-events:none;">' + tab.v + '</span>' +
                     '<span>' + tab.l + '</span>' +
-                    (tab.badge ? '<span style="margin-left:5px;padding:1px 6px;border-radius:8px;font-size:0.5rem;font-weight:800;letter-spacing:0.5px;background:rgba(76,175,80,0.15);color:#4caf50;border:1px solid rgba(76,175,80,0.35);text-transform:uppercase;line-height:1.4;">' + tab.badge + '</span>' : '') +
+                    (tab.badge ? '<span style="margin-left:5px;padding:1px 6px;border-radius:8px;font-size:0.5rem;font-weight:600;letter-spacing:0.5px;background:rgba(76,175,80,0.15);color:#4caf50;border:1px solid rgba(76,175,80,0.35);text-transform:uppercase;line-height:1.4;">' + tab.badge + '</span>' : '') +
                     '</button>';
             });
             return h;
@@ -856,7 +852,7 @@ def main():
                     bd.className = 'sqnb-badge';
                     bd.textContent = TABS[i].badge;
                     bd.style.cssText = 'display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;' +
-                        'border-radius:8px;font-size:0.5rem;font-weight:800;letter-spacing:0.5px;' +
+                        'border-radius:8px;font-size:0.5rem;font-weight:600;letter-spacing:0.5px;' +
                         'background:rgba(76,175,80,0.15);color:#4caf50;border:1px solid rgba(76,175,80,0.35);' +
                         'text-transform:uppercase;line-height:1.4;pointer-events:none;';
                     b.appendChild(bd);
@@ -1217,7 +1213,7 @@ def main():
 
         }}
 
-        .sdash-empty-title {{ font-size: 0.90rem; font-weight: 700; color: {cp_text2}; letter-spacing: 0.2px; }}
+        .sdash-empty-title {{ font-size: 0.90rem; font-weight: 600; color: {cp_text2}; letter-spacing: 0.2px; }}
 
         .sdash-empty-sub   {{ font-size: 0.75rem; color: {cp_text3}; line-height: 1.7; max-width: 24rem; }}
 
@@ -1277,7 +1273,7 @@ def main():
 
             font-size: 1.30rem;
 
-            font-weight: 900;
+            font-weight: 600;
 
             color: {accent};
 
@@ -1317,7 +1313,7 @@ def main():
 
             flex-shrink: 0;
 
-            font-size: 0.72rem; font-weight: 700;
+            font-size: 0.72rem; font-weight: 600;
 
             text-transform: uppercase; letter-spacing: 0.9px;
 
@@ -1331,7 +1327,7 @@ def main():
 
         .sdash-card-tag {{
 
-            font-size: 0.80rem; font-weight: 700;
+            font-size: 0.80rem; font-weight: 600;
 
             color: {accent};
 
@@ -1425,7 +1421,7 @@ def main():
 
         .sdash-stat-lbl {{
 
-            font-size: 0.68rem; font-weight: 700;
+            font-size: 0.68rem; font-weight: 600;
 
             text-transform: uppercase; letter-spacing: 0.9px;
 
@@ -1435,7 +1431,7 @@ def main():
 
         .sdash-stat-val {{
 
-            font-size: 1.05rem; font-weight: 800;
+            font-size: 1.05rem; font-weight: 600;
 
             color: {cp_text1}; line-height: 1;
 
@@ -1604,7 +1600,7 @@ def main():
             color: #888;
             line-height: 1;
         }}
-        .ind-chip.active span.ic-lbl {{ color: #26A69A; font-weight: 700; }}
+        .ind-chip.active span.ic-lbl {{ color: #26A69A; font-weight: 600; }}
         .ind-chip span.ic-new {{
             display: inline-flex;
             align-items: center;
@@ -1613,7 +1609,7 @@ def main():
             background: #16a34a;
             border: 1px solid #22c55e;
             font-size: 0.5rem;
-            font-weight: 800;
+            font-weight: 600;
             color: #ffffff;
             letter-spacing: 0.4px;
             text-transform: uppercase;
@@ -1632,7 +1628,7 @@ def main():
             background: #2a2a2a;
             border: 1px solid #3a3a3a;
             font-size: 0.56rem;
-            font-weight: 900;
+            font-weight: 600;
             color: #555;
             cursor: help;
             flex-shrink: 0;
@@ -2214,7 +2210,7 @@ def main():
 
             font-size: 0.85rem;
 
-            font-weight: 700;
+            font-weight: 600;
 
             text-transform: uppercase;
 
@@ -2280,7 +2276,7 @@ def main():
 
             font-size: 0.95rem;
 
-            font-weight: 700;
+            font-weight: 600;
 
             color: #2196f3;
 
@@ -2428,7 +2424,7 @@ def main():
 
             font-size: 0.8rem;
 
-            font-weight: 700;
+            font-weight: 600;
 
             color: {cp_text1};
 
@@ -2496,7 +2492,7 @@ def main():
 
             font-size: 0.78rem;
 
-            font-weight: 800;
+            font-weight: 600;
 
             color: #4A9EFF;
 
@@ -2516,7 +2512,7 @@ def main():
 
             font-size: 0.72rem;
 
-            font-weight: 700;
+            font-weight: 600;
 
             color: {cp_text1};
 
@@ -2528,7 +2524,7 @@ def main():
 
             font-size: 0.68rem;
 
-            font-weight: 700;
+            font-weight: 600;
 
             text-align: right;
 
@@ -2596,9 +2592,9 @@ def main():
         live_movers = market_data.get('live_movers', 0) if market_data else 0
 
         # Colours tuned for the light home page (apple_home.py).
-        perf_color = "#1B7A36" if avg_change >= 0 else "#C1121F"
+        perf_color = "#1B7A36" if avg_change >= 0 else "#D70015"
         perf_sign = "+" if avg_change >= 0 else ""
-        sent_colors = {"STRONG BUY": "#1B7A36", "BULLISH": "#1B7A36", "NEUTRAL": "#A34800", "BEARISH": "#C1121F", "STRONG SELL": "#C1121F"}
+        sent_colors = {"STRONG BUY": "#1B7A36", "BULLISH": "#1B7A36", "NEUTRAL": "#C93400", "BEARISH": "#D70015", "STRONG SELL": "#D70015"}
         sent_color = sent_colors.get(sentiment, "#9e9e9e")
         status_class = "open" if is_open else "closed"
         username = st.session_state.auth_username
@@ -2708,7 +2704,7 @@ def main():
             border: 1px solid #282828 !important;
             border-radius: 10px !important;
             color: #8a9bb0 !important;
-            font-size: 0.72rem !important; font-weight: 700 !important;
+            font-size: 0.72rem !important; font-weight: 600 !important;
             width: 100% !important; padding: 0.52rem 0.3rem !important;
             height: auto !important; white-space: nowrap !important;
             letter-spacing: 0.3px !important; text-transform: uppercase !important;
@@ -2727,7 +2723,7 @@ def main():
             border: 1px solid rgba(38,166,154,0.35) !important;
             border-radius: 10px !important;
             color: #26A69A !important;
-            font-size: 0.72rem !important; font-weight: 700 !important;
+            font-size: 0.72rem !important; font-weight: 600 !important;
             width: 100% !important; padding: 0.52rem 0.3rem !important;
             height: auto !important; white-space: nowrap !important;
             letter-spacing: 0.3px !important; text-transform: uppercase !important;
@@ -2737,7 +2733,7 @@ def main():
             border: 1px solid rgba(74,158,255,0.35) !important;
             border-radius: 10px !important;
             color: #4A9EFF !important;
-            font-size: 0.72rem !important; font-weight: 700 !important;
+            font-size: 0.72rem !important; font-weight: 600 !important;
             width: 100% !important; padding: 0.52rem 0.3rem !important;
             height: auto !important; white-space: nowrap !important;
             letter-spacing: 0.3px !important; text-transform: uppercase !important;
@@ -2749,7 +2745,7 @@ def main():
             border: none !important;
             border-top: 1px solid #222222 !important;
             color: #3a4550 !important;
-            font-size: 0.76rem !important; font-weight: 700 !important;
+            font-size: 0.76rem !important; font-weight: 600 !important;
             padding: 0.55rem 1rem !important;
             transition: all 0.18s ease !important;
             letter-spacing: 0.3px !important;
@@ -2766,7 +2762,7 @@ def main():
             border: none !important;
             border-top: 1px solid rgba(38,166,154,0.25) !important;
             color: #26A69A !important;
-            font-size: 0.76rem !important; font-weight: 800 !important;
+            font-size: 0.76rem !important; font-weight: 600 !important;
             padding: 0.55rem 1rem !important;
             transition: all 0.18s ease !important;
             letter-spacing: 0.3px !important;
@@ -2782,7 +2778,7 @@ def main():
             border: 1px solid #282828 !important;
             border-radius: 10px !important;
             color: #8a9bb0 !important;
-            font-size: 0.72rem !important; font-weight: 700 !important;
+            font-size: 0.72rem !important; font-weight: 600 !important;
             width: 100% !important; padding: 0.52rem 0.3rem !important;
             height: auto !important; white-space: nowrap !important;
             letter-spacing: 0.3px !important; text-transform: uppercase !important;
@@ -2808,20 +2804,20 @@ def main():
         .user-avatar {{ width:38px; height:38px; border-radius:10px;
            background:linear-gradient(135deg,#26A69A,#00897b);
            display:flex; align-items:center; justify-content:center;
-           font-size:1rem; font-weight:700; color:#fff; flex-shrink:0; }}
-        .user-info-name {{ font-size:0.88rem; font-weight:700; color:#e8e8e8; }}
+           font-size:1rem; font-weight:600; color:#fff; flex-shrink:0; }}
+        .user-info-name {{ font-size:0.88rem; font-weight:600; color:#e8e8e8; }}
         .user-info-role {{ font-size:0.62rem; color:#606060; margin-top:2px; text-transform:uppercase; letter-spacing:0.5px; }}
         .user-panel-stats {{ display:flex; gap:0.5rem; margin-bottom:0.8rem; }}
         .user-stat {{ flex:1; text-align:center; padding:0.55rem 0.3rem;
            background:#1e1e1e; border:1px solid #282828; border-radius:9px; }}
-        .user-stat-value {{ font-size:0.95rem; font-weight:800; color:#26A69A; }}
+        .user-stat-value {{ font-size:0.95rem; font-weight:600; color:#26A69A; }}
         .user-stat-label {{ font-size:0.55rem; color:#606060; text-transform:uppercase;
            letter-spacing:0.5px; margin-top:2px; }}
         .st-key-logout_btn .stButton > button {{
             background: rgba(239,83,80,0.07) !important;
             border: 1px solid rgba(239,83,80,0.22) !important;
             border-radius: 9px !important; color: #ef5350 !important;
-            font-size:0.75rem !important; font-weight:700 !important;
+            font-size:0.75rem !important; font-weight:600 !important;
             width:100% !important; padding:0.5rem !important;
             text-transform:uppercase !important; letter-spacing:0.3px !important;
         }}
@@ -2847,10 +2843,10 @@ def main():
         .mpulse-card.is-open::before  {{ background: linear-gradient(90deg,#26A69A,#26A69A55,transparent); }}
         .mpulse-card.is-closed::before {{ background: linear-gradient(90deg,#ef5350,#ef535055,transparent); }}
         .mpulse-top {{ display:flex; align-items:center; justify-content:space-between; margin-bottom:0.15rem; }}
-        .mpulse-time {{ font-size:1.5rem; font-weight:900; color:#e8e8e8; letter-spacing:-0.5px; line-height:1; }}
+        .mpulse-time {{ font-size:1.5rem; font-weight:600; color:#e8e8e8; letter-spacing:-0.5px; line-height:1; }}
         .mpulse-badge-open {{
             display:inline-flex; align-items:center; gap:5px;
-            padding:4px 11px; border-radius:999px; font-size:0.58rem; font-weight:800;
+            padding:4px 11px; border-radius:999px; font-size:0.58rem; font-weight:600;
             letter-spacing:0.8px; text-transform:uppercase;
             background:rgba(38,166,154,0.13); color:#26A69A;
             border:1px solid rgba(38,166,154,0.3);
@@ -2858,7 +2854,7 @@ def main():
         }}
         .mpulse-badge-closed {{
             display:inline-flex; align-items:center; gap:5px;
-            padding:4px 11px; border-radius:999px; font-size:0.58rem; font-weight:800;
+            padding:4px 11px; border-radius:999px; font-size:0.58rem; font-weight:600;
             letter-spacing:0.8px; text-transform:uppercase;
             background:rgba(239,83,80,0.1); color:#ef5350;
             border:1px solid rgba(239,83,80,0.25);
@@ -2870,12 +2866,12 @@ def main():
         .mpulse-sub {{ font-size:0.6rem; color:#888888; margin-bottom:0.7rem; font-weight:500; }}
         .mpulse-div {{ height:1px; background:#222222; margin:0.6rem 0; }}
         .mpulse-row {{ display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem; }}
-        .mpulse-row-label {{ font-size:0.58rem; font-weight:700; color:#606060; text-transform:uppercase; letter-spacing:0.7px; }}
-        .mpulse-tasi-val {{ font-size:1.05rem; font-weight:900; letter-spacing:-0.3px; line-height:1; }}
+        .mpulse-row-label {{ font-size:0.58rem; font-weight:600; color:#606060; text-transform:uppercase; letter-spacing:0.7px; }}
+        .mpulse-tasi-val {{ font-size:1.05rem; font-weight:600; letter-spacing:-0.3px; line-height:1; }}
         .mpulse-perf-right {{ display:flex; align-items:center; gap:0.45rem; }}
-        .mpulse-perf-val {{ font-size:1.05rem; font-weight:900; letter-spacing:-0.3px; line-height:1; }}
+        .mpulse-perf-val {{ font-size:1.05rem; font-weight:600; letter-spacing:-0.3px; line-height:1; }}
         .mpulse-sent {{
-            font-size:0.54rem; font-weight:800; padding:3px 8px;
+            font-size:0.54rem; font-weight:600; padding:3px 8px;
             border-radius:6px; text-transform:uppercase; letter-spacing:0.5px; white-space:nowrap;
         }}
         .mpulse-bar {{
@@ -2889,21 +2885,21 @@ def main():
         .mpulse-pill {{
             display:inline-flex; align-items:center; gap:3px;
             padding:3px 9px; border-radius:999px;
-            font-size:0.7rem; font-weight:800; line-height:1;
+            font-size:0.7rem; font-weight:600; line-height:1;
         }}
         .mpulse-pill-up   {{ background:rgba(38,166,154,0.12); color:#26A69A; border:1px solid rgba(38,166,154,0.28); }}
         .mpulse-pill-down {{ background:rgba(239,83,80,0.12);  color:#ef5350; border:1px solid rgba(239,83,80,0.28); }}
         .mpulse-pill-flat {{ background:rgba(42,52,64,0.7);    color:#888888; border:1px solid #282828; }}
-        .mpulse-ratio {{ margin-left:auto; font-size:0.58rem; font-weight:700; color:#888888;
+        .mpulse-ratio {{ margin-left:auto; font-size:0.58rem; font-weight:600; color:#888888;
             background:#1e1e1e; border:1px solid #282828; border-radius:6px; padding:2px 7px; }}
         /* keep mstat-card alias for tomorrow-forecast card */
         .mstat-card {{
             background:#181818; border:1px solid #282828;
             border-radius:14px; padding:1rem 1.1rem; margin-top:0.75rem;
         }}
-        .mstat-label {{ font-size:0.6rem; font-weight:700; text-transform:uppercase;
+        .mstat-label {{ font-size:0.6rem; font-weight:600; text-transform:uppercase;
             letter-spacing:0.8px; color:#3a4550; margin-bottom:0.5rem; }}
-        .mstat-value {{ font-size:1.55rem; font-weight:800; line-height:1;
+        .mstat-value {{ font-size:1.55rem; font-weight:600; line-height:1;
             letter-spacing:-0.5px; color:#e8e8e8; }}
         .mstat-sub {{ font-size:0.65rem; color:#3a4550; margin-top:0.35rem; }}
         .mstat-row {{ display:flex; align-items:center; justify-content:space-between; gap:0.5rem; }}
@@ -2914,11 +2910,11 @@ def main():
         .mstat-bar-flat {{ background:#2a3240; border-radius:6px; }}
         .mstat-bcells {{ display:flex; gap:0.5rem; }}
         .mstat-badge-open  {{ display:inline-flex; align-items:center; gap:5px;
-            padding:3px 10px; border-radius:999px; font-size:0.6rem; font-weight:700;
+            padding:3px 10px; border-radius:999px; font-size:0.6rem; font-weight:600;
             letter-spacing:0.5px; text-transform:uppercase;
             background:rgba(38,166,154,0.12); color:#26A69A; }}
         .mstat-badge-closed {{ display:inline-flex; align-items:center; gap:5px;
-            padding:3px 10px; border-radius:999px; font-size:0.6rem; font-weight:700;
+            padding:3px 10px; border-radius:999px; font-size:0.6rem; font-weight:600;
             letter-spacing:0.5px; text-transform:uppercase;
             background:rgba(239,83,80,0.12); color:#ef5350; }}
         .mstat-dot {{ width:6px; height:6px; border-radius:50%;
@@ -2940,7 +2936,7 @@ def main():
             border: 1px solid #282828 !important;
             color: #606060 !important;
             font-size: 0.62rem !important;
-            font-weight: 700 !important;
+            font-weight: 600 !important;
             padding: 0.25rem 0 !important;
             width: 100% !important;
             border-radius: 7px !important;
@@ -2960,8 +2956,8 @@ def main():
         }}
         .mstat-bcell {{ flex:1; text-align:center; padding:0.55rem 0.3rem;
             background:#0a0d0f; border:1px solid #1e2428; border-radius:10px; }}
-        .mstat-bv {{ font-size:1.15rem; font-weight:800; line-height:1; }}
-        .mstat-bl {{ font-size:0.5rem; font-weight:700; color:#3a4550;
+        .mstat-bv {{ font-size:1.15rem; font-weight:600; line-height:1; }}
+        .mstat-bl {{ font-size:0.5rem; font-weight:600; color:#3a4550;
             text-transform:uppercase; letter-spacing:0.6px; margin-top:3px; }}
 
         /* ── Run button ────────────────────────────────────────────────────── */
@@ -2971,7 +2967,7 @@ def main():
             border: 1px solid #26A69A !important;
             color: #26A69A !important;
             border-radius: 10px !important;
-            font-weight: 700 !important;
+            font-weight: 600 !important;
             letter-spacing: 0.3px !important;
             padding: 0.65rem 1rem !important;
             transition: all 0.2s !important;
@@ -3003,7 +2999,7 @@ def main():
             border: 1px solid rgba(38,166,154,0.35) !important;
             border-radius: 10px !important;
             color: #26A69A !important;
-            font-size: 0.72rem !important; font-weight: 700 !important;
+            font-size: 0.72rem !important; font-weight: 600 !important;
             width: 100% !important; padding: 0.52rem 0.3rem !important;
             height: auto !important; white-space: nowrap !important;
             letter-spacing: 0.3px !important; text-transform: uppercase !important;
@@ -3025,7 +3021,7 @@ def main():
             border-radius: 10px !important;
             color: #3a4550 !important;
             font-size: 0.72rem !important;
-            font-weight: 700 !important;
+            font-weight: 600 !important;
             width: 100% !important;
             padding: 0.5rem !important;
             margin-top: 0.4rem !important;
@@ -3058,7 +3054,7 @@ def main():
         }}
         .mkt-title {{
             font-size: 0.58rem;
-            font-weight: 700;
+            font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.8px;
             color: #606060;
@@ -3072,7 +3068,7 @@ def main():
         }}
         .mkt-value {{
             font-size: 1.5rem;
-            font-weight: 900;
+            font-weight: 600;
             color: #e8e8e8;
             letter-spacing: -0.5px;
             line-height: 1;
@@ -3089,7 +3085,7 @@ def main():
             padding: 4px 11px;
             border-radius: 999px;
             font-size: 0.58rem;
-            font-weight: 800;
+            font-weight: 600;
             letter-spacing: 0.8px;
             text-transform: uppercase;
         }}
@@ -3114,7 +3110,7 @@ def main():
             padding: 3px 9px;
             border-radius: 6px;
             font-size: 0.54rem;
-            font-weight: 800;
+            font-weight: 600;
             letter-spacing: 0.5px;
             text-transform: uppercase;
         }}
@@ -3133,7 +3129,7 @@ def main():
         }}
         .mkt-breadth-num {{
             font-size: 1.15rem;
-            font-weight: 900;
+            font-weight: 600;
             line-height: 1;
         }}
         .mkt-breadth-num.up {{ color: #26A69A; }}
@@ -3202,10 +3198,9 @@ def main():
 
                     # Active period highlight (injected dynamically so only selected pill is teal)
                     st.markdown(
-                        f"<style>.st-key-mkt_p_{_ap} .stButton > button "
-                        f"{{ background: #FFFFFF !important; color: #111114 !important; "
-                        f"font-weight: 600 !important; "
-                        f"box-shadow: 0 1px 4px rgba(0,0,0,0.14), 0 0 0 0.5px rgba(0,0,0,0.06) !important; }}</style>",
+                        f"<style>.st-key-mkt_p_{_ap} .stButton > button, .st-key-mkt_p_{_ap} .stButton > button:hover "
+                        f"{{ background: #FFFFFF !important; color: var(--t1) !important; "
+                        f"font-weight: 600 !important; box-shadow: var(--seg-on) !important; }}</style>",
                         unsafe_allow_html=True)
 
                     st.markdown(sec_html("Market", "All Saudi stocks"), unsafe_allow_html=True)
@@ -3225,14 +3220,14 @@ def main():
                     _up_pct     = gainers   / _total_b * 100
                     _dn_pct     = losers    / _total_b * 100
                     _fl_pct     = unchanged / _total_b * 100
-                    _tasi_color = '#1B7A36' if tasi_change >= 0 else '#C1121F'
+                    _tasi_color = '#1B7A36' if tasi_change >= 0 else '#D70015'
                     _tasi_sign  = '+' if tasi_change >= 0 else ''
                     _ad_ratio   = gainers / max(losers, 1)
                     _ad_label   = (f'{_ad_ratio:.1f}:1 bulls' if gainers >= losers
                                    else f'{1/_ad_ratio:.1f}:1 bears')
                     _open_cls   = 'is-open' if is_open else 'is-closed'
                     _badge_cls  = 'mpulse-badge-open' if is_open else 'mpulse-badge-closed'
-                    _badge_txt  = 'OPEN' if is_open else 'CLOSED'
+                    _badge_txt  = 'Open' if is_open else 'Closed'
                     st.markdown(
                         f'<div class="mpulse-card {_open_cls}">'
 
@@ -3839,49 +3834,49 @@ def main():
         st.markdown("""
         <style>
         /* header */
-        .mr-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1.2rem;flex-wrap:wrap;margin:0.9rem 0 1.4rem;}
-        .mr-eyebrow{font-size:0.8rem;font-weight:600;color:var(--t3);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0.3rem;}
-        .mr-title{font-size:2.3rem;font-weight:700;color:var(--t1);letter-spacing:-0.035em;line-height:1.12;}
-        .mr-sub{font-size:1rem;color:var(--t3);margin-top:0.4rem;}
+        .mr-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1.2rem;flex-wrap:wrap;margin:1.1rem 0 1.75rem;}
+        .mr-eyebrow{font-size:0.875rem;font-weight:500;color:var(--t3);margin-bottom:0.3rem;letter-spacing:-0.006em;}
+        .mr-title{font-size:2.625rem;font-weight:600;color:var(--t1);letter-spacing:-0.03em;line-height:1.08;}
+        .mr-sub{font-size:1.0313rem;color:var(--t3);margin-top:0.5rem;letter-spacing:-0.012em;}
         .mr-mood{text-align:right;}
-        .mr-mood .ap-pill{font-size:0.92rem;padding:0.42rem 1rem;}
+        .mr-mood .ap-pill{font-size:0.875rem;padding:0.32rem 0.85rem;}
         .mr-mood-sub{font-size:0.8rem;color:var(--t3);margin-top:0.4rem;}
         /* KPI row */
         .mr-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0.8rem;margin-bottom:1.1rem;}
-        .mr-kpi{background:var(--card);border:1px solid var(--hair);border-radius:16px;padding:1rem 1.15rem;box-shadow:var(--shadow-sm);}
-        .mr-kpi .l{font-size:0.8rem;font-weight:600;color:var(--t3);}
-        .mr-kpi .v{font-size:1.8rem;font-weight:700;color:var(--t1);letter-spacing:-0.03em;line-height:1.1;margin-top:0.3rem;font-variant-numeric:tabular-nums;}
+        .mr-kpi{background:var(--card);border:none;border-radius:18px;padding:1.15rem 1.3rem;box-shadow:var(--shadow);}
+        .mr-kpi .l{font-size:0.8125rem;font-weight:400;color:var(--t3);}
+        .mr-kpi .v{font-size:1.875rem;font-weight:600;color:var(--t1);letter-spacing:-0.026em;line-height:1.1;margin-top:0.3rem;}
         .mr-kpi .s{font-size:0.78rem;color:var(--t3);margin-top:0.3rem;line-height:1.4;}
         /* market conditions */
-        .mr-card{background:var(--card);border:1px solid var(--hair);border-radius:20px;box-shadow:var(--shadow);padding:1.5rem 1.6rem;margin-bottom:0.4rem;}
+        .mr-card{background:var(--card);border:none;border-radius:22px;box-shadow:var(--shadow);padding:1.75rem 1.9rem;margin-bottom:0.4rem;}
         .mr-cond{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:2rem;align-items:start;}
         @media (max-width:1000px){.mr-cond{grid-template-columns:1fr;}}
-        .mr-zone{font-size:1.55rem;font-weight:700;letter-spacing:-0.02em;margin:0.3rem 0 0.5rem;}
+        .mr-zone{font-size:1.625rem;font-weight:600;letter-spacing:-0.022em;margin:0.3rem 0 0.5rem;}
         .mr-desc{font-size:0.93rem;color:var(--t2);line-height:1.6;}
-        .mr-play{margin-top:0.95rem;font-size:0.9rem;color:var(--t2);background:var(--inset);border:1px solid var(--hair);
+        .mr-play{margin-top:0.95rem;font-size:0.9rem;color:var(--t2);background:var(--inset);border:none;
                  border-radius:12px;padding:0.75rem 0.95rem;line-height:1.5;}
         .mr-play b{color:var(--t1);}
         .mr-segs{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:1.3rem;}
-        .mr-seg{height:8px;border-radius:4px;}
+        .mr-seg{height:6px;border-radius:980px;}
         .mr-seglbl{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:0.5rem;}
         .mr-seglbl span{font-size:0.78rem;color:var(--t3);text-align:center;}
-        .mr-seglbl span.on{font-weight:700;}
+        .mr-seglbl span.on{font-weight:600;}
         .mr-insts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0.7rem;}
-        .mr-inst{background:var(--inset);border:1px solid var(--hair);border-radius:14px;padding:0.85rem 1rem;}
-        .mr-inst .l{font-size:0.8rem;font-weight:600;color:var(--t3);}
-        .mr-inst .v{font-size:1.4rem;font-weight:700;color:var(--t1);letter-spacing:-0.02em;margin:0.2rem 0 0.35rem;font-variant-numeric:tabular-nums;}
+        .mr-inst{background:var(--inset);border:none;border-radius:14px;padding:0.95rem 1.05rem;}
+        .mr-inst .l{font-size:0.8125rem;font-weight:400;color:var(--t3);}
+        .mr-inst .v{font-size:1.4rem;font-weight:600;color:var(--t1);letter-spacing:-0.02em;margin:0.2rem 0 0.35rem;}
         .mr-inst .c{display:flex;gap:1rem;font-size:0.8rem;color:var(--t3);}
-        .mr-inst .c b{font-weight:600;font-variant-numeric:tabular-nums;}
+        .mr-inst .c b{font-weight:500;}
         .mr-note{font-size:0.78rem;color:var(--t3);margin-top:0.6rem;}
         details.mr-more{margin-top:1.2rem;border-top:1px solid var(--hair);padding-top:0.9rem;}
-        details.mr-more > summary{cursor:pointer;list-style:none;font-size:0.9rem;font-weight:600;color:var(--blue);
+        details.mr-more > summary{cursor:pointer;list-style:none;font-size:0.9rem;font-weight:400;color:var(--blue);
                  display:flex;align-items:center;gap:0.45rem;}
         details.mr-more > summary::-webkit-details-marker{display:none;}
-        details.mr-more > summary::before{content:'›';display:inline-block;font-size:1.15rem;line-height:1;transition:transform .15s;}
+        details.mr-more > summary::before{content:'›';display:inline-block;font-size:1.15rem;line-height:1;transition:transform .25s var(--ease-out);}
         details.mr-more[open] > summary::before{transform:rotate(90deg);}
         .mr-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.6rem;margin-top:0.8rem;}
         @media (max-width:1000px){.mr-cols{grid-template-columns:1fr;}}
-        .mr-h{font-size:0.95rem;font-weight:700;color:var(--t1);margin-bottom:0.3rem;}
+        .mr-h{font-size:0.95rem;font-weight:600;color:var(--t1);margin-bottom:0.3rem;}
         .mr-row{padding:0.7rem 0;border-bottom:1px solid var(--hair);}
         .mr-row:last-child{border-bottom:none;}
         .mr-row .m{display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.35rem;font-size:0.78rem;color:var(--t3);}
@@ -3890,60 +3885,60 @@ def main():
         a.mr-link{text-decoration:none!important;color:inherit!important;display:block;}
         a.mr-link:hover .t{color:var(--blue);}
         /* section header */
-        .mr-sec{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin:2.2rem 0 1rem;}
-        .mr-sec .t{font-size:1.45rem;font-weight:700;color:var(--t1);letter-spacing:-0.02em;}
+        .mr-sec{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin:3.25rem 0 1.1rem;}
+        .mr-sec .t{font-size:1.75rem;font-weight:600;color:var(--t1);letter-spacing:-0.024em;}
         .mr-sec .s{font-size:0.9rem;color:var(--t3);margin-top:0.25rem;max-width:64rem;line-height:1.5;}
         .mr-filters{display:flex;flex-wrap:wrap;gap:0.4rem;margin:-0.3rem 0 1rem;}
         /* stock card = the keyed container, so the button sits inside it */
-        [class*="st-key-mr_card_"]{background:var(--card)!important;border:1px solid var(--hair)!important;border-radius:20px!important;
-            box-shadow:var(--shadow)!important;padding:1.4rem 1.6rem 1.1rem!important;margin-bottom:1.1rem!important;gap:0.4rem!important;}
+        [class*="st-key-mr_card_"]{background:var(--card)!important;border:none!important;border-radius:22px!important;
+            box-shadow:var(--shadow)!important;padding:1.75rem 1.9rem 1.3rem!important;margin-bottom:1.25rem!important;gap:0.4rem!important;}
         [class*="st-key-mr_card_"] .stButton > button{background:var(--blue-bg)!important;border:none!important;box-shadow:none!important;}
-        [class*="st-key-mr_card_"] .stButton > button p{color:var(--blue)!important;font-weight:600!important;}
-        [class*="st-key-mr_card_"] .stButton > button:hover{background:rgba(0,99,209,0.16)!important;}
+        [class*="st-key-mr_card_"] .stButton > button p{color:var(--blue)!important;font-weight:500!important;}
+        [class*="st-key-mr_card_"] .stButton > button:hover{background:rgba(0,113,227,0.13)!important;}
         .mr-top{display:flex;gap:1.2rem;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;}
         .mr-id{display:flex;gap:0.95rem;align-items:flex-start;min-width:0;flex:1 1 420px;}
-        .mr-rank{flex:0 0 2.6rem;height:2.6rem;border-radius:50%;display:flex;align-items:center;justify-content:center;
-                 font-size:1rem;font-weight:700;background:var(--fill);color:var(--t1);}
-        .mr-rank.r1{background:var(--blue);color:#FFFFFF;}
+        .mr-rank{flex:0 0 2.25rem;height:2.25rem;border-radius:50%;display:flex;align-items:center;justify-content:center;
+                 font-size:0.9375rem;font-weight:600;background:var(--fill);color:var(--t2);}
+        .mr-rank.r1{background:var(--blue-bg);color:var(--blue);}
         .mr-rank.r2{background:var(--blue-bg);color:var(--blue);}
         .mr-symline{display:flex;align-items:baseline;gap:0.55rem;flex-wrap:wrap;}
-        .mr-sym{font-size:1.45rem;font-weight:700;color:var(--t1);letter-spacing:-0.02em;}
-        .mr-name{font-size:1.1rem;font-weight:500;color:var(--t3);}
+        .mr-sym{font-size:1.5rem;font-weight:600;color:var(--t1);letter-spacing:-0.022em;}
+        .mr-name{font-size:1.0625rem;font-weight:400;color:var(--t3);letter-spacing:-0.012em;}
         .mr-pills{display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.6rem;}
         .mr-chips{display:flex;flex-wrap:wrap;gap:0.35rem;margin-top:0.7rem;}
-        .mr-chip{font-size:0.78rem;color:var(--t2);background:var(--inset);border:1px solid var(--hair);border-radius:8px;padding:0.2rem 0.55rem;}
+        .mr-chip{font-size:0.78rem;color:var(--t2);background:var(--inset);border:none;border-radius:980px;padding:0.2rem 0.65rem;}
         .mr-stats{display:flex;gap:0.6rem;flex-wrap:wrap;}
-        .mr-stat{background:var(--inset);border:1px solid var(--hair);border-radius:14px;padding:0.7rem 1rem;min-width:7rem;text-align:right;}
-        .mr-stat .l{font-size:0.78rem;font-weight:600;color:var(--t3);white-space:nowrap;display:flex;gap:0.3rem;justify-content:flex-end;align-items:center;}
-        .mr-stat .v{font-size:1.5rem;font-weight:700;color:var(--t1);letter-spacing:-0.02em;margin-top:0.2rem;font-variant-numeric:tabular-nums;white-space:nowrap;}
-        .mr-stat .v small{font-size:0.8rem;font-weight:600;color:var(--t3);margin-left:0.15rem;}
-        .mr-tip{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;
-                background:var(--fill);color:var(--t3);font-size:0.7rem;font-weight:700;cursor:help;}
-        .mr-blk{margin-top:1.2rem;padding-top:1.1rem;border-top:1px solid var(--hair);}
-        .mr-blk-h{font-size:0.93rem;font-weight:700;color:var(--t1);margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem;}
+        .mr-stat{background:var(--inset);border:none;border-radius:14px;padding:0.8rem 1.05rem;min-width:7rem;text-align:right;}
+        .mr-stat .l{font-size:0.78rem;font-weight:400;color:var(--t3);white-space:nowrap;display:flex;gap:0.3rem;justify-content:flex-end;align-items:center;}
+        .mr-stat .v{font-size:1.5rem;font-weight:600;color:var(--t1);letter-spacing:-0.02em;margin-top:0.2rem;white-space:nowrap;}
+        .mr-stat .v small{font-size:0.8rem;font-weight:400;color:var(--t3);margin-left:0.15rem;}
+        .mr-tip{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;
+                background:transparent;border:1px solid var(--hair2);color:var(--t3);font-size:0.58rem;font-weight:500;cursor:help;}
+        .mr-blk{margin-top:1.4rem;padding-top:1.3rem;border-top:1px solid var(--hair);}
+        .mr-blk-h{font-size:0.9375rem;font-weight:600;color:var(--t1);margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem;}
         .mr-plan{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0.6rem;}
         @media (max-width:900px){.mr-plan{grid-template-columns:repeat(2,minmax(0,1fr));}}
-        .mr-lv{background:var(--inset);border:1px solid var(--hair);border-radius:14px;padding:0.8rem 0.95rem;}
-        .mr-lv .l{font-size:0.8rem;font-weight:600;}
-        .mr-lv .v{font-size:1.35rem;font-weight:700;color:var(--t1);letter-spacing:-0.02em;margin-top:0.25rem;font-variant-numeric:tabular-nums;}
-        .mr-lv .s{font-size:0.8rem;font-weight:600;margin-top:0.15rem;}
+        .mr-lv{background:var(--inset);border:none;border-radius:14px;padding:0.9rem 1.05rem;}
+        .mr-lv .l{font-size:0.8125rem;font-weight:500;}
+        .mr-lv .v{font-size:1.375rem;font-weight:600;color:var(--t1);letter-spacing:-0.02em;margin-top:0.25rem;}
+        .mr-lv .s{font-size:0.8rem;font-weight:500;margin-top:0.15rem;}
         .mr-struct{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:1.4rem;align-items:center;}
         @media (max-width:900px){.mr-struct{grid-template-columns:1fr;}}
-        .mr-lvl{background:var(--inset);border:1px solid var(--hair);border-radius:14px;padding:0.7rem 1rem;min-width:8.5rem;}
-        .mr-lvl .l{font-size:0.8rem;font-weight:600;}
-        .mr-lvl .v{font-size:1.3rem;font-weight:700;color:var(--t1);letter-spacing:-0.02em;margin-top:0.2rem;font-variant-numeric:tabular-nums;}
+        .mr-lvl{background:var(--inset);border:none;border-radius:14px;padding:0.8rem 1.05rem;min-width:8.5rem;}
+        .mr-lvl .l{font-size:0.8125rem;font-weight:500;}
+        .mr-lvl .v{font-size:1.3rem;font-weight:600;color:var(--t1);letter-spacing:-0.02em;margin-top:0.2rem;}
         .mr-lvl .s{font-size:0.78rem;color:var(--t3);margin-top:0.1rem;}
         .mr-range{position:relative;padding-top:1.7rem;}
-        .mr-track{position:relative;height:8px;border-radius:4px;background:var(--fill);}
-        .mr-fill{position:absolute;left:0;top:0;height:100%;border-radius:4px;background:rgba(0,99,209,0.22);}
-        .mr-dot{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;background:#FFFFFF;border:3px solid var(--blue);
-                transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(17,17,20,0.2);}
-        .mr-plbl{position:absolute;top:0;transform:translateX(-50%);font-size:0.82rem;font-weight:700;color:var(--t1);white-space:nowrap;font-variant-numeric:tabular-nums;}
+        .mr-track{position:relative;height:6px;border-radius:980px;background:var(--fill);}
+        .mr-fill{position:absolute;left:0;top:0;height:100%;border-radius:980px;background:rgba(0,113,227,0.28);}
+        .mr-dot{position:absolute;top:50%;width:14px;height:14px;border-radius:50%;background:#FFFFFF;border:none;
+                transform:translate(-50%,-50%);box-shadow:0 0 0 0.5px rgba(0,0,0,0.08),0 1px 4px rgba(0,0,0,0.25);}
+        .mr-plbl{position:absolute;top:0;transform:translateX(-50%);font-size:0.8125rem;font-weight:600;color:var(--t1);white-space:nowrap;}
         .mr-ends{display:flex;justify-content:space-between;align-items:center;gap:0.6rem;margin-top:0.6rem;font-size:0.78rem;color:var(--t3);}
         .mr-why{margin:0.6rem 0 0;padding-left:1.15rem;}
         .mr-why li{font-size:0.88rem;color:var(--t2);line-height:1.6;margin-bottom:0.2rem;}
-        .mr-empty{background:var(--card);border:1px solid var(--hair);border-radius:20px;padding:2.6rem 1.5rem;text-align:center;box-shadow:var(--shadow-sm);}
-        .mr-empty .t{font-size:1.2rem;font-weight:700;color:var(--t1);}
+        .mr-empty{background:var(--card);border:none;border-radius:22px;padding:3.5rem 1.5rem;text-align:center;box-shadow:var(--shadow);}
+        .mr-empty .t{font-size:1.1875rem;font-weight:600;color:var(--t1);}
         .mr-empty .s{font-size:0.93rem;color:var(--t3);margin-top:0.45rem;line-height:1.55;}
         header[data-testid="stHeader"], [data-testid="stToolbar"]{display:none!important;}
         </style>""", unsafe_allow_html=True)
@@ -3951,7 +3946,7 @@ def main():
         # ── Back button ──────────────────────────────────────────────────────
         _bk1, _bk2 = st.columns([1, 6])
         with _bk1:
-            if st.button("← New scan", key="ma_back_btn", use_container_width=True):
+            if st.button("‹  New scan", key="ma_back_btn", use_container_width=True):
                 st.session_state.show_market_results = False
                 st.rerun()
 
@@ -3988,7 +3983,7 @@ def main():
                 f"border-radius:8px;padding:1rem 1.1rem;'>"
                 f"<div style='font-size:0.68rem;color:#9e9e9e;text-transform:uppercase;"
                 f"letter-spacing:0.8px;font-weight:600;margin-bottom:0.4rem;'>{label}</div>"
-                f"<div style='font-size:1.15rem;font-weight:700;color:{vc};line-height:1.1;'>{value}</div>"
+                f"<div style='font-size:1.15rem;font-weight:600;color:{vc};line-height:1.1;'>{value}</div>"
                 f"<div style='font-size:0.72rem;color:#9e9e9e;margin-top:0.35rem;font-weight:600;'>{sub}</div>"
                 f"</div>"
             )
@@ -4105,9 +4100,9 @@ def main():
                 f'border-radius:12px;flex:1 1 150px;min-width:150px;overflow:hidden;">'
                 # top: label + price
                 f'<div style="padding:0.75rem 1rem 0.6rem;">'
-                f'<div style="font-size:0.58rem;color:#555;font-weight:800;text-transform:uppercase;'
+                f'<div style="font-size:0.58rem;color:#555;font-weight:600;text-transform:uppercase;'
                 f'letter-spacing:1.2px;margin-bottom:0.35rem;">{_ilbl}</div>'
-                f'<div style="font-size:1.35rem;font-weight:900;color:#f0f0f0;'
+                f'<div style="font-size:1.35rem;font-weight:600;color:#f0f0f0;'
                 f'letter-spacing:-0.3px;">{_ipf}</div>'
                 f'</div>'
                 # bottom: Today and 5 Days side by side
@@ -4117,17 +4112,17 @@ def main():
                 f'<div style="background:{_c1_bg};border-radius:8px 0 0 8px;'
                 f'padding:0.5rem 0.6rem;text-align:center;'
                 f'border-right:1px solid #1a1a1a;">'
-                f'<div style="font-size:0.48rem;color:#555;font-weight:700;text-transform:uppercase;'
+                f'<div style="font-size:0.48rem;color:#555;font-weight:600;text-transform:uppercase;'
                 f'letter-spacing:0.5px;margin-bottom:0.25rem;">Today</div>'
-                f'<div style="font-size:0.95rem;font-weight:900;color:{_ic1_col};'
+                f'<div style="font-size:0.95rem;font-weight:600;color:{_ic1_col};'
                 f'">{_is1}{_ic1:.1f}%</div>'
                 f'</div>'
                 # 5 Days box
                 f'<div style="background:{_c5_bg};border-radius:0 8px 8px 0;'
                 f'padding:0.5rem 0.6rem;text-align:center;">'
-                f'<div style="font-size:0.48rem;color:#555;font-weight:700;text-transform:uppercase;'
+                f'<div style="font-size:0.48rem;color:#555;font-weight:600;text-transform:uppercase;'
                 f'letter-spacing:0.5px;margin-bottom:0.25rem;">5 Days</div>'
-                f'<div style="font-size:0.95rem;font-weight:900;color:{_ic5_col};'
+                f'<div style="font-size:0.95rem;font-weight:600;color:{_ic5_col};'
                 f'">{_is5}{_ic5:.1f}%</div>'
                 f'</div>'
                 f'</div>'
@@ -4140,7 +4135,7 @@ def main():
             _factors_html += (
                 f'<div style="border-left:3px solid {_fcolor};background:{_fcolor}0a;'
                 f'border-radius:0 8px 8px 0;padding:0.65rem 0.85rem;margin-bottom:0.5rem;">'
-                f'<div style="font-size:0.86rem;font-weight:800;color:{_fcolor};'
+                f'<div style="font-size:0.86rem;font-weight:600;color:{_fcolor};'
                 f'line-height:1.35;margin-bottom:0.3rem;">{_ftitle}</div>'
                 f'<div style="font-size:0.8rem;color:#909090;line-height:1.65;">{_fdetail}</div>'
                 f'</div>'
@@ -4208,12 +4203,12 @@ def main():
                 f'border-radius:0 8px 8px 0;padding:0.75rem 0.9rem;margin-bottom:0.55rem;">'
                 # row 1: category badge + date + read arrow
                 f'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.35rem;">'
-                f'<span style="font-size:0.66rem;font-weight:900;text-transform:uppercase;'
+                f'<span style="font-size:0.66rem;font-weight:600;text-transform:uppercase;'
                 f'letter-spacing:0.6px;padding:0.18rem 0.6rem;border-radius:4px;'
                 f'background:{_nsc}22;color:{_nsc};flex-shrink:0;">{_nh["_cat"]}</span>'
                 f'<span style="font-size:0.68rem;color:#383838;">{_ndt}</span>'
                 f'<span style="margin-left:auto;font-size:0.7rem;color:{_nsc};'
-                f'font-weight:800;flex-shrink:0;">READ &rarr;</span>'
+                f'font-weight:600;flex-shrink:0;">READ &rarr;</span>'
                 f'</div>'
                 # row 2: headline
                 f'<div style="font-size:0.9rem;color:#e0e0e0;line-height:1.55;'
@@ -4228,7 +4223,7 @@ def main():
             _news_html = (
                 f'<div style="background:#1a1a1a;border-radius:10px;padding:1.2rem;'
                 f'text-align:center;">'
-                f'<div style="font-size:0.95rem;font-weight:700;color:#555;'
+                f'<div style="font-size:0.95rem;font-weight:600;color:#555;'
                 f'margin-bottom:0.4rem;">No Major Alerts Right Now</div>'
                 f'<div style="font-size:0.8rem;color:#3a3a3a;line-height:1.6;">'
                 f'No geopolitical events, oil shocks, or major policy news detected. '
@@ -4345,7 +4340,7 @@ def main():
             f"<div class='mr-eyebrow'>{'Full market scan' if _full_mkt else 'Custom scan'} · {_now_riy.strftime('%a %d %b, %H:%M')}</div>"
             f"<div class='mr-title'>{_title_txt}</div>"
             f"<div class='mr-sub'>{_sub_txt}</div></div>"
-            f"<div class='mr-mood'>{_pill(_mlabel, _mood_c)}"
+            f"<div class='mr-mood'>{_pill(''.join(_ch for _ch in str(_mlabel) if ord(_ch) < 0x2190).strip(), _mood_c)}"
             f"<div class='mr-mood-sub'>Macro score {_mscore:+d} / 10</div></div></div>"
             f"<div class='mr-kpis'>{_kpis_html}</div>"
             f"<div class='mr-card'><div class='mr-cond'>"
@@ -4673,7 +4668,7 @@ def main():
                 _icon_char, _icon_col = _CTX_ICONS.get(_imp, ('&#9679;', _cc))
                 _ic = _icon_col if _icon_col else _cc
                 _metric_html = (
-                    f'<span style="font-size:0.65rem;font-weight:800;color:{_cc};'
+                    f'<span style="font-size:0.65rem;font-weight:600;color:{_cc};'
                     f'background:{_cc}18;padding:0.1rem 0.45rem;border-radius:4px;'
                     f'font-family:monospace;white-space:nowrap;letter-spacing:0.3px;">{_met}</span>'
                     if _met else ''
@@ -4685,8 +4680,8 @@ def main():
                     f'<div style="display:flex;align-items:center;'
                     f'justify-content:space-between;margin-bottom:0.3rem;">'
                     f'<div style="display:flex;align-items:center;gap:0.35rem;">'
-                    f'<span style="font-size:0.65rem;font-weight:900;color:{_ic};line-height:1;">{_icon_char}</span>'
-                    f'<span style="font-size:0.58rem;font-weight:900;letter-spacing:1.2px;'
+                    f'<span style="font-size:0.65rem;font-weight:600;color:{_ic};line-height:1;">{_icon_char}</span>'
+                    f'<span style="font-size:0.58rem;font-weight:600;letter-spacing:1.2px;'
                     f'color:{_cc};text-transform:uppercase;">{_cl}</span>'
                     f'</div>'
                     f'{_metric_html}'
@@ -4705,19 +4700,19 @@ def main():
             # MTF badge
             # MTF = Multi-Timeframe alignment (how many timeframes agree: Daily, Weekly, Monthly)
             if mtf == 3:
-                mtf_badge = ('<span style="font-size:0.67rem;font-weight:700;background:#4caf5018;'
+                mtf_badge = ('<span style="font-size:0.67rem;font-weight:600;background:#4caf5018;'
                              'color:#4caf50;border-radius:4px;padding:3px 8px;'
                              'border:1px solid #4caf5040;white-space:nowrap;'
                              'title="All 3 timeframes (daily, weekly, monthly) agree — strongest signal">'
                              '&#10003; All Timeframes Agree</span>')
             elif mtf == 2:
-                mtf_badge = ('<span style="font-size:0.67rem;font-weight:700;background:#ff980018;'
+                mtf_badge = ('<span style="font-size:0.67rem;font-weight:600;background:#ff980018;'
                              'color:#ff9800;border-radius:4px;padding:3px 8px;'
                              'border:1px solid #ff980040;white-space:nowrap;'
                              'title="2 of 3 timeframes agree">'
                              '2 of 3 Timeframes Agree</span>')
             elif mtf == 1:
-                mtf_badge = ('<span style="font-size:0.67rem;font-weight:700;background:#88888818;'
+                mtf_badge = ('<span style="font-size:0.67rem;font-weight:600;background:#88888818;'
                              'color:#888;border-radius:4px;padding:3px 8px;'
                              'border:1px solid #88888835;white-space:nowrap;'
                              'title="Only 1 timeframe agrees — weaker signal">'
@@ -4759,7 +4754,7 @@ def main():
             bullet_html = "".join(
                 f'<div style="display:flex;align-items:flex-start;gap:0.7rem;padding:0.45rem 0;'
                 f'border-bottom:1px solid rgba(255,255,255,0.04);">'
-                f'<span style="background:#10a37f18;color:#10a37f;font-size:0.6rem;font-weight:900;'
+                f'<span style="background:#10a37f18;color:#10a37f;font-size:0.6rem;font-weight:600;'
                 f'min-width:1.4rem;height:1.4rem;display:flex;align-items:center;justify-content:center;'
                 f'border-radius:6px;border:1px solid #10a37f30;flex-shrink:0;">{i+1}</span>'
                 f'<span style="font-size:0.85rem;color:#c8c8c8;line-height:1.6;">{b}</span>'
@@ -5035,7 +5030,7 @@ def main():
         _alert_rows_html = "".join(
             f'<div style="border-left:3px solid {_ac};background:{_ac}09;'
             f'border-radius:0 7px 7px 0;padding:0.55rem 0.75rem;margin-bottom:0.3rem;">'
-            f'<div style="font-size:0.66rem;font-weight:900;text-transform:uppercase;'
+            f'<div style="font-size:0.66rem;font-weight:600;text-transform:uppercase;'
             f'letter-spacing:0.7px;color:{_ac};margin-bottom:0.2rem;">{_at}</div>'
             f'<div style="font-size:0.8rem;color:#bbb;line-height:1.55;">{_ad}</div>'
             f'</div>'
@@ -5098,7 +5093,7 @@ def main():
                 st.rerun()
         with title_col:
             st.markdown(
-                "<div style='font-size:1.4rem;font-weight:900;color:#e8e8e8;"
+                "<div style='font-size:1.4rem;font-weight:600;color:#e8e8e8;"
                 "letter-spacing:-0.5px;padding-top:0.15rem;'>"
                 "🌍 Macro Intelligence "
                 "<span style='font-size:0.7rem;font-weight:600;color:#555;'>"
@@ -5127,7 +5122,7 @@ def main():
                 st.rerun()
         with title_col:
             st.markdown(
-                "<div style='font-size:1.4rem;font-weight:900;color:#e8e8e8;"
+                "<div style='font-size:1.4rem;font-weight:600;color:#e8e8e8;"
                 "letter-spacing:-0.5px;padding-top:0.15rem;'>"
                 "📡 Market Pulse <span style='font-size:0.7rem;font-weight:600;"
                 "color:#555;'>Saudi Market Command Center</span></div>",
@@ -5160,7 +5155,7 @@ def main():
                                  AMBER_BG as _AAMBER_BG, REGIME_COLORS as _AREG_C,
                                  REGIME_BG as _AREG_BG)
 
-        if st.button("← New analysis", type="secondary", width="content"):
+        if st.button("‹  New analysis", type="secondary", width="content"):
 
             st.session_state.show_results = False
 
@@ -5212,7 +5207,7 @@ def main():
 
         _regime_key = str(latest['REGIME']).upper()
         regime_color = _AREG_C.get(_regime_key, _AT3)
-        regime_bg = _AREG_BG.get(_regime_key, "rgba(17,17,20,0.05)")
+        regime_bg = _AREG_BG.get(_regime_key, "rgba(0,0,0,0.05)")
 
         if period_change > 0.2:
 
@@ -5393,33 +5388,36 @@ def main():
         # so the chart renders INSIDE the same white card.
         st.markdown(
             "<style>"
-            f".st-key-hero_box{{background:{_ACARD}!important;border:1px solid {_AHAIR}!important;"
-            f"border-radius:20px!important;box-shadow:{_ASHADOW}!important;"
-            "padding:1.6rem 1.75rem 1.2rem!important;margin:0.6rem 0 1.4rem!important;}"
+            f".st-key-hero_box{{background:{_ACARD}!important;border:none!important;"
+            f"border-radius:22px!important;box-shadow:{_ASHADOW}!important;"
+            "padding:2rem 2.1rem 1.4rem!important;margin:0.8rem 0 1.9rem!important;}"
             ".st-key-hero_box .js-plotly-plot{border-radius:12px;overflow:hidden;}"
             ".hx-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;"
-            "flex-wrap:wrap;margin-bottom:1.3rem;}"
-            f".hx-name{{font-size:2rem;font-weight:700;color:{_AT1};letter-spacing:-0.025em;line-height:1.15;}}"
-            f".hx-meta{{font-size:0.92rem;color:{_AT3};margin-top:0.35rem;font-weight:500;"
-            "font-variant-numeric:tabular-nums;}"
-            f".hx-sym{{color:{_AT2};font-weight:600;}}"
+            "flex-wrap:wrap;margin-bottom:1.6rem;}"
+            f".hx-name{{font-size:2.625rem;font-weight:600;color:{_AT1};letter-spacing:-0.03em;line-height:1.08;}}"
+            f".hx-meta{{font-size:1rem;color:{_AT3};margin-top:0.5rem;font-weight:400;letter-spacing:-0.01em;"
+            "}"
+            f".hx-sym{{color:{_AT2};font-weight:500;}}"
             ".hx-sep{margin:0 0.55rem;opacity:0.7;}"
             ".hx-pills{display:flex;align-items:center;gap:0.55rem;flex-wrap:wrap;}"
-            ".hx-pill{display:inline-flex;align-items:center;gap:0.4rem;font-size:0.88rem;"
-            "font-weight:600;padding:0.42rem 0.95rem;border-radius:980px;white-space:nowrap;"
-            "font-variant-numeric:tabular-nums;}"
-            ".hx-dot{display:inline-block;width:7px;height:7px;border-radius:50%;flex-shrink:0;}"
-            ".hx-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0.8rem;margin-bottom:1.2rem;}"
+            ".hx-pill{display:inline-flex;align-items:center;gap:0.36rem;font-size:0.875rem;"
+            "font-weight:500;padding:0.32rem 0.85rem;border-radius:980px;white-space:nowrap;"
+            "}"
+            ".hx-dot{display:inline-block;width:6px;height:6px;border-radius:50%;flex-shrink:0;}"
+            ".hx-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0.7rem;margin-bottom:1.5rem;}"
             "@media (max-width:1000px){.hx-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}"
-            f".hx-tile{{background:{_AINSET};border:1px solid {_AHAIR};border-radius:14px;"
-            "padding:1rem 1.15rem 0.95rem;display:flex;flex-direction:column;min-width:0;}"
-            f".hx-label{{font-size:0.82rem;font-weight:600;color:{_AT3};}}"
-            ".hx-val-row{display:flex;align-items:baseline;gap:0.3rem;margin-top:0.45rem;}"
-            ".hx-value{font-size:1.5rem;font-weight:700;letter-spacing:-0.02em;line-height:1.1;"
-            "font-variant-numeric:tabular-nums;}"
-            f".hx-unit{{font-size:0.8rem;font-weight:600;color:{_AT3};}}"
-            ".hx-sub{display:flex;align-items:center;gap:0.4rem;margin-top:0.45rem;font-size:0.82rem;"
-            "font-weight:600;font-variant-numeric:tabular-nums;}"
+            f".hx-tile{{background:{_AINSET};border:none;border-radius:16px;"
+            "padding:1.05rem 1.2rem 1rem;display:flex;flex-direction:column;min-width:0;}"
+            f".hx-label{{font-size:0.8125rem;font-weight:400;color:{_AT3};}}"
+            ".hx-val-row{display:flex;align-items:baseline;gap:0.3rem;margin-top:0.4rem;}"
+            ".hx-value{font-size:1.625rem;font-weight:600;letter-spacing:-0.026em;line-height:1.1;"
+            "}"
+            f".hx-unit{{font-size:0.8125rem;font-weight:400;color:{_AT3};}}"
+            ".hx-sub{display:flex;align-items:center;gap:0.36rem;margin-top:0.4rem;font-size:0.8125rem;"
+            "font-weight:400;}"
+            "@media (max-width:640px){.hx-name{font-size:1.75rem;}.hx-meta{font-size:0.875rem;}"
+            ".st-key-hero_box{padding:1.3rem 1.1rem 1rem!important;border-radius:20px!important;}"
+            ".hx-tile{padding:0.85rem 0.95rem 0.8rem;}.hx-value{font-size:1.3125rem;}}"
             "</style>",
             unsafe_allow_html=True,
         )

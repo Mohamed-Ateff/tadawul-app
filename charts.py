@@ -1706,7 +1706,7 @@ def render_trading_system_chart(df, current_regime, cp, atr_pct, regime_stabilit
 
     """Render the trading system forecast chart and metrics."""
 
-    st.markdown(f"<div style='font-size:1.25rem; font-weight:700; color:{T1}; letter-spacing:-0.015em; margin:0.4rem 0 0.8rem 0;'>Trading System - Key Levels & Forecast</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='font-size:1.25rem; font-weight:600; color:{T1}; letter-spacing:-0.015em; margin:0.4rem 0 0.8rem 0;'>Trading System - Key Levels & Forecast</div>", unsafe_allow_html=True)
 
 
 

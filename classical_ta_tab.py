@@ -815,20 +815,20 @@ def classical_ta_tab(df, current_price):
         transform:translateX(-50%);background:{CARD};color:{T2};border:1px solid {HAIR};
         border-radius:12px;padding:0.65rem 0.8rem;font-size:0.8rem;font-weight:500;
         line-height:1.5;white-space:normal;width:260px;text-align:left;z-index:200;
-        pointer-events:none;transition:opacity .15s;box-shadow:0 8px 28px rgba(17,17,20,0.14);
+        pointer-events:none;transition:opacity .15s;box-shadow:0 8px 28px rgba(0,0,0,0.14);
         text-transform:none;letter-spacing:0}}
     .cta-tip-w .cta-tt::after{{content:'';position:absolute;top:100%;left:50%;
         transform:translateX(-50%);border:6px solid transparent;border-top-color:{HAIR}}}
     .cta-tip-w:hover .cta-tt{{visibility:visible;opacity:1}}
-    .cta-card{{background:{CARD};border:1px solid {HAIR};border-radius:18px;box-shadow:{SHADOW};
+    .cta-card{{background:{CARD};border:none;border-radius:18px;box-shadow:{SHADOW};
         padding:1.4rem 1.5rem;margin-bottom:1.4rem;}}
     .cta-grid{{display:grid;gap:0.8rem;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));}}
-    .cta-tile{{background:{INSET};border:1px solid {HAIR};border-radius:14px;padding:0.95rem 1.05rem;
+    .cta-tile{{background:{INSET};border:none;border-radius:14px;padding:0.95rem 1.05rem;
         display:flex;flex-direction:column;gap:0.3rem;min-width:0;}}
     .cta-lbl{{display:flex;align-items:center;font-size:0.82rem;font-weight:600;color:{T3};}}
-    .cta-val{{font-size:1.1rem;font-weight:700;letter-spacing:-0.01em;line-height:1.25;
-        font-variant-numeric:tabular-nums;}}
-    .cta-sub{{font-size:0.8rem;color:{T3};font-variant-numeric:tabular-nums;}}
+    .cta-val{{font-size:1.1rem;font-weight:600;letter-spacing:-0.01em;line-height:1.25;
+        }}
+    .cta-sub{{font-size:0.8rem;color:{T3};}}
     .cta-divider{{border-top:1px solid {HAIR};margin:1.2rem 0;}}
     </style>""", unsafe_allow_html=True)
 
@@ -853,7 +853,7 @@ def classical_ta_tab(df, current_price):
         f"<div>"
         f"<div style='font-size:0.85rem;color:{T3};font-weight:600;margin-bottom:0.45rem;'>"
         f"Classical TA decision</div>"
-        f"<div style='font-size:2.6rem;font-weight:700;color:{v_col};"
+        f"<div style='font-size:2.6rem;font-weight:600;color:{v_col};"
         f"letter-spacing:-0.02em;line-height:1;'>{verdict}</div>"
         f"<div style='font-size:0.95rem;color:{T2};margin-top:0.65rem;"
         f"font-weight:500;line-height:1.6;'>{sub}</div>"
@@ -1023,24 +1023,24 @@ def classical_ta_tab(df, current_price):
 
         def _chip(label, value, value_col, note, note_col):
             return (
-                f"<div style='flex:1;min-width:0;background:{CARD};border:1px solid {HAIR};"
+                f"<div style='flex:1;min-width:0;background:{CARD};border:none;"
                 f"border-radius:12px;padding:0.6rem 0.75rem;'>"
                 f"<div style='font-size:0.78rem;color:{T3};font-weight:600;margin-bottom:0.2rem;'>{label}</div>"
-                f"<div style='font-size:1.05rem;font-weight:700;color:{value_col};"
-                f"letter-spacing:-0.02em;font-variant-numeric:tabular-nums;line-height:1.2;'>{value}</div>"
+                f"<div style='font-size:1.05rem;font-weight:600;color:{value_col};"
+                f"letter-spacing:-0.02em;line-height:1.2;'>{value}</div>"
                 f"<div style='font-size:0.78rem;font-weight:600;color:{note_col};"
-                f"font-variant-numeric:tabular-nums;margin-top:0.1rem;'>{note}</div>"
+                f"margin-top:0.1rem;'>{note}</div>"
                 f"</div>"
             )
 
         return (
-            f"<div style='background:{INSET};border:1px solid {HAIR};border-radius:14px;"
+            f"<div style='background:{INSET};border:none;border-radius:14px;"
             f"padding:1.05rem 1.1rem 1rem;display:flex;flex-direction:column;gap:0.7rem;'>"
 
             # Row 1: name + bias pill + confidence ring
             f"<div style='display:flex;align-items:flex-start;justify-content:space-between;gap:0.5rem;'>"
             f"<div>"
-            f"<div style='font-size:1rem;font-weight:700;color:{T1};"
+            f"<div style='font-size:1rem;font-weight:600;color:{T1};"
             f"line-height:1.25;margin-bottom:0.4rem;letter-spacing:-0.01em;'>{p['name']}</div>"
             f"<span style='display:inline-flex;font-size:0.76rem;font-weight:600;color:{pc};"
             f"background:{pc_bg};border-radius:980px;padding:0.18rem 0.65rem;'>{bias_txt}</span>"

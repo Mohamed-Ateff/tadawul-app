@@ -184,33 +184,31 @@ _CSS = """
    Native <details> elements throughout. Where the browser supports it
    (::details-content + interpolate-size) opening and closing animate their
    height; everywhere else the opened content still fades in. */
-.sg-shell,.sg-shell *{font-family:'IBM Plex Sans Arabic','Inter',-apple-system,'Segoe UI',Tahoma,sans-serif!important;
+.sg-shell,.sg-shell *{font-family:-apple-system,BlinkMacSystemFont,'IBM Plex Sans Arabic','Segoe UI',Tahoma,sans-serif!important;
     -webkit-font-smoothing:antialiased;box-sizing:border-box;}
-.sg-shell{direction:rtl;text-align:right;background:#FFFFFF;border:1px solid #E5E5EA;border-radius:22px;
-    margin:0.2rem 0 1.4rem;interpolate-size:allow-keywords;
-    box-shadow:0 1px 2px rgba(17,17,20,0.04),0 10px 30px rgba(17,17,20,0.06);
-    transition:box-shadow .3s ease,border-color .3s ease;}
-.sg-shell:hover{box-shadow:0 1px 2px rgba(17,17,20,0.05),0 14px 40px rgba(17,17,20,0.09);}
-.sg-shell[open]{border-color:#DCE6F5;}
-.sg-top{list-style:none;cursor:pointer;display:flex;align-items:center;gap:1rem;padding:1.05rem 1.3rem;
-    border-radius:22px;user-select:none;-webkit-tap-highlight-color:transparent;}
+.sg-shell{direction:rtl;text-align:right;background:#FFFFFF;border:none;border-radius:18px;
+    margin:0.2rem 0 1.5rem;interpolate-size:allow-keywords;
+    box-shadow:0 1px 2px rgba(0,0,0,0.03),0 6px 20px rgba(0,0,0,0.045);
+    transition:box-shadow .3s cubic-bezier(.25,.1,.25,1);}
+.sg-shell:hover{box-shadow:0 2px 4px rgba(0,0,0,0.04),0 10px 28px rgba(0,0,0,0.07);}
+.sg-top{list-style:none;cursor:pointer;display:flex;align-items:center;gap:0.85rem;padding:0.8rem 1.1rem;
+    border-radius:18px;user-select:none;-webkit-tap-highlight-color:transparent;}
 .sg-top::-webkit-details-marker{display:none;}
 .sg-top::marker{content:'';}
-.sg-top-ic{flex:0 0 auto;width:46px;height:46px;border-radius:14px;display:grid;place-items:center;
-    background:linear-gradient(145deg,#3B93FF 0%,#0063D1 100%);
-    box-shadow:0 6px 16px rgba(0,99,209,0.28),inset 0 1px 0 rgba(255,255,255,0.25);}
-.sg-top-ic svg{width:24px;height:24px;display:block;}
-.sg-top-tx{display:flex;flex-direction:column;gap:0.1rem;min-width:0;}
-.sg-top-tx b{font-size:1.12rem;font-weight:700;letter-spacing:-0.01em;line-height:1.4;}
-.sg-top-tx small{font-size:0.86rem;line-height:1.5;}
-.sg-top-btn{margin-right:auto;flex:0 0 auto;display:inline-flex;align-items:center;gap:0.55rem;
-    padding:0.5rem 1rem 0.5rem 0.85rem;border-radius:980px;background:#EEF4FD;font-size:0.88rem;
-    font-weight:600;white-space:nowrap;transition:background .2s ease,color .2s ease;}
+.sg-top-ic{flex:0 0 auto;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;
+    background:#0071E3;}
+.sg-top-ic svg{width:19px;height:19px;display:block;}
+.sg-top-tx{display:flex;flex-direction:column;gap:0;min-width:0;}
+.sg-top-tx b{font-size:1rem;font-weight:600;line-height:1.4;}
+.sg-top-tx small{font-size:0.8125rem;line-height:1.45;}
+.sg-top-btn{margin-right:auto;flex:0 0 auto;display:inline-flex;align-items:center;gap:0.5rem;
+    padding:0.36rem 0.85rem 0.36rem 0.72rem;border-radius:980px;background:rgba(0,113,227,0.08);font-size:0.8125rem;
+    font-weight:500;white-space:nowrap;transition:background-color .2s cubic-bezier(.25,.1,.25,1);}
 .sg-top-btn .c{display:none;}
 .sg-shell[open] .sg-top-btn .o{display:none;}
 .sg-shell[open] .sg-top-btn .c{display:inline;}
-.sg-chev{display:inline-block;width:7px;height:7px;border-left:2px solid currentColor;
-    border-bottom:2px solid currentColor;transform:translateY(-2px) rotate(-45deg);
+.sg-chev{display:inline-block;width:6px;height:6px;border-left:1.5px solid currentColor;
+    border-bottom:1.5px solid currentColor;transform:translateY(-2px) rotate(-45deg);
     transition:transform .35s cubic-bezier(.2,.8,.2,1);}
 .sg-shell[open] .sg-chev{transform:translateY(2px) rotate(135deg);}
 .sg-shell::details-content,.sg-d::details-content{height:0;overflow:clip;opacity:0;
@@ -219,109 +217,97 @@ _CSS = """
 .sg-shell[open]>.sg,.sg-d[open]>.sg-b{animation:sgIn .45s cubic-bezier(.2,.8,.2,1) both;}
 @keyframes sgIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:none;}}
 
+.st-key-sg_wrap [data-testid="stExpander"] summary{direction:rtl;}
+
 /* ── content ─────────────────────────────────────────────────────────────── */
 .sg{direction:rtl;text-align:right;font-size:0.96rem;line-height:1.9;padding:0.1rem 1.3rem 1.5rem;}
 .sg p{margin:0.35rem 0 0.8rem;}
 .sg ul,.sg ol{margin:0.3rem 0 0.9rem;padding-right:1.3rem;padding-left:0;}
 .sg li{margin:0.3rem 0;}
-.sg li::marker{color:#9A9AA2;}
+.sg li::marker{color:#86868B;}
 .sg b{font-weight:600;}
-.sg code{font-family:'SF Mono',Menlo,Consolas,monospace!important;background:#F2F2F7;border:none;
-    border-radius:7px;padding:0.1rem 0.45rem;color:#111114;font-size:0.8rem;unicode-bidi:isolate;direction:ltr;}
-.sg-intro{margin:0.2rem 0 0.4rem;padding:1.6rem 1.7rem 1.2rem;border-radius:18px;border:1px solid #E3ECF8;
-    background:radial-gradient(120% 140% at 100% 0%,#E9F2FF 0%,rgba(233,242,255,0) 58%),
-               linear-gradient(180deg,#FAFCFF 0%,#FFFFFF 100%);}
-.sg-intro h3{margin:0 0 0.55rem!important;padding:0!important;font-size:1.6rem!important;font-weight:700!important;
-    letter-spacing:-0.015em;line-height:1.35!important;}
+.sg code{font-family:'SF Mono',Menlo,Consolas,monospace!important;background:rgba(118,118,128,0.12);border:none;
+    border-radius:6px;padding:0.1rem 0.42rem;color:#1D1D1F;font-size:0.8rem;unicode-bidi:isolate;direction:ltr;}
+.sg-intro{margin:0.2rem 0 0.4rem;padding:1.6rem 1.7rem 1.3rem;border-radius:16px;border:none;background:#F5F5F7;}
+.sg-intro h3{margin:0 0 0.5rem!important;padding:0!important;font-size:1.5rem!important;font-weight:600!important;
+    line-height:1.35!important;}
 .sg-lead{font-size:1.04rem;}
 .sg-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;margin:1.2rem 0 0.7rem;}
-.sg-step{background:#FFFFFF;border:1px solid #E8E8ED;border-radius:16px;padding:0.95rem 1rem;
-    box-shadow:0 1px 2px rgba(17,17,20,0.03);transition:transform .25s ease,box-shadow .25s ease;}
-.sg-step:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(17,17,20,0.08);}
-.sg-step-n{display:inline-flex;align-items:center;justify-content:center;width:1.8rem;height:1.8rem;
-    border-radius:50%;background:linear-gradient(145deg,#3B93FF,#0063D1);font-size:0.82rem;font-weight:700;
-    margin-bottom:0.45rem;box-shadow:0 3px 8px rgba(0,99,209,0.25);}
+.sg-step{background:#FFFFFF;border:none;border-radius:14px;padding:0.95rem 1rem;}
+.sg-step-n{display:inline-flex;align-items:center;justify-content:center;width:1.5rem;height:1.5rem;
+    border-radius:50%;background:#0071E3;font-size:0.78rem;font-weight:600;margin-bottom:0.45rem;}
 .sg-step-t{font-size:0.9rem;line-height:1.65;}
 .sg-gh{display:flex;align-items:baseline;flex-wrap:wrap;gap:0.3rem 0.75rem;margin:2rem 0.3rem 0.8rem;}
-.sg-gh span{font-size:1.2rem;font-weight:700;letter-spacing:-0.01em;}
-.sg-gh small{font-size:0.86rem;}
+.sg-gh span{font-size:1.1875rem;font-weight:600;}
+.sg-gh small{font-size:0.8125rem;}
 
-/* sections: one card each */
-.sg-list{display:grid;gap:0.6rem;}
-.sg-d{background:#FFFFFF;border:1px solid #E8E8ED;border-radius:16px;scroll-margin-top:90px;
-    transition:border-color .25s ease,box-shadow .25s ease;}
-.sg-d:hover{border-color:#D8D8DF;box-shadow:0 4px 14px rgba(17,17,20,0.05);}
-.sg-d[open]{border-color:#D6E3F5;box-shadow:0 12px 32px rgba(17,17,20,0.07);}
-.sg-d>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:0.9rem;
-    padding:0.9rem 1.15rem;font-size:1rem;font-weight:600;line-height:1.5;border-radius:16px;
-    transition:background .2s ease;-webkit-tap-highlight-color:transparent;}
+/* sections: an inset-grouped list, one row each */
+.sg-list{display:block;background:#F5F5F7;border-radius:16px;overflow:clip;}
+.sg-d{background:transparent;border:none;scroll-margin-top:90px;transition:background-color .25s cubic-bezier(.25,.1,.25,1);}
+.sg-d+.sg-d{border-top:1px solid #E8E8ED;}
+.sg-d[open]{background:#FAFAFC;}
+.sg-d>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:0.8rem;
+    padding:0.8rem 1.15rem;font-size:0.9688rem;font-weight:500;line-height:1.5;
+    transition:background-color .2s cubic-bezier(.25,.1,.25,1);-webkit-tap-highlight-color:transparent;}
 .sg-d>summary::-webkit-details-marker{display:none;}
 .sg-d>summary::marker{content:'';}
-.sg-d>summary:hover{background:#FAFAFC;}
-.sg-d>summary::after{content:'';flex:0 0 auto;margin-right:auto;width:30px;height:30px;border-radius:50%;
-    background:#F2F2F6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%233F3F46' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/12px no-repeat;
-    transition:transform .35s cubic-bezier(.2,.8,.2,1),background-color .2s ease;}
-.sg-d[open]>summary::after{transform:rotate(180deg);background-color:#E6F0FD;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%230063D1' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
-.sg-n{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:2rem;height:2rem;
-    padding:0 0.4rem;border-radius:10px;background:#EEF4FD;font-size:0.85rem;font-weight:700;
-    transition:background .25s ease,color .25s ease;}
-.sg-d[open] .sg-n{background:#0063D1;}
-.sg-b{padding:0.4rem 1.5rem 1.6rem;border-top:1px solid #F0F0F3;}
-.sg-b h4{position:relative;margin:1.4rem 0 0.45rem!important;padding:0 0.85rem 0 0!important;
-    font-size:1rem!important;font-weight:700!important;line-height:1.5!important;}
-.sg-b h4::before{content:'';position:absolute;right:0;top:0.3em;width:3.5px;height:0.95em;border-radius:3px;
-    background:#0063D1;}
+.sg-d>summary:hover{background:rgba(0,0,0,0.025);}
+.sg-d>summary::after{content:'';flex:0 0 auto;margin-right:auto;width:22px;height:22px;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%2386868B' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/12px no-repeat;
+    transition:transform .32s cubic-bezier(.22,.61,.36,1);}
+.sg-d[open]>summary::after{transform:rotate(180deg);}
+.sg-n{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:1.5rem;
+    font-size:0.8125rem;font-weight:400;font-variant-numeric:tabular-nums;}
+.sg-b{padding:0.4rem 1.5rem 1.6rem;border-top:1px solid #E8E8ED;}
+.sg-b h4{margin:1.4rem 0 0.4rem!important;padding:0!important;
+    font-size:1rem!important;font-weight:600!important;line-height:1.5!important;}
 
 /* tables */
-.sg-tw{overflow-x:auto;margin:0.75rem 0 1.05rem;background:#FFFFFF;border:1px solid #E8E8ED;border-radius:14px;}
+.sg-tw{overflow-x:auto;margin:0.75rem 0 1.05rem;background:#FFFFFF;border:none;border-radius:14px;box-shadow:0 0 0 0.5px rgba(0,0,0,0.06);}
 .st-key-sg_wrap .sg table.sg-t{border-collapse:separate!important;border-spacing:0;width:100%;margin:0!important;
     font-size:0.88rem;border:none!important;}
-.st-key-sg_wrap .sg .sg-t th,.st-key-sg_wrap .sg .sg-t td{border:none!important;border-bottom:1px solid #F0F0F3!important;}
-.st-key-sg_wrap .sg .sg-t th{background:#F7F7FA!important;font-weight:600;font-size:0.8rem;padding:0.65rem 0.95rem;
+.st-key-sg_wrap .sg .sg-t th,.st-key-sg_wrap .sg .sg-t td{border:none!important;border-bottom:1px solid #E8E8ED!important;}
+.st-key-sg_wrap .sg .sg-t th{background:#FFFFFF!important;font-weight:500;font-size:0.78rem;padding:0.65rem 0.95rem;
     text-align:right;white-space:nowrap;}
-.st-key-sg_wrap .sg .sg-t td{padding:0.75rem 0.95rem;vertical-align:top;line-height:1.75;transition:background .15s ease;}
-.st-key-sg_wrap .sg .sg-t tbody tr:hover td{background:#FAFAFD;}
+.st-key-sg_wrap .sg .sg-t td{padding:0.75rem 0.95rem;vertical-align:top;line-height:1.75;}
 .st-key-sg_wrap .sg .sg-t tbody tr:last-child td{border-bottom:none!important;}
 
 /* notes: a coloured card with a round icon */
-.sg-note{position:relative;border-radius:14px;padding:0.85rem 2.9rem 0.85rem 1.1rem;margin:0.85rem 0;
-    font-size:0.9rem;line-height:1.8;border:1px solid transparent;}
+.sg-note{position:relative;border-radius:14px;padding:0.85rem 2.8rem 0.85rem 1.1rem;margin:0.85rem 0;
+    font-size:0.9rem;line-height:1.8;border:none;}
 .sg-note::before{position:absolute;right:1rem;top:1.05rem;width:1.25rem;height:1.25rem;border-radius:50%;
     display:flex;align-items:center;justify-content:center;font:700 0.72rem/1 -apple-system,'Segoe UI',sans-serif;
     color:#FFFFFF;}
-.st-key-sg_wrap .sg .sg-info{background:#F2F7FF;border-color:#DCE8FA;color:#0B3768;}
-.st-key-sg_wrap .sg .sg-warn{background:#FFF8EC;border-color:#F3E1BF;color:#5A3800;}
-.st-key-sg_wrap .sg .sg-ok{background:#F0FAF3;border-color:#D2EEDB;color:#0E3F22;}
-.st-key-sg_wrap .sg .sg-bad{background:#FFF3F2;border-color:#F6D6D3;color:#6E0A06;}
-.sg-info::before{content:'i';background:#0063D1;}
-.sg-warn::before{content:'!';background:#C77700;}
-.sg-ok::before{content:'✓';background:#1B7A36;}
-.sg-bad::before{content:'✕';background:#C1121F;}
-.sg-pill{display:inline-block;font-size:0.78rem;font-weight:600;padding:0.12rem 0.6rem;border-radius:980px;
+.st-key-sg_wrap .sg .sg-info{background:rgba(0,113,227,0.06);color:#003F7F;}
+.st-key-sg_wrap .sg .sg-warn{background:rgba(255,149,0,0.10);color:#5A3800;}
+.st-key-sg_wrap .sg .sg-ok{background:rgba(52,199,89,0.10);color:#0E3F22;}
+.st-key-sg_wrap .sg .sg-bad{background:rgba(255,59,48,0.07);color:#6E0A06;}
+.sg-info::before{content:'i';background:#0071E3;}
+.sg-warn::before{content:'!';background:#FF9500;}
+.sg-ok::before{content:'✓';background:#34C759;}
+.sg-bad::before{content:'✕';background:#FF3B30;}
+.sg-pill{display:inline-block;font-size:0.78rem;font-weight:500;padding:0.12rem 0.6rem;border-radius:980px;
     white-space:nowrap;}
-.sg .sg-sub{font-size:0.8rem;color:#5C5C63!important;margin-top:0.15rem;}
+.sg .sg-sub{font-size:0.8rem;color:#636366!important;margin-top:0.15rem;}
 
 /* «الفكرة والمنطق» cards */
 .sg-idea{display:grid;gap:0.6rem;margin:0.7rem 0 0.4rem;}
-.sg-idea-r{display:grid;grid-template-columns:7.5rem 1fr;gap:1rem;align-items:start;background:#FAFAFC;
-    border:1px solid #EDEDF1;border-radius:14px;padding:0.85rem 1.05rem;}
-.sg-idea-k{font-weight:700;font-size:0.88rem;padding-top:0.1rem;}
+.sg-idea-r{display:grid;grid-template-columns:7.5rem 1fr;gap:1rem;align-items:start;background:#F5F5F7;
+    border:none;border-radius:14px;padding:0.85rem 1.05rem;}
+.sg-idea-k{font-weight:600;font-size:0.88rem;padding-top:0.1rem;}
 .sg-idea-v{font-size:0.94rem;line-height:1.85;}
 
 /* the search / test split, drawn as a time bar (oldest on the right) */
 .sg-split{display:flex;gap:5px;margin:0.7rem 0 0.25rem;}
 .sg-split>div{border-radius:12px;padding:0.7rem 0.9rem;font-size:0.86rem;font-weight:600;line-height:1.45;}
 .sg-split small{display:block;font-weight:500;font-size:0.76rem;}
-.st-key-sg_wrap .sg .sg-split-a{background:#ECECF1;color:#111114!important;}
-.st-key-sg_wrap .sg .sg-split-b{background:linear-gradient(145deg,#2B86F5,#0063D1);color:#FFFFFF!important;}
+.st-key-sg_wrap .sg .sg-split-a{background:rgba(118,118,128,0.12);color:#1D1D1F!important;}
+.st-key-sg_wrap .sg .sg-split-b{background:#0071E3;color:#FFFFFF!important;}
 .st-key-sg_wrap .sg .sg-split-b small{color:#FFFFFF!important;}
-.sg-split-axis{display:flex;justify-content:space-between;font-size:0.76rem;color:#6E6E76;margin:0 0.2rem 0.9rem;}
+.sg-split-axis{display:flex;justify-content:space-between;font-size:0.76rem;color:#636366;margin:0 0.2rem 0.9rem;}
 
 /* a section a "؟" on the page just opened: a soft blue ring for a moment */
-.st-key-sg_wrap .sg .sg-d.sg-flash{border-color:#0063D1;
-    box-shadow:0 0 0 4px rgba(0,99,209,0.16),0 12px 32px rgba(17,17,20,0.07);}
-.st-key-sg_wrap .sg .sg-d.sg-flash>summary{background:#F0F6FF;}
+.st-key-sg_wrap .sg .sg-d.sg-flash>summary{background:rgba(0,113,227,0.08);}
 
 @media (max-width:900px){.sg-steps{grid-template-columns:repeat(2,1fr);}}
 @media (max-width:640px){
@@ -338,16 +324,17 @@ _CSS = """
 /* Text colours, stated with !important because the app's global CSS forces
    its own (e.g. every h4 white). */
 .st-key-sg_wrap .sg p,.st-key-sg_wrap .sg li,.st-key-sg_wrap .sg td,.st-key-sg_wrap .sg .sg-lead,
-.st-key-sg_wrap .sg .sg-idea-v{color:#2A2A30!important;}
-.st-key-sg_wrap .sg th{color:#55555C!important;}
+.st-key-sg_wrap .sg .sg-idea-v{color:#2C2C2E!important;}
+.st-key-sg_wrap .sg th{color:#636366!important;}
 .st-key-sg_wrap .sg b,.st-key-sg_wrap .sg h3,.st-key-sg_wrap .sg h4,.st-key-sg_wrap .sg .sg-gh span,
 .st-key-sg_wrap .sg .sg-d>summary,.st-key-sg_wrap .sg .sg-step-t,
-.st-key-sg_wrap .sg-top-tx b{color:#111114!important;}
-.st-key-sg_wrap .sg .sg-gh small,.st-key-sg_wrap .sg-top-tx small{color:#6E6E76!important;}
-.st-key-sg_wrap .sg-top-btn{color:#0063D1!important;}
-.st-key-sg_wrap .sg-top:hover .sg-top-btn{background:#0063D1;color:#FFFFFF!important;}
-.st-key-sg_wrap .sg .sg-d>summary .sg-n,.st-key-sg_wrap .sg .sg-idea-k{color:#0063D1!important;}
-.st-key-sg_wrap .sg .sg-d[open]>summary .sg-n,.st-key-sg_wrap .sg .sg-step-n{color:#FFFFFF!important;}
+.st-key-sg_wrap .sg-top-tx b{color:#1D1D1F!important;}
+.st-key-sg_wrap .sg .sg-gh small,.st-key-sg_wrap .sg-top-tx small{color:#636366!important;}
+.st-key-sg_wrap .sg-top-btn{color:#0066CC!important;}
+.st-key-sg_wrap .sg-top:hover .sg-top-btn{background:rgba(0,113,227,0.13);}
+.st-key-sg_wrap .sg .sg-d>summary .sg-n{color:#86868B!important;}
+.st-key-sg_wrap .sg .sg-idea-k{color:#0066CC!important;}
+.st-key-sg_wrap .sg .sg-step-n{color:#FFFFFF!important;}
 .st-key-sg_wrap .sg .sg-note b{color:inherit!important;}
 </style>
 """
@@ -374,10 +361,10 @@ def _build_html() -> str:
             f"<b>{_ar_name.get(k, k)}</b>",
             f"{win} يوم تداول (≈ {win / 250:.1f} سنة)",
             f"≈ {split} يوم للبحث + {win - split} يوم للاختبار"
-            f"<div style='font-size:0.78rem;color:#5C5C63;'>آخر {hold} يوم في كل جزء لإغلاق الصفقات فقط</div>",
+            f"<div style='font-size:0.78rem;color:#636366;'>آخر {hold} يوم في كل جزء لإغلاق الصفقات فقط</div>",
             f"{hold} يوم",
             f"<span dir='ltr' style='color:#1B7A36;unicode-bidi:isolate'>+{pt * 100:g}%</span>",
-            f"<span dir='ltr' style='color:#C1121F;unicode-bidi:isolate'>−{sl * 100:g}%</span>",
+            f"<span dir='ltr' style='color:#D70015;unicode-bidi:isolate'>−{sl * 100:g}%</span>",
         ])
     s_hold, s_pt, s_sl = _PERIOD_CFG['Short'][1:]
     m_hold, m_pt, m_sl = _PERIOD_CFG['Medium'][1:]
@@ -495,11 +482,11 @@ def _build_html() -> str:
         "<p>كل يوم في تاريخ السهم بياخد تصنيف واحد من 3، باستخدام مؤشرين: "
         "<b>ADX(14)</b> لقياس قوة الاتجاه، و<b>ATR(14) ÷ السعر</b> لقياس حجم التذبذب.</p>"
         + _table(['الحالة', 'الشرط', 'معناها'], [
-            ["<span style='color:#4B47C4;font-weight:600'>TREND</span>",
+            ["<span style='color:#3634A3;font-weight:600'>TREND</span>",
              'ADX أعلى من حد الاتجاه', 'السهم في اتجاه واضح وقوي'],
-            ["<span style='color:#8E3FBA;font-weight:600'>VOLATILE</span>",
+            ["<span style='color:#8944AB;font-weight:600'>VOLATILE</span>",
              'ليس TREND، و ATR÷السعر أعلى من حد التذبذب', 'حركة عنيفة بدون اتجاه واضح'],
-            ["<span style='color:#086F8C;font-weight:600'>RANGE</span>",
+            ["<span style='color:#0071A4;font-weight:600'>RANGE</span>",
              'أي يوم غير اللي فوق', 'حركة عرضية بين دعم ومقاومة'],
         ])
         + "<h4>إزاي الحدود بتتحسب</h4><ul>"
@@ -611,11 +598,11 @@ def _build_html() -> str:
             ["<span class='sg-pill' style='background:#E9F7EE;color:#1B7A36'>✓ Validated</span>",
              f"نجحت في الاختبار على بيانات لم يرها البحث. <b>الأقوى والأوثق.</b>",
              f"من جزء الاختبار (آخر {test_pct}%)"],
-            ["<span class='sg-pill' style='background:#F2F2F5;color:#3F3F46'>Not validated</span>",
+            ["<span class='sg-pill' style='background:#F5F5F7;color:#424245'>Not validated</span>",
              f"رابحة في جزء البحث، لكن جزء الاختبار كان فيه أقل من {_OOS_MIN_TRADES} صفقات في الحالة دي "
              "(أو الفترة كلها قصيرة جداً للتقسيم). <b>لم تُختبر بعد</b> — مش معناها إنها فاشلة.",
              f"من جزء البحث (أول {train_pct}%)، أو من الفترة كلها لو كانت أقصر من إنها تتقسم"],
-            ["<span class='sg-pill' style='background:#FFEDEC;color:#C1121F'>✕ Failed test</span>",
+            ["<span class='sg-pill' style='background:#FFEDEC;color:#D70015'>✕ Failed test</span>",
              "اتختبرت على عدد كافي من الصفقات <b>وخسرت</b>. الأفضل تجنبها.",
              f"من جزء البحث (أول {train_pct}%)"],
         ])
@@ -637,15 +624,15 @@ def _build_html() -> str:
     # 9 ────────────────────────────────────────────────────────────────────────
     S.append(_sec(9, 'جدول Scanned Strategies: كل استراتيجيات كل سهم', (
         "<p>تحت Live Signal Check فيه كارت لكل سهم (كارتين جنب بعض)، وجواه جزء لكل حالة سوق "
-        f"(↗ Trend، ↔ Range، ⚡ Volatile) لقينا لها استراتيجية كسبت في جزء البحث — ممكن تكون نجحت أو فشلت "
+        f"(↗ Trend، ↔ Range، ⚡︎ Volatile) لقينا لها استراتيجية كسبت في جزء البحث — ممكن تكون نجحت أو فشلت "
         "في الاختبار بعد كده، وده مكتوب في Validation. الكروت مترتبة بنسبة النجاح لاستراتيجية حالة السوق "
         "اللي السهم فيها النهارده (أول جزء في الكارت، عليه Today)، والأسهم اللي مالهاش استراتيجية للحالة دي "
         "بتيجي بعد خط فاصل. بيظهر أول 6 وتحتهم Show all (في السلع بتظهر كلها). "
         "الرقم اللي في أعلى الكارت هو آخر سعر.</p>"
         + _table(['الجزء', 'معناه'], [
-            ['Market regime', 'حالة السوق. شارة <b>Today</b> وخط أزرق على الشمال = دي الحالة اللي السهم فيها دلوقتي، '
+            ['Market regime', 'حالة السوق. شارة <b>Today</b> = دي الحالة اللي السهم فيها دلوقتي، '
                               'يعني دي الاستراتيجية اللي تنطبق النهارده.'],
-            ['Strategy', 'المؤشرات اللي لازم <b>كلها</b> تتحقق في نفس اليوم. لون كل مؤشر بيقول نوعه (المفتاح فوق القسم).'],
+            ['Strategy', 'المؤشرات اللي لازم <b>كلها</b> تتحقق في نفس اليوم. النقطة الملونة جنب كل مؤشر بتقول نوعه (المفتاح فوق القسم).'],
             ['Win rate', 'نسبة الصفقات الكسبانة.'],
             ['Profit factor', 'إجمالي المكسب ÷ إجمالي الخسارة. أكبر من 1 = الاستراتيجية كسبت.'],
             ['Expectancy', 'متوسط المكسب في الصفقة الواحدة (%). أهم رقم في الصف.'],
@@ -693,7 +680,7 @@ def _build_html() -> str:
              'يعني خسرت في جزء الاختبار، فالأحسن تتجنبها.'],
             ['+2 more signalling', 'استراتيجيات تانية لنفس الحالة بتدي إشارة برضه — تأكيد إضافي. '
                                    'تفاصيلها في Scanned Strategies.'],
-            ['المؤشرات الملونة', 'شروط الاستراتيجية — كلها اتحققت في يوم الإشارة. لون كل مؤشر بيقول نوعه.'],
+            ['المؤشرات', 'شروط الاستراتيجية — كلها اتحققت في يوم الإشارة. النقطة الملونة جنب كل مؤشر بتقول نوعه.'],
             ['Entry', 'آخر سعر في البيانات وقت الفحص، وده سعر الدخول المقترح. بعد الإغلاق ده سعر إغلاق اليوم، '
                       'لكن لو الفحص اتعمل والسوق شغال ممكن يبقى سعر الجلسة الجارية (متأخر شوية)، '
                       'وما بيتحدثش لوحده. الكلمة اللي تحته (Good entry مثلاً) بتقول السعر قريب من الدعم قد إيه.'],
@@ -944,12 +931,12 @@ def _build_html() -> str:
              "<b>وكسبت</b> (Expectancy أكبر من صفر و Profit factor أكبر من 1).",
              "أرقام الاختبار نفسه، وهي أصدق أرقام في الصفحة.",
              "<b>أقوى دليل.</b> ابدأ بيها."],
-            ["<span class='sg-pill' style='background:#F2F2F5;color:#3F3F46'>Not validated</span>",
+            ["<span class='sg-pill' style='background:#F5F5F7;color:#424245'>Not validated</span>",
              f"كسبت في جزء البحث، بس في الأيام المخبية عملت <b>أقل من {_OOS_MIN_TRADES} صفقات</b>، "
              "وده عدد قليل ما يكفيش نحكم بيه (أو الفترة كلها أقصر من إنها تتقسم).",
              "أرقام جزء البحث، وغالباً أحلى من الحقيقة.",
              "<b>مش فاشلة، بس لسه ما اتثبتتش.</b> بص على عدد الصفقات و Expectancy قبل ما تثق فيها."],
-            ["<span class='sg-pill' style='background:#FFEDEC;color:#C1121F'>✕ Failed test</span>",
+            ["<span class='sg-pill' style='background:#FFEDEC;color:#D70015'>✕ Failed test</span>",
              f"اتختبرت على {_OOS_MIN_TRADES} صفقات أو أكتر <b>وخسرت</b>.",
              "أرقام جزء البحث (اللي كانت حلوة)، مع إن الاختبار خسر.",
              "<b>ابعد عنها.</b>"],

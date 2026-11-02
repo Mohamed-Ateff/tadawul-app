@@ -42,12 +42,12 @@ def _c(color):
 
 
 _LBL = f"font-size:0.8rem;font-weight:600;color:{T3};"
-_NUM = "font-weight:700;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;line-height:1.15;"
-_CARD_CSS = f"background:{CARD};border:1px solid {HAIR};border-radius:18px;box-shadow:{SHADOW};"
-_TILE_CSS = f"background:{INSET};border:1px solid {HAIR};border-radius:12px;"
+_NUM = "font-weight:600;letter-spacing:-0.02em;line-height:1.15;"
+_CARD_CSS = f"background:{CARD};border:none;border-radius:18px;box-shadow:{SHADOW};"
+_TILE_CSS = f"background:{INSET};border:none;border-radius:12px;"
 _CHART_CARD_CSS = (
     "<style>.stApp .st-key-pt_chart_card{"
-    f"background:{CARD};border:1px solid {HAIR};border-radius:18px;box-shadow:{SHADOW};"
+    f"background:{CARD};border:none;border-radius:18px;box-shadow:{SHADOW};"
     "padding:0.9rem 1rem 0.6rem;gap:0;}</style>"
 )
 
@@ -1164,7 +1164,7 @@ def patterns_tab(df, pattern_context=None):
         f"<div style='flex:1;min-width:240px;'>"
         f"<div style='font-size:0.95rem;color:{T2};line-height:1.55;'>{reason}</div>"
         f"</div>"
-        f"<div style='text-align:center;background:{INSET};border:1px solid {HAIR};"
+        f"<div style='text-align:center;background:{INSET};border:none;"
         f"border-radius:14px;padding:0.8rem 1.2rem;flex-shrink:0;min-width:120px;'>"
         + (f"<div style='font-size:1.6rem;{_NUM}color:{_bias_d};line-height:1;'>{_pt_conf}%</div>"
            f"<div style='{_LBL}margin-top:0.3rem;'>Confidence</div>"

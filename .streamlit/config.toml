@@ -3,8 +3,8 @@
 # base theme so built-in widgets (data grids, focus rings) match it even when
 # the viewer's OS is in dark mode.
 base = "light"
-primaryColor = "#0063D1"
-backgroundColor = "#F2F2F5"
+primaryColor = "#0071E3"
+backgroundColor = "#F5F5F7"
 secondaryBackgroundColor = "#FFFFFF"
-textColor = "#111114"
+textColor = "#1D1D1F"
 font = "sans serif"

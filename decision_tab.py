@@ -219,12 +219,12 @@ def _render_signal_summaries(df, current_price):
             f"padding:0.45rem 0;'>"
             f"<span style='font-size:0.82rem;color:{T3};font-weight:500;'>{sn}</span>"
             f"<span style='font-size:0.88rem;font-weight:600;color:{sc};"
-            f"font-variant-numeric:tabular-nums;'>{sv}</span>"
+            f"'>{sv}</span>"
             f"</div>"
             for sn, sv, sc in stats
         ])
         return (
-            f"<div style='background:{CARD};border:1px solid {HAIR};"
+            f"<div style='background:{CARD};border:none;"
             f"border-radius:16px;overflow:hidden;box-shadow:{SHADOW};'>"
             f"<div style='padding:1rem 1.25rem;border-bottom:1px solid {HAIR};'>"
             f"<div style='display:flex;justify-content:space-between;align-items:center;'>"
@@ -295,7 +295,7 @@ def _render_signal_summaries(df, current_price):
                 st.markdown(_mini_card_html(card), unsafe_allow_html=True)
             else:
                 st.markdown(
-                    f"<div style='background:{INSET};border:1px solid {HAIR};"
+                    f"<div style='background:{INSET};border:none;"
                     f"border-radius:16px;padding:1.1rem 1.25rem;"
                     f"text-align:center;color:{T4};font-size:0.85rem;'>—</div>",
                     unsafe_allow_html=True,
@@ -1617,12 +1617,12 @@ def render_decision_tab(df, symbol_input, stock_name, current_price):
     .hero-q{{display:inline-flex;align-items:center;justify-content:center;
         width:17px;height:17px;border-radius:50%;border:1px solid {HAIR2};background:{CARD};
         font-size:0.75rem;color:{T3};font-weight:600;margin-left:0.3rem;line-height:1}}
-    .dx-card{{background:{CARD};border:1px solid {HAIR};border-radius:20px;box-shadow:{SHADOW};
+    .dx-card{{background:{CARD};border:none;border-radius:20px;box-shadow:{SHADOW};
         overflow:hidden;margin-bottom:1.5rem}}
     .dx-sec{{padding:1.5rem 1.9rem;border-top:1px solid {HAIR}}}
     .dx-label{{font-size:0.85rem;font-weight:600;color:{T3}}}
     .dx-title{{font-size:1.05rem;font-weight:600;color:{T1};letter-spacing:-0.01em}}
-    .dx-tile{{background:{INSET};border:1px solid {HAIR};border-radius:14px}}
+    .dx-tile{{background:{INSET};border:none;border-radius:14px}}
     .dx-mods{{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:0.6rem}}
     .dx-plan{{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0.7rem}}
     @media (max-width:900px){{.dx-plan{{grid-template-columns:repeat(2,minmax(0,1fr))}}}}
@@ -1648,12 +1648,11 @@ def render_decision_tab(df, symbol_input, stock_name, current_price):
             f"Watch the stock and wait for a cleaner setup."
         )
         st.markdown(
-            f"<div style='border:1px solid {_tint(_sc_col, 0.22)};"
-            f"background:{_tint(_sc_col, 0.07)};border-radius:16px;padding:1rem 1.25rem;"
+            f"<div style='background:{_tint(_sc_col, 0.07)};border-radius:16px;padding:1rem 1.25rem;"
             f"margin-bottom:1rem;display:flex;align-items:flex-start;gap:0.85rem;'>"
             f"<span style='display:inline-flex;align-items:center;justify-content:center;"
             f"width:24px;height:24px;border-radius:50%;background:{_sc_col};color:#FFFFFF;"
-            f"font-size:0.8rem;font-weight:700;flex-shrink:0;'>{'✓' if _sc_agree else '!'}</span>"
+            f"font-size:0.8rem;font-weight:600;flex-shrink:0;'>{'✓' if _sc_agree else '!'}</span>"
             f"<div>"
             f"<div style='font-size:0.92rem;font-weight:600;color:{_sc_col};margin-bottom:0.25rem;'>"
             f"{'Scanner &amp; Decision tab agree' if _sc_agree else 'Scanner vs Decision tab — why different?'}</div>"
@@ -1849,7 +1848,7 @@ def render_decision_tab(df, symbol_input, stock_name, current_price):
             f"white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>{_head}</div>"
             f"</div>"
             # Direction icon
-            f"<div style='padding:0 0.75rem;font-size:0.8rem;font-weight:700;"
+            f"<div style='padding:0 0.75rem;font-size:0.8rem;font-weight:600;"
             f"color:{_fc};flex-shrink:0;'>{_icon}</div>"
             f"</div>"
         )
@@ -1887,7 +1886,6 @@ def render_decision_tab(df, symbol_input, stock_name, current_price):
         _mc      = BULL if _is_bull_m else (BEAR if _is_bear_m else (T1 if _act else T4))
         _m_stat_c = BULL if _is_bull_m else (BEAR if _is_bear_m else T3)
         _m_bg    = GREEN_BG if _is_bull_m else (RED_BG if _is_bear_m else INSET)
-        _m_bd    = _tint(BULL, 0.28) if _is_bull_m else (_tint(BEAR, 0.25) if _is_bear_m else HAIR)
         _mlabel  = f"{_sc}" if _act else "—"
         _mstatus = (
             "Bullish"   if _act and _sc >= 55 else
@@ -1897,11 +1895,11 @@ def render_decision_tab(df, symbol_input, stock_name, current_price):
         )
         _mods_html += (
             f"<div style='text-align:center;padding:0.85rem 0.4rem 0.75rem;"
-            f"background:{_m_bg};border:1px solid {_m_bd};"
+            f"background:{_m_bg};border:none;"
             f"border-radius:14px;display:flex;flex-direction:column;"
             f"align-items:center;gap:0.25rem;min-width:0;'>"
-            f"<div style='font-size:1.4rem;font-weight:700;color:{_mc};line-height:1.1;"
-            f"letter-spacing:-0.02em;font-variant-numeric:tabular-nums;'>{_mlabel}</div>"
+            f"<div style='font-size:1.4rem;font-weight:600;color:{_mc};line-height:1.1;"
+            f"letter-spacing:-0.02em;'>{_mlabel}</div>"
             f"<div style='font-size:0.85rem;color:{T1};font-weight:600;white-space:nowrap;"
             f"overflow:hidden;text-overflow:ellipsis;max-width:100%;'>{_mname}</div>"
             f"<div style='font-size:0.78rem;font-weight:600;color:{_m_stat_c};'>{_mstatus}</div>"
@@ -1942,13 +1940,13 @@ def render_decision_tab(df, symbol_input, stock_name, current_price):
             f"font-weight:600;color:{accent};'>"
             f"<span style='width:7px;height:7px;border-radius:50%;background:{accent};flex-shrink:0;'></span>"
             f"{label}</div>"
-            f"<div style='font-size:1.45rem;font-weight:700;color:{T1};"
-            f"letter-spacing:-0.02em;line-height:1.15;font-variant-numeric:tabular-nums;'>{price:.2f}</div>"
+            f"<div style='font-size:1.45rem;font-weight:600;color:{T1};"
+            f"letter-spacing:-0.02em;line-height:1.15;'>{price:.2f}</div>"
             f"<div style='font-size:0.82rem;font-weight:600;color:{accent if not is_entry else T3};"
-            f"font-variant-numeric:tabular-nums;'>{pct_text}</div>"
+            f"'>{pct_text}</div>"
             + (f"<div style='font-size:0.78rem;font-weight:600;color:{accent};background:{_tint(accent, 0.09)};"
                f"border-radius:980px;padding:0.15rem 0.6rem;margin-top:0.15rem;"
-               f"font-variant-numeric:tabular-nums;white-space:nowrap;'>{rr}</div>" if rr else "")
+               f"white-space:nowrap;'>{rr}</div>" if rr else "")
             + (f"<div style='font-size:0.8rem;color:{T3};margin-top:0.1rem;'>{action}</div>" if action else "")
             + f"</div>"
         )
@@ -2008,7 +2006,7 @@ def render_decision_tab(df, symbol_input, stock_name, current_price):
         f"flex-wrap:wrap;gap:1rem;'>"
         f"<div>"
         f"<div class='dx-label' style='margin-bottom:0.45rem;'>Decision</div>"
-        f"<div style='display:inline-block;font-size:3rem;font-weight:700;color:{vc};"
+        f"<div style='display:inline-block;font-size:3rem;font-weight:600;color:{vc};"
         f"letter-spacing:-0.03em;line-height:1;'>{display_v}</div>"
         f"<div style='font-size:0.98rem;color:{T2};margin-top:0.75rem;"
         f"font-weight:500;line-height:1.55;max-width:620px;'>{vsub}</div>"
@@ -2166,13 +2164,13 @@ def render_decision_tab(df, symbol_input, stock_name, current_price):
                 f"<div style='min-width:36px;height:36px;padding:0 0.35rem;border-radius:10px;"
                 f"background:{_tint(_cc, 0.10)};"
                 f"display:flex;align-items:center;justify-content:center;"
-                f"font-size:0.78rem;font-weight:700;color:{_cc};'>{_bk}</div>"
+                f"font-size:0.78rem;font-weight:600;color:{_cc};'>{_bk}</div>"
                 f"<span style='font-size:1.02rem;font-weight:600;color:{T1};'>{_tlabel}</span>"
                 f"</div>"
                 f"<div style='display:flex;align-items:center;gap:0.6rem;'>"
                 f"<span style='font-size:0.82rem;color:{T3};font-weight:500;'>Confidence</span>"
-                f"<span style='font-size:1.35rem;font-weight:700;color:{T1};letter-spacing:-0.02em;"
-                f"font-variant-numeric:tabular-nums;'>{_conf}%</span>"
+                f"<span style='font-size:1.35rem;font-weight:600;color:{T1};letter-spacing:-0.02em;"
+                f"'>{_conf}%</span>"
                 f"<span style='font-size:0.78rem;font-weight:600;padding:0.2rem 0.65rem;"
                 f"border-radius:980px;background:{_tint(_str_col, 0.10)};color:{_str_col};'>{_str_label}</span>"
                 f"</div></div>"

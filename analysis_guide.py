@@ -31,7 +31,7 @@ def _f(s: str) -> str:
     return f"<code dir='ltr'>{s}</code>"
 
 
-G, R, B, A = "#1B7A36", "#C1121F", "#0063D1", "#A15C00"
+G, R, B, A = "#1B7A36", "#D70015", "#0066CC", "#B25000"
 
 
 def _c(txt: str, col: str) -> str:
@@ -290,10 +290,10 @@ def _stock_html() -> str:
         "<p>لكل يوم بنحسب 4 أرقام: ADX 14، ميل EMA 20 (التغير في آخر 10 جلسات)، "
         f"{_f('ATR14 ÷ price')}، وعرض البولنجر {_f('(upper − lower) ÷ price')}. وبعدين بالترتيب ده:</p>"
         "<ol>"
-        f"<li>{_c('TREND', '#4B47C4')} لو {_f('ADX > 25')} و {_f('|EMA20 slope| > 1.5%')} — في حركة واضحة في اتجاه.</li>"
-        f"<li>{_c('VOLATILE', '#8E3FBA')} لو ({_f('ATR% > 3%')} أو {_f('BB width > 7%')}) و {_f('ADX < 25')} — "
+        f"<li>{_c('TREND', '#3634A3')} لو {_f('ADX > 25')} و {_f('|EMA20 slope| > 1.5%')} — في حركة واضحة في اتجاه.</li>"
+        f"<li>{_c('VOLATILE', '#8944AB')} لو ({_f('ATR% > 3%')} أو {_f('BB width > 7%')}) و {_f('ADX < 25')} — "
         "حركة عنيفة من غير اتجاه.</li>"
-        f"<li>غير كده {_c('RANGE', '#086F8C')} — السهم بيتحرك عرضي.</li></ol>"
+        f"<li>غير كده {_c('RANGE', '#0071A4')} — السهم بيتحرك عرضي.</li></ol>"
         "<p>في تاب <b>Regime</b>: <b>Streak</b> = عدد الأيام المتتالية في نفس الحالة لحد النهارده، "
         f"<b>Stability</b> = نسبة آخر {_l('20')} جلسة اللي كانت في نفس حالة النهارده، والتوزيع = عدد الأيام "
         f"في كل حالة على الفترة كلها، والشريط الزمني = آخر {_l('120')} جلسة.</p>"
@@ -721,9 +721,9 @@ def _render(builder, title: str) -> None:
 
 def render_stock_guide() -> None:
     """Collapsible Arabic guide for the Stock Symbol (single-stock) results page."""
-    _render(_stock_html, "📘  دليل الصفحة بالعربي — تحليل السهم")
+    _render(_stock_html, "دليل الصفحة بالعربي — تحليل السهم")
 
 
 def render_market_guide() -> None:
     """Collapsible Arabic guide for the Market Scan Results page."""
-    _render(_market_html, "📘  دليل الصفحة بالعربي — مسح السوق")
+    _render(_market_html, "دليل الصفحة بالعربي — مسح السوق")

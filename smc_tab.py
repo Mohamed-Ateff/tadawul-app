@@ -30,7 +30,7 @@ BDR   = HAIR
 def _sec(title, color=INFO, sub=""):
     return (
         f"<div style='margin:2rem 0 0.9rem;'>"
-        f"<div style='font-size:1.25rem;font-weight:700;color:{T1};"
+        f"<div style='font-size:1.25rem;font-weight:600;color:{T1};"
         f"letter-spacing:-0.015em;'>{title}</div>"
         + (f"<div style='font-size:0.88rem;color:{T3};margin-top:0.15rem;'>{sub}</div>" if sub else "")
         + "</div>"
@@ -50,14 +50,14 @@ def _kv_row(label, value, vcolor=T1):
         f"<div style='display:flex;justify-content:space-between;align-items:center;gap:0.8rem;"
         f"padding:0.55rem 0;border-bottom:1px solid {HAIR};'>"
         f"<span style='font-size:0.82rem;color:{T3};font-weight:600;'>{label}</span>"
-        f"<span style='font-size:0.9rem;font-weight:700;color:{vcolor};text-align:right;"
-        f"font-variant-numeric:tabular-nums;'>{value}</span>"
+        f"<span style='font-size:0.9rem;font-weight:600;color:{vcolor};text-align:right;"
+        f"'>{value}</span>"
         f"</div>"
     )
 
 
 def _badge(text, color):
-    _bg = rgba(color, 0.10) if color.startswith('#') and len(color) == 7 else "rgba(17,17,20,0.05)"
+    _bg = rgba(color, 0.10) if color.startswith('#') and len(color) == 7 else "rgba(0,0,0,0.05)"
     return (
         f"<span style='display:inline-block;background:{_bg};"
         f"border-radius:980px;padding:0.22rem 0.7rem;"
@@ -719,14 +719,14 @@ def smc_tab(df, current_price):
 
     def _stat_tile(label, value, color):
         return (
-            f"<div style='background:{INSET};border:1px solid {HAIR};border-radius:14px;"
+            f"<div style='background:{INSET};border:none;border-radius:14px;"
             f"padding:0.9rem 1rem;'>"
             f"<div style='display:flex;align-items:center;margin-bottom:0.35rem;'>"
             f"<div style='font-size:0.82rem;color:{T3};font-weight:600;'>{label}</div>"
             + _smctip(_smc_tile_tips.get(label, ""))
             + f"</div>"
-            f"<div style='font-size:1.15rem;font-weight:700;color:{color};letter-spacing:-0.01em;"
-            f"font-variant-numeric:tabular-nums;'>{value}</div>"
+            f"<div style='font-size:1.15rem;font-weight:600;color:{color};letter-spacing:-0.01em;"
+            f"'>{value}</div>"
             f"</div>"
         )
 
@@ -752,20 +752,20 @@ def smc_tab(df, current_price):
             pass
 
     st.markdown(
-        f"<div style='background:{CARD};border:1px solid {HAIR};border-radius:18px;"
+        f"<div style='background:{CARD};border:none;border-radius:18px;"
         f"box-shadow:{SHADOW};overflow:hidden;margin-bottom:1.4rem;'>"
         f"<div style='padding:1.4rem 1.6rem 1.1rem;'>"
         f"<div style='font-size:0.85rem;color:{T3};font-weight:600;margin-bottom:0.5rem;'>Smart money decision</div>"
         f"<div style='display:flex;align-items:center;gap:1.3rem;flex-wrap:wrap;'>"
-        f"<div style='font-size:2.4rem;font-weight:700;color:{_smc_vc};"
+        f"<div style='font-size:2.4rem;font-weight:600;color:{_smc_vc};"
         f"line-height:1;letter-spacing:-0.02em;'>{_smc_verdict}</div>"
         f"<div style='flex:1;min-width:220px;'>"
         f"<div style='font-size:0.95rem;color:{T2};line-height:1.5;'>{_smc_sub}</div>"
         f"</div>"
-        f"<div style='text-align:center;background:{INSET};border:1px solid {HAIR};"
+        f"<div style='text-align:center;background:{INSET};border:none;"
         f"border-radius:14px;padding:0.75rem 1.2rem;flex-shrink:0;'>"
-        f"<div style='font-size:1.6rem;font-weight:700;color:{conf_color};line-height:1;"
-        f"letter-spacing:-0.02em;font-variant-numeric:tabular-nums;'>{conf}%</div>"
+        f"<div style='font-size:1.6rem;font-weight:600;color:{conf_color};line-height:1;"
+        f"letter-spacing:-0.02em;'>{conf}%</div>"
         f"<div style='display:flex;align-items:center;justify-content:center;gap:0.25rem;margin-top:0.35rem;'>"
         f"<div style='font-size:0.8rem;color:{T3};font-weight:600;'>Confidence</div>"
         + _smctip("SMC confidence score (0–100). Combines structure direction, liquidity sweep, CHoCH/BOS signal, and order block proximity. Above 65 = strong institutional signal. Below 40 = no clear smart money footprint.")
@@ -807,7 +807,7 @@ def smc_tab(df, current_price):
         with col:
             rows_html = "".join([_kv_row(k, v, c) for k, v, c in rows])
             st.markdown(
-                f"<div style='background:{CARD};border:1px solid {HAIR};box-shadow:{SHADOW};"
+                f"<div style='background:{CARD};border:none;box-shadow:{SHADOW};"
                 f"border-radius:16px;overflow:hidden;height:100%;'>"
                 f"<div style='padding:1.1rem 1.25rem;'>"
                 f"<div style='font-size:0.95rem;color:{T1};font-weight:600;"

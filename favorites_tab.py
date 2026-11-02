@@ -1844,7 +1844,7 @@ def render_auto_scanner_page() -> None:
                                 parse_days as _parse_days)
     # Light-theme regime colours (the engine's are tuned for dark pages).
     # Hues kept apart from the gain/loss green/red and the blue action colour.
-    _REGIME_COLORS = {'TREND': '#4B47C4', 'RANGE': '#086F8C', 'VOLATILE': '#8E3FBA'}
+    _REGIME_COLORS = {'TREND': '#3634A3', 'RANGE': '#0071A4', 'VOLATILE': '#8944AB'}
     from scanner_markets import (MARKETS, DEFAULT_MARKET, market_symbols,
                                  short_symbol as _short, unit_of as _unit_of,
                                  search_text as _search_text)
@@ -1897,7 +1897,7 @@ def render_auto_scanner_page() -> None:
         return ' + '.join(_D.get(k, k) for k in inds)
 
     def _wr_col(wr):
-        return '#1B7A36' if wr >= 55 else ('#A34800' if wr >= 45 else '#C1121F')
+        return '#1B7A36' if wr >= 55 else ('#C93400' if wr >= 45 else '#D70015')
 
     def _price_box(df, price):
         """Return price-ladder HTML or ''."""
@@ -1914,14 +1914,14 @@ def render_auto_scanner_page() -> None:
             return (
                 f"<div class='sc-pb'>"
                 f"<div class='sc-pc'>"
-                f"<div class='sc-pcb' style='background:#0063D1;'></div>"
+                f"<div class='sc-pcb' style='background:#0066CC;'></div>"
                 f"<div class='sc-pcl'>Entry</div>"
-                f"<div class='sc-pcv' style='color:#0063D1;'>{en:.2f}</div>"
+                f"<div class='sc-pcv' style='color:#0066CC;'>{en:.2f}</div>"
                 f"</div>"
                 f"<div class='sc-pc'>"
-                f"<div class='sc-pcb' style='background:#C1121F;'></div>"
+                f"<div class='sc-pcb' style='background:#D70015;'></div>"
                 f"<div class='sc-pcl'>Stop Loss</div>"
-                f"<div class='sc-pcv' style='color:#C1121F;'>{st_:.2f}</div>"
+                f"<div class='sc-pcv' style='color:#D70015;'>{st_:.2f}</div>"
                 f"<div class='sc-pcs'>−{rp}%</div>"
                 f"</div>"
                 f"<div class='sc-pc'>"
@@ -1947,30 +1947,10 @@ def render_auto_scanner_page() -> None:
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap');
-    :root{
-      --bg:#F2F2F5; --card:#FFFFFF; --inset:#F7F7FA; --fill:#EDEDF1;
-      --hair:#DEDEE3; --hair2:#C9C9CF;
-      --t1:#111114; --t2:#3F3F46; --t3:#5C5C63; --t4:#8A8A91;
-      --blue:#0063D1; --blue-bg:rgba(0,99,209,0.09);
-      --green:#1B7A36; --green-bg:rgba(27,122,54,0.10);
-      --red:#C1121F; --red-bg:rgba(193,18,31,0.08);
-      --orange:#A34800; --orange-bg:rgba(163,72,0,0.10);
-      --indigo:#4B47C4; --indigo-bg:rgba(75,71,196,0.09);
-      --shadow:0 1px 2px rgba(17,17,20,0.05),0 8px 24px rgba(17,17,20,0.06);
-      --shadow-sm:0 1px 2px rgba(17,17,20,0.06);
-      --r-lg:20px; --r-md:14px; --r-sm:10px;
-    }
-    /* page canvas — overrides the app's dark shell while this page is open */
-    .stApp,[data-testid="stAppViewContainer"],[data-testid="stMain"],
-    section[data-testid="stSidebar"]{background:var(--bg)!important;}
-    .stApp,.stApp p,.stApp span,.stApp div,.stApp label,.stApp button,.stApp input{
-      -webkit-font-smoothing:antialiased;}
-    [data-testid="stIconMaterial"],.material-symbols-rounded{
-      font-family:'Material Symbols Rounded'!important;}
     header[data-testid="stHeader"],[data-testid="stToolbar"],
     [data-testid="stDecoration"]{display:none!important;}
     .main .block-container,div.block-container{
-        max-width:1680px!important;padding:1.2rem 3.5rem 6rem!important;margin:0 auto!important;}
+        max-width:1680px!important;padding:2rem 3.5rem 6rem!important;margin:0 auto!important;}
     /* st.markdown blocks that only inject <style> still take a row + gap in
        the layout; hide them so the page starts right at the title. */
     [data-testid="stElementContainer"]:has(> .stMarkdown [data-testid="stMarkdownContainer"] > style:only-child){
@@ -1979,44 +1959,27 @@ def render_auto_scanner_page() -> None:
     .stApp h4{color:var(--t1)!important;}
 
     /* streamlit widgets on this page */
-    .stApp .stButton button{background:var(--card)!important;color:var(--t1)!important;
-        border:1px solid var(--hair)!important;border-radius:980px!important;
-        font-weight:600!important;box-shadow:var(--shadow-sm)!important;
-        transition:background .15s ease,border-color .15s ease!important;}
-    .stApp .stButton button:hover{background:var(--fill)!important;border-color:var(--hair2)!important;}
-    .stApp .stButton button p{color:inherit!important;}
-    .stApp [data-testid="stTextInput"] input,.stApp [data-testid="stNumberInput"] input{
-        background:var(--card)!important;color:var(--t1)!important;}
-    .stApp [data-testid="stTextInput"]>div>div,.stApp [data-testid="stNumberInput"]>div>div{
-        background:var(--card)!important;border-color:var(--hair)!important;}
-    .stApp [data-testid="stProgress"] p{color:var(--t2)!important;}
-    .stApp [data-testid="stProgress"]>div>div>div>div{background:var(--blue)!important;}
-    .stApp [data-testid="stSpinner"] p,.stApp [data-testid="stSpinner"] div{color:var(--t2)!important;}
-    .stApp [data-testid="stExpander"] details{background:var(--card)!important;
-        border:1px solid var(--hair)!important;border-radius:var(--r-lg)!important;
-        box-shadow:var(--shadow)!important;overflow:hidden;}
-    .stApp [data-testid="stExpander"] summary{padding:0.95rem 1.2rem!important;}
-    .stApp [data-testid="stExpander"] summary p{color:var(--t1)!important;font-weight:600!important;
-        font-size:0.95rem!important;}
-    .stApp [data-testid="stExpander"] summary:hover p{color:var(--blue)!important;}
-    .stApp [data-testid="stExpander"] svg,.stApp [data-testid="stExpander"] [data-testid="stIconMaterial"]{
-        color:var(--t3)!important;fill:var(--t3)!important;}
+    .stApp [data-testid="stExpander"] details{border-radius:var(--r-md)!important;}
+    .stApp [data-testid="stExpander"] summary{padding:0.85rem 1.15rem!important;}
+    .stApp [data-testid="stExpander"] summary p{color:var(--t1)!important;font-weight:500!important;
+        font-size:0.9375rem!important;}
     .stApp [data-testid="stTooltipIcon"] svg{stroke:var(--t3)!important;}
 
     /* ── top bar ─────────────────────────────────────────────────────────── */
-    .sc-tb{display:flex;align-items:flex-end;gap:2.2rem;margin-bottom:1.4rem;}
+    .sc-tb{display:flex;align-items:flex-end;gap:2.75rem;margin-bottom:1.75rem;}
     .sc-tb>div:first-child{flex:1 1 0;min-width:0;}
     .sc-kpi{flex:none;}
-    .sc-title{font-size:2.1rem;font-weight:700;color:var(--t1);letter-spacing:-0.035em;line-height:1.1;}
-    .sc-sub{font-size:0.95rem;color:var(--t2);font-weight:400;margin-top:0.3rem;}
+    .sc-title{font-size:2.625rem;font-weight:600;color:var(--t1);letter-spacing:-0.03em;line-height:1.08;}
+    .sc-sub{font-size:1.0313rem;color:var(--t3);font-weight:400;margin-top:0.5rem;letter-spacing:-0.012em;}
     .sc-div{display:none;}
-    .sc-kv{font-size:1.6rem;font-weight:600;line-height:1;letter-spacing:-0.03em;
+    .sc-kv{font-size:1.625rem;font-weight:600;line-height:1;letter-spacing:-0.026em;
            font-variant-numeric:tabular-nums;}
-    .sc-kl{font-size:0.78rem;font-weight:500;color:var(--t2);margin-top:0.3rem;}
+    .sc-kl{font-size:0.75rem;font-weight:400;color:var(--t3);margin-top:0.4rem;}
 
     /* ── back button ─────────────────────────────────────────────────────── */
-    .st-key-sc_back .stButton button{font-size:0.85rem!important;padding:0.45rem 1rem!important;
-        min-height:auto!important;color:var(--blue)!important;}
+    .st-key-sc_back .stButton button{font-size:0.875rem!important;padding:0.4rem 0.9rem!important;
+        min-height:auto!important;white-space:nowrap!important;}
+    .st-key-sc_back .stButton button p{white-space:nowrap!important;}
 
     /* ── controls panel ──────────────────────────────────────────────────── */
     .sc-panel{display:none;}
@@ -2049,34 +2012,34 @@ def render_auto_scanner_page() -> None:
         color:var(--t2)!important;box-shadow:none!important;border-radius:0!important;}
 
     /* run scan — primary CTA */
-    .st-key-sc_run .stButton button{background:var(--blue)!important;border:1px solid var(--blue)!important;
-        color:#FFFFFF!important;font-size:0.95rem!important;font-weight:600!important;
-        min-height:2.5rem!important;padding:0 1.4rem!important;text-transform:none!important;
-        letter-spacing:0!important;box-shadow:0 4px 14px rgba(0,99,209,0.28)!important;}
-    .st-key-sc_run .stButton button:hover{background:#0052AD!important;border-color:#0052AD!important;}
+    .st-key-sc_run .stButton button{background:var(--blue-fill)!important;
+        color:#FFFFFF!important;font-size:0.9375rem!important;font-weight:500!important;
+        min-height:2.4rem!important;padding:0 1.4rem!important;text-transform:none!important;
+        box-shadow:none!important;}
+    .st-key-sc_run .stButton button:hover{background:var(--blue-fill-h)!important;color:#FFFFFF!important;}
 
     /* ── section headings ────────────────────────────────────────────────── */
-    .sc-h2{display:flex;align-items:baseline;gap:0.7rem;margin:2.2rem 0 0.9rem;}
-    .sc-h2-t{font-size:1.45rem;font-weight:700;color:var(--t1);letter-spacing:-0.025em;
+    .sc-h2{display:flex;align-items:baseline;gap:0.8rem;margin:2.2rem 0 1rem;}
+    .sc-h2-t{font-size:1.75rem;font-weight:600;color:var(--t1);letter-spacing:-0.024em;
         white-space:nowrap;flex:none;}
-    .sc-h2-s{font-size:0.9rem;color:var(--t2);}
-    .sc-h2-c{margin-left:auto;font-size:0.85rem;color:var(--t2);font-variant-numeric:tabular-nums;
+    .sc-h2-s{font-size:0.9rem;color:var(--t3);letter-spacing:-0.008em;}
+    .sc-h2-c{margin-left:auto;font-size:0.875rem;color:var(--t3);font-variant-numeric:tabular-nums;
         white-space:nowrap;flex:none;}
-    .sc-summary{display:flex;gap:0.5rem;flex-wrap:wrap;margin:0 0 1rem;}
-    .sc-chip{display:inline-flex;align-items:center;gap:0.35rem;font-size:0.82rem;font-weight:500;
-        padding:0.3rem 0.75rem;border-radius:980px;background:var(--card);border:1px solid var(--hair);
-        color:var(--t2);font-variant-numeric:tabular-nums;}
+    .sc-summary{display:flex;gap:0.4rem 1.4rem;flex-wrap:wrap;margin:0 0 1.1rem;}
+    .sc-chip{display:inline-flex;align-items:center;gap:0.4rem;font-size:0.875rem;font-weight:400;
+        padding:0;background:transparent;border:none;
+        color:var(--t3);font-variant-numeric:tabular-nums;}
     .sc-chip b{color:var(--t1);font-weight:600;}
 
     /* ── stock band (Section 1 — Scanned Strategies) ────────────────────── */
     .sc-band{margin:1.6rem 0 0.7rem;}
     .sc-band-hdr{display:flex;align-items:center;gap:0.7rem;padding:0 0.2rem;}
-    .sc-sym{font-size:1.35rem;font-weight:700;color:var(--t1);letter-spacing:-0.025em;
+    .sc-sym{font-size:1.3125rem;font-weight:600;color:var(--t1);letter-spacing:-0.022em;
             font-variant-numeric:tabular-nums;}
-    .sc-sname{font-size:0.95rem;color:var(--t2);font-weight:400;
+    .sc-sname{font-size:0.875rem;color:var(--t3);font-weight:400;
               white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:22rem;}
-    .sc-ct{margin-left:auto;font-size:0.8rem;color:var(--t2);font-weight:500;
-           background:var(--card);border:1px solid var(--hair);border-radius:980px;padding:0.2rem 0.7rem;}
+    .sc-ct{margin-left:auto;font-size:0.8125rem;color:var(--t3);font-weight:400;
+           background:transparent;border:none;padding:0;}
 
     /* ── regime card ─────────────────────────────────────────────────────── */
     .sc-rpill{font-size:0.78rem;font-weight:600;padding:0.25rem 0.7rem;border-radius:980px;
@@ -2109,10 +2072,10 @@ def render_auto_scanner_page() -> None:
     .sc-rstat2-v{font-size:1.05rem;font-weight:600;line-height:1;margin-bottom:0.3rem;
                  font-variant-numeric:tabular-nums;}
     .sc-rstat2-l{font-size:0.72rem;font-weight:500;color:var(--t2);}
-    .sc-cfire{display:inline-flex;align-items:center;gap:0.3rem;margin-left:auto;font-size:0.75rem;
-              font-weight:600;padding:0.25rem 0.65rem;border-radius:980px;
+    .sc-cfire{display:inline-flex;align-items:center;gap:0.32rem;margin-left:auto;font-size:0.75rem;
+              font-weight:500;padding:0.2rem 0.6rem;border-radius:980px;
               background:var(--green-bg);color:var(--green);}
-    .sc-cfire::before{content:'';width:6px;height:6px;border-radius:50%;background:#1FA855;}
+    .sc-cfire::before{content:'';width:6px;height:6px;border-radius:50%;background:#34C759;}
 
     /* ── more strategies ─────────────────────────────────────────────────── */
     .sc-alts{border-top:1px solid var(--hair);background:var(--inset);padding:0.9rem 0.9rem 0.9rem;}
@@ -2128,56 +2091,51 @@ def render_auto_scanner_page() -> None:
                  border-radius:980px;background:var(--green-bg);border:none;color:var(--green);}
 
     /* ── live pulse ──────────────────────────────────────────────────────── */
-    @keyframes lp{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(52,199,89,0.45);}
-                  60%{opacity:.6;box-shadow:0 0 0 6px rgba(52,199,89,0);}}
+    @keyframes lp{0%,100%{box-shadow:0 0 0 0 rgba(52,199,89,0.40);}
+                  70%{box-shadow:0 0 0 7px rgba(52,199,89,0);}}
     .sc-live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;
-                 background:#1FA855;animation:lp 2s ease-out infinite;flex-shrink:0;}
+                 background:#34C759;animation:lp 2.4s ease-out infinite;flex-shrink:0;}
 
     /* ── Live Signal Check heading ───────────────────────────────────────── */
-    .lsc-section-hdr{display:flex;align-items:center;gap:0.7rem;margin:2.2rem 0 1.1rem;}
-    .sc-h2{margin-top:3.2rem!important;}
+    .lsc-section-hdr{display:flex;align-items:center;gap:0.7rem;margin:2.6rem 0 0.5rem;}
+    .sc-h2{margin-top:3.75rem!important;}
     .lsc-section-line,.lsc-section-line-r{display:none;}
     .lsc-section-pill{display:flex;align-items:center;gap:0.6rem;}
-    .lsc-section-label{font-size:1.45rem;font-weight:700;color:var(--t1);letter-spacing:-0.025em;}
-    .lsc-section-count{font-size:0.85rem;font-weight:600;background:var(--green-bg);
-                       color:var(--green);border-radius:980px;padding:0.15rem 0.6rem;
+    .lsc-section-label{font-size:1.75rem;font-weight:600;color:var(--t1);letter-spacing:-0.024em;}
+    .lsc-section-count{font-size:0.8125rem;font-weight:500;background:var(--fill);
+                       color:var(--t2);border-radius:980px;padding:0.14rem 0.58rem;
                        font-variant-numeric:tabular-nums;}
 
-    .lsc-regime2{font-size:0.78rem;font-weight:600;padding:0.25rem 0.7rem;border-radius:980px;
-                 white-space:nowrap;}
+    .lsc-regime2{font-size:0.75rem;font-weight:500;padding:0.2rem 0.62rem;border-radius:980px;
+                 white-space:nowrap;display:inline-flex;align-items:center;gap:0.3rem;}
 
     /* "View strategy" in an opened row */
-    [class*="st-key-lsc_goto_"] .stButton button{font-size:0.88rem!important;color:var(--blue)!important;
-        min-height:2.3rem!important;background:var(--card)!important;box-shadow:none!important;}
-    [class*="st-key-lsc_goto_"] .stButton button:hover{background:var(--blue-bg)!important;}
-    [class*="st-key-lsc_goto_"] .stButton button p{color:var(--blue)!important;font-weight:600!important;}
-    .lsc-more{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:600;
-        padding:0.18rem 0.6rem;border-radius:980px;background:var(--blue-bg);color:var(--blue);
+    [class*="st-key-lsc_goto_"] .stButton button{font-size:0.875rem!important;color:var(--blue)!important;
+        min-height:2.15rem!important;background:var(--blue-bg)!important;box-shadow:none!important;}
+    [class*="st-key-lsc_goto_"] .stButton button:hover{background:rgba(0,113,227,0.13)!important;color:var(--blue)!important;}
+    [class*="st-key-lsc_goto_"] .stButton button p{color:var(--blue)!important;font-weight:500!important;}
+    .lsc-more{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:500;
+        padding:0.16rem 0.55rem;border-radius:980px;background:var(--blue-bg);color:var(--blue);
         white-space:nowrap;cursor:help;}
 
     /* the stock card a "View strategy" tap jumped to */
-    .sc-stock.sc-focus{border-color:var(--blue);
-        box-shadow:0 0 0 3px rgba(0,99,209,0.18),var(--shadow);}
-    .sc-tr.sc-tr-focus{background:rgba(0,99,209,0.10)!important;
-        box-shadow:inset 4px 0 0 var(--blue)!important;}
-
-    /* expander shell: the app styles every expander dark — neutralise here */
-    .stApp [data-testid="stExpander"]{background:transparent!important;border:none!important;}
+    .sc-stock.sc-focus{box-shadow:0 0 0 2px var(--blue-fill),var(--shadow-lift);}
+    .sc-tr.sc-tr-focus{background:rgba(0,113,227,0.06)!important;}
 
     /* top-bar KPIs */
     .sc-kpi{text-align:right;min-width:4.5rem;}
     .sc-kpi .sc-kv{color:var(--t1);}
 
     /* validation pill */
-    .sc-vb{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:600;
-           padding:0.18rem 0.6rem;border-radius:980px;white-space:nowrap;cursor:help;}
+    .sc-vb{display:inline-flex;align-items:center;font-size:0.75rem;font-weight:500;
+           padding:0.2rem 0.62rem;border-radius:980px;white-space:nowrap;cursor:help;}
     .sc-vb-ok{background:var(--green-bg);color:var(--green);}
     .sc-vb-warn{background:var(--orange-bg);color:var(--orange);}
     .sc-vb-bad{background:var(--red-bg);color:var(--red);}
 
     /* validation box */
-    .sc-val{margin:0.2rem 0.8rem 0.9rem;padding:0.75rem 0.85rem;background:var(--inset);
-            border:1px solid var(--hair);border-radius:var(--r-md);}
+    .sc-val{margin:0.2rem 0.8rem 0.9rem;padding:0.8rem 0.9rem;background:var(--inset);
+            border:none;border-radius:var(--r-md);}
     .sc-val-h{display:flex;align-items:center;gap:0.3rem;font-size:0.78rem;font-weight:600;
               color:var(--t2);margin-bottom:0.55rem;}
     .sc-val-row{display:flex;align-items:center;gap:0.6rem;}
@@ -2201,70 +2159,70 @@ def render_auto_scanner_page() -> None:
     /* segmented control (Short | Medium | Long | Days) */
     .st-key-sc_market_box [role="radiogroup"],
     .st-key-sc_seg_box [role="radiogroup"],
-    [class*="st-key-sc_flt_f"] [role="radiogroup"]{background:var(--fill)!important;border-radius:13px!important;
-        padding:4px!important;display:inline-flex!important;gap:2px!important;flex-wrap:nowrap!important;}
+    [class*="st-key-sc_flt_f"] [role="radiogroup"]{background:var(--fill)!important;border-radius:11px!important;
+        padding:2px!important;display:inline-flex!important;gap:0!important;flex-wrap:nowrap!important;}
     .st-key-sc_market_box [role="radiogroup"] button,
     .st-key-sc_seg_box [role="radiogroup"] button,
     [class*="st-key-sc_flt_f"] [role="radiogroup"] button{background:transparent!important;border:none!important;
-        box-shadow:none!important;border-radius:10px!important;color:var(--t2)!important;
-        min-height:2.4rem!important;padding:0 1.15rem!important;font-weight:500!important;}
+        box-shadow:none!important;border-radius:9px!important;color:var(--t2)!important;
+        min-height:2.15rem!important;padding:0 1.05rem!important;font-weight:500!important;
+        transition:background-color .22s var(--ease),color .22s var(--ease),box-shadow .22s var(--ease)!important;}
     .st-key-sc_market_box [role="radiogroup"] button p,
     .st-key-sc_seg_box [role="radiogroup"] button p,
-    [class*="st-key-sc_flt_f"] [role="radiogroup"] button p{font-size:0.95rem!important;color:inherit!important;
-        font-weight:inherit!important;}
+    [class*="st-key-sc_flt_f"] [role="radiogroup"] button p{font-size:0.875rem!important;color:inherit!important;
+        font-weight:inherit!important;letter-spacing:-0.008em;}
     .st-key-sc_market_box [role="radiogroup"] button:hover,
     .st-key-sc_seg_box [role="radiogroup"] button:hover,
-    [class*="st-key-sc_flt_f"] [role="radiogroup"] button:hover{color:var(--t1)!important;}
+    [class*="st-key-sc_flt_f"] [role="radiogroup"] button:hover{color:var(--t1)!important;background:transparent!important;}
     .st-key-sc_market_box [role="radiogroup"] button[aria-checked="true"],
     .st-key-sc_seg_box [role="radiogroup"] button[aria-checked="true"],
     [class*="st-key-sc_flt_f"] [role="radiogroup"] button[aria-checked="true"]{
         background:#FFFFFF!important;color:var(--t1)!important;font-weight:600!important;
-        box-shadow:0 1px 4px rgba(0,0,0,0.14),0 0 0 0.5px rgba(0,0,0,0.06)!important;}
+        box-shadow:var(--seg-on)!important;}
 
     /* filter row (Win rate · Trades · Market regime) */
-    [class*="st-key-sc_flt_f"] [role="radiogroup"] button{padding:0 1rem!important;
-        min-height:2.25rem!important;}
-    .sc-flt-l{font-size:0.82rem;font-weight:600;color:var(--t2);margin:0.4rem 0 0.35rem 0.15rem;}
-    .sc-flt-sum{font-size:0.88rem;color:var(--t2);margin:0.2rem 0 0 0.15rem;}
+    [class*="st-key-sc_flt_f"] [role="radiogroup"] button{padding:0 0.95rem!important;
+        min-height:2rem!important;}
+    .sc-flt-l{font-size:0.8125rem;font-weight:500;color:var(--t2);margin:0.4rem 0 0.45rem 0.1rem;
+        display:flex;align-items:center;}
+    .sc-flt-sum{font-size:0.875rem;color:var(--t3);margin:0.3rem 0 0 0.1rem;}
     .sc-flt-sum b{color:var(--t1);font-weight:600;}
     .st-key-sc_flt_clear .stButton button{background:transparent!important;border:none!important;
-        box-shadow:none!important;color:var(--blue)!important;font-weight:600!important;
-        font-size:0.9rem!important;min-height:2.25rem!important;}
+        box-shadow:none!important;color:var(--blue)!important;font-weight:400!important;
+        font-size:0.875rem!important;min-height:2rem!important;}
     .st-key-sc_flt_clear .stButton button:hover{background:var(--blue-bg)!important;}
 
     /* rank number on stock cards (1 = highest win rate) */
     .sc-rank{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
-        min-width:2rem;height:2rem;padding:0 0.45rem;border-radius:980px;background:var(--fill);
-        color:var(--t2);font-size:0.9rem;font-weight:700;font-variant-numeric:tabular-nums;cursor:help;}
+        min-width:1.75rem;height:1.75rem;padding:0 0.4rem;border-radius:980px;background:var(--fill);
+        color:var(--t2);font-size:0.8125rem;font-weight:600;font-variant-numeric:tabular-nums;cursor:help;}
     .sc-rank-top{background:var(--blue-bg);color:var(--blue);}
-    .sc-grp{margin:1.6rem 0 1.1rem;padding:0.85rem 1.1rem;border-radius:var(--r-md);
-        background:var(--fill);color:var(--t2);font-size:0.88rem;line-height:1.45;}
+    .sc-grp{margin:1.8rem 0 1.1rem;padding:0;background:transparent;
+        color:var(--t3);font-size:0.9rem;line-height:1.45;}
     .sc-grp b{color:var(--t1);font-weight:600;}
-    .st-key-sc_run .stButton button{box-shadow:none!important;}
-    .st-key-sc_days_box [data-baseweb="input"],.st-key-sc_days_box input{border-radius:12px!important;}
-    .st-key-sc_days_box [data-testid="stNumberInputContainer"]{border-radius:12px!important;
-        border:none!important;background:var(--fill)!important;}
+    .st-key-sc_days_box [data-testid="stNumberInputContainer"]{border-radius:11px!important;
+        border:none!important;background:var(--fill)!important;min-height:2.4rem;}
     .st-key-sc_days_box [data-baseweb="input"],.st-key-sc_days_box [data-baseweb="base-input"],
-    .st-key-sc_days_box input,.st-key-sc_days_box .stNumberInput button{background:var(--fill)!important;}
+    .st-key-sc_days_box input,.st-key-sc_days_box .stNumberInput button{background:transparent!important;}
 
     /* search: filled, iOS style */
     .stApp .st-key-sc_search_box [data-testid="stTextInputRootElement"]{
-        border:0!important;outline:0!important;box-shadow:none!important;background:#E8E8ED!important;
-        border-radius:14px!important;overflow:hidden;}
-    .stApp .st-key-sc_search_box [data-testid="stTextInputRootElement"] *{border:0!important;}
+        border:0!important;outline:0!important;box-shadow:var(--shadow-sm)!important;
+        background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23636366' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='4.75'/%3E%3Cpath d='m10.6 10.6 3.4 3.4'/%3E%3C/svg%3E") no-repeat 0.9rem center/15px!important;
+        border-radius:12px!important;overflow:hidden;}
+    .stApp .st-key-sc_search_box [data-testid="stTextInputRootElement"] *{border:0!important;background:transparent!important;}
     .stApp .st-key-sc_search_box input{background:transparent!important;color:var(--t1)!important;
-        font-size:1rem!important;padding:0.85rem 1.1rem!important;height:auto!important;}
+        font-size:0.9375rem!important;padding:0.68rem 1rem 0.68rem 2.35rem!important;height:auto!important;letter-spacing:-0.008em;}
     .stApp .st-key-sc_search_box input::placeholder{color:var(--t3)!important;opacity:1;}
     .stApp .st-key-sc_search_box [data-testid="stTextInputRootElement"]:focus-within{
-        box-shadow:0 0 0 3px rgba(0,102,204,0.22)!important;}
+        box-shadow:0 0 0 3.5px rgba(0,113,227,0.20)!important;}
 
     /* regime pill: quiet, coloured dot only */
     .sc-rpill{background:var(--fill)!important;color:var(--t1)!important;font-weight:600;
         display:inline-flex;align-items:center;gap:0.4rem;cursor:help;}
-    .sc-rpill::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--rc,#5C5C63);}
-    .sc-now-pill{font-size:0.75rem;font-weight:600;padding:0.25rem 0.65rem;border-radius:980px;
+    .sc-rpill::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--rc,#636366);}
+    .sc-now-pill{font-size:0.72rem;font-weight:500;padding:0.14rem 0.52rem;border-radius:980px;
         background:var(--blue-bg);color:var(--blue);cursor:help;}
-    .sc-rcard.sc-now{border-color:rgba(0,99,209,0.55);box-shadow:0 0 0 3px rgba(0,99,209,0.10),var(--shadow);}
 
     /* card body: neutral numbers, one caption line instead of a 2nd stat row */
     .sc-rcard{display:flex;flex-direction:column;}
@@ -2278,8 +2236,8 @@ def render_auto_scanner_page() -> None:
 
     /* collapsed alternatives */
     details.sc-alts{border-top:1px solid var(--hair);background:var(--card);padding:0;}
-    details.sc-alts>summary{list-style:none;cursor:pointer;color:var(--blue);font-weight:500;
-        font-size:0.88rem;padding:0.8rem 1.1rem;margin:0;}
+    details.sc-alts>summary{list-style:none;cursor:pointer;color:var(--blue);font-weight:400;
+        font-size:0.875rem;padding:0.8rem 1.1rem;margin:0;}
     details.sc-alts>summary::-webkit-details-marker{display:none;}
     details.sc-alts>summary::after{content:' ›';}
     details.sc-alts[open]>summary::after{content:' ⌄';}
@@ -2291,17 +2249,20 @@ def render_auto_scanner_page() -> None:
     details.sc-alts .sc-rcard-cap{margin:0 0.5rem 0.6rem;}
 
     /* ── round 3: coloured indicator chips + table-style stock cards ─────── */
-    .sc-chip-ind{display:inline-flex;align-items:center;font-size:0.84rem;font-weight:600;
-        padding:0.28rem 0.7rem;border-radius:980px;white-space:nowrap;cursor:help;}
-    .sc-chip-plus{color:var(--t4);font-weight:500;margin:0 0.3rem;font-size:0.85rem;}
-    .sc-legend{display:flex;flex-wrap:wrap;align-items:center;gap:0.4rem 1rem;margin:0 0 1.1rem;
-        font-size:0.82rem;color:var(--t2);}
-    .sc-legend-t{font-weight:600;color:var(--t1);margin-right:0.2rem;}
-    .sc-legend-i{display:inline-flex;align-items:center;gap:0.4rem;}
-    .sc-legend-i i{display:inline-block;width:9px;height:9px;border-radius:3px;}
+    .sc-chip-ind{display:inline-flex;align-items:center;gap:0.36rem;font-size:0.8125rem;font-weight:500;
+        padding:0.2rem 0.62rem 0.2rem 0.52rem;border-radius:980px;white-space:nowrap;cursor:help;
+        background:var(--fill);color:var(--t1);letter-spacing:-0.006em;}
+    .sc-chip-ind::before{content:'';flex:none;width:6px;height:6px;border-radius:50%;background:var(--c,#86868B);}
+    .sc-chip-plus{color:var(--t4);font-weight:400;margin:0 0.26rem;font-size:0.8125rem;}
+    .sc-legend{display:flex;flex-wrap:wrap;align-items:center;gap:0.3rem 1.05rem;margin:0 0 1rem;
+        font-size:0.78rem;color:var(--t3);}
+    .sc-legend-t{font-weight:500;color:var(--t2);margin-right:0.1rem;}
+    .sc-legend-i{display:inline-flex;align-items:center;gap:0.36rem;}
+    .sc-legend-i i{display:inline-block;width:6px;height:6px;border-radius:50%;}
 
-    .sc-stock{background:var(--card);border:1px solid var(--hair);border-radius:var(--r-lg);
-        box-shadow:var(--shadow);margin:0 0 1.2rem;overflow:hidden;}
+    .sc-stock{background:var(--card);border:none;border-radius:var(--r-lg);
+        box-shadow:var(--shadow);margin:0 0 1.2rem;overflow:hidden;
+        transition:box-shadow .3s var(--ease);}
     .sc-stock-hdr{display:flex;align-items:center;gap:0.75rem;padding:1.1rem 1.5rem 0.9rem;}
     .sc-stock-hdr .sc-ct{margin-left:auto;}
     .sc-table{border-top:1px solid var(--hair);}
@@ -2309,14 +2270,16 @@ def render_auto_scanner_page() -> None:
         grid-template-columns:minmax(150px,1.05fr) minmax(240px,2.5fr) 0.7fr 0.8fr 0.85fr 0.85fr minmax(190px,1.45fr);
         border-top:1px solid var(--hair);}
     .sc-table>.sc-tr:first-child{border-top:none;}
-    .sc-th{padding-top:0.6rem;padding-bottom:0.6rem;background:var(--inset);font-size:0.78rem;
-        font-weight:500;color:var(--t2);}
+    .sc-th{padding-top:0.6rem;padding-bottom:0.6rem;background:transparent;font-size:0.75rem;
+        font-weight:500;color:var(--t3);}
     .sc-th>div:nth-child(n+3):nth-child(-n+6){text-align:right;}
     .sc-tr-reg{display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap;cursor:help;}
-    .sc-tr-ico{display:inline-flex;align-items:center;justify-content:center;width:1.7rem;height:1.7rem;
-        border-radius:8px;background:var(--fill);color:var(--t1);font-size:0.9rem;}
-    .sc-tr-rn{font-size:0.98rem;font-weight:600;color:var(--t1);}
-    .sc-tr-alt{font-size:0.82rem;color:var(--t2);padding-left:2.15rem;cursor:default;}
+    .sc-tr-ico{display:inline-flex;align-items:center;justify-content:center;width:1.5rem;height:1.5rem;
+        border-radius:7px;background:var(--fill);color:var(--t2);}
+    .sc-ri{width:0.8rem;height:0.8rem;display:block;flex:none;}
+    .lsc-regime2 .sc-ri{width:0.72rem;height:0.72rem;color:var(--t3);}
+    .sc-tr-rn{font-size:0.9688rem;font-weight:600;color:var(--t1);letter-spacing:-0.012em;}
+    .sc-tr-alt{font-size:0.8125rem;color:var(--t3);padding-left:2.15rem;cursor:default;}
     .sc-tr-strat{display:flex;align-items:center;flex-wrap:wrap;gap:0.35rem 0;}
     .sc-tr-strat .sc-cfire{margin-left:0.6rem;}
     .sc-tr-n{text-align:right;font-size:1.15rem;font-weight:600;color:var(--t1);
@@ -2326,13 +2289,11 @@ def render_auto_scanner_page() -> None:
     .sc-thin .sc-tr-sm{color:var(--orange);}
     .sc-tv{display:flex;flex-direction:column;align-items:flex-start;gap:0.25rem;cursor:help;}
     .sc-tv-l{font-size:0.78rem;color:var(--t2);font-variant-numeric:tabular-nums;}
-    .sc-tr-now{background:linear-gradient(90deg,rgba(0,99,209,0.06),rgba(0,99,209,0.015));
-        box-shadow:inset 3px 0 0 var(--blue);}
-    .sc-tr-sub{background:var(--inset);padding-top:0.75rem;padding-bottom:0.75rem;}
+    .sc-tr-sub{background:var(--inset);padding-top:0.85rem;padding-bottom:0.85rem;}
     .sc-tr-sub .sc-tr-n{font-size:1rem;}
     details.sc-more{border-top:1px solid var(--hair);}
-    details.sc-more>summary{list-style:none;cursor:pointer;color:var(--blue);font-size:0.86rem;
-        font-weight:500;padding:0.6rem 1.5rem 0.6rem 3.65rem;}
+    details.sc-more>summary{list-style:none;cursor:pointer;color:var(--blue);font-size:0.875rem;
+        font-weight:400;padding:0.6rem 1.5rem 0.6rem 3.65rem;transition:background-color .2s var(--ease);}
     details.sc-more>summary::-webkit-details-marker{display:none;}
     details.sc-more>summary::after{content:' ›';}
     details.sc-more[open]>summary::after{content:' ⌄';}
@@ -2346,12 +2307,12 @@ def render_auto_scanner_page() -> None:
 
     /* Scanned Strategies: two cards side by side. Each strategy is a 3-line
        block: regime | validation · indicators · four labelled numbers. */
-    .sc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.2rem;
-        align-items:start;margin:0 0 1.2rem;}
+    .sc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.25rem;
+        align-items:start;margin:0 0 1.25rem;}
     .sc-grid .sc-stock{margin:0;}
-    .sc-grid .sc-stock-hdr{padding:1rem 1.2rem 0.85rem;}
-    .sc-grid .sc-tr{grid-template-columns:repeat(4,minmax(0,1fr));gap:0.55rem 0.9rem;align-items:start;
-        padding:0.85rem 1.2rem;grid-template-areas:"reg reg val val" "strat strat strat strat" "wr pf exp tr"
+    .sc-grid .sc-stock-hdr{padding:1.2rem 1.5rem 1.05rem;}
+    .sc-grid .sc-tr{grid-template-columns:repeat(4,minmax(0,1fr));gap:0.7rem 1rem;align-items:start;
+        padding:1.05rem 1.5rem 1.1rem;grid-template-areas:"reg reg val val" "strat strat strat strat" "wr pf exp tr"
         "wl wl wl wl" "det det det det";}
     .sc-grid .sc-tr>:nth-child(1){grid-area:reg;}
     .sc-grid .sc-tr>:nth-child(2){grid-area:strat;}
@@ -2360,9 +2321,9 @@ def render_auto_scanner_page() -> None:
     .sc-grid .sc-tr>:nth-child(5){grid-area:exp;}
     .sc-grid .sc-tr>:nth-child(6){grid-area:tr;}
     .sc-grid .sc-tr>:nth-child(7){grid-area:val;justify-self:end;align-items:flex-end;text-align:right;}
-    .sc-grid .sc-tr-n{text-align:left;font-size:1.05rem;}
-    .sc-tr-l{display:block;width:max-content;font-size:0.7rem;font-weight:500;color:var(--t2);
-        margin-bottom:0.1rem;letter-spacing:0;}
+    .sc-grid .sc-tr-n{text-align:left;font-size:1.125rem;letter-spacing:-0.018em;}
+    .sc-tr-l{display:block;width:max-content;font-size:0.72rem;font-weight:400;color:var(--t3);
+        margin-bottom:0.14rem;letter-spacing:-0.002em;}
     .sc-tr-sm:empty{display:none;}
 
     /* winning vs losing trades bar, and the folded "Strategy details" */
@@ -2370,23 +2331,23 @@ def render_auto_scanner_page() -> None:
     .sc-grid .sc-tr>:nth-child(8){grid-area:wl;}
     .sc-grid .sc-tr>:nth-child(9){grid-area:det;}
     .sc-wl{display:flex;flex-direction:column;gap:0.35rem;margin-top:0.1rem;}
-    .sc-wl-bar{display:flex;height:6px;border-radius:980px;overflow:hidden;background:var(--fill);}
+    .sc-wl-bar{display:flex;gap:2px;height:4px;border-radius:980px;overflow:hidden;background:var(--fill);}
     .sc-wl-bar i{display:block;height:100%;}
-    .sc-wl-bar i.w{background:#2F9E52;}
-    .sc-wl-bar i.l{background:#E0454F;}
+    .sc-wl-bar i.w{background:#34C759;}
+    .sc-wl-bar i.l{background:#FF3B30;}
     .sc-wl-row{display:flex;justify-content:space-between;flex-wrap:wrap;gap:0.2rem 1rem;
-        font-size:0.8rem;color:var(--t2);font-variant-numeric:tabular-nums;}
-    .sc-wl-w b{color:var(--green);font-weight:600;}
-    .sc-wl-l b{color:var(--red);font-weight:600;}
+        font-size:0.78rem;color:var(--t3);font-variant-numeric:tabular-nums;}
+    .sc-wl-w b{color:var(--green);font-weight:500;}
+    .sc-wl-l b{color:var(--red);font-weight:500;}
     .sc-wl-row .z b{color:var(--t3);}
     details.sc-det>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;
-        color:var(--blue);font-size:0.84rem;font-weight:500;padding:0.1rem 0;}
+        color:var(--blue);font-size:0.8125rem;font-weight:400;padding:0.1rem 0;}
     details.sc-det>summary::-webkit-details-marker{display:none;}
-    details.sc-det>summary::after{content:'›';margin-left:0.35rem;transition:transform .15s ease;}
+    details.sc-det>summary::after{content:'›';margin-left:0.35rem;transition:transform .25s var(--ease-out);}
     details.sc-det[open]>summary::after{transform:rotate(90deg);}
     .sc-det-hint{color:var(--t3);font-weight:400;margin-left:0.25rem;}
-    .sc-det-body{display:grid;gap:1rem;margin-top:0.55rem;padding:0.9rem 1rem;background:var(--card);
-        border:1px solid var(--hair);border-radius:var(--r-md);}
+    .sc-det-body{display:grid;gap:1.1rem;margin-top:0.6rem;padding:1rem 1.05rem;background:var(--inset);
+        border:none;border-radius:var(--r-md);}
     .sc-det-h{font-size:0.78rem;font-weight:600;color:var(--t1);margin-bottom:0.35rem;}
     .sc-det-sub{font-size:0.78rem;color:var(--t2);line-height:1.5;margin-top:0.35rem;}
     .sc-det-sub b{color:var(--t1);font-weight:600;}
@@ -2397,8 +2358,8 @@ def render_auto_scanner_page() -> None:
     .sc-det-ar{flex:1;text-align:left;unicode-bidi:isolate;color:var(--t1);line-height:1.6;
         font-family:'IBM Plex Sans Arabic','Inter',sans-serif;}
     .sc-det-ex{display:flex;flex-wrap:wrap;gap:0.4rem;}
-    .sc-det-ex span{background:var(--inset);border-radius:980px;padding:0.22rem 0.7rem;
-        font-size:0.82rem;color:var(--t1);}
+    .sc-det-ex span{background:var(--card);border-radius:980px;padding:0.2rem 0.65rem;
+        font-size:0.8125rem;color:var(--t1);}
     .sc-det .u{color:var(--green);font-weight:600;}
     .sc-det .d{color:var(--red);font-weight:600;}
     .sc-tl{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;
@@ -2406,7 +2367,7 @@ def render_auto_scanner_page() -> None:
         font-variant-numeric:tabular-nums;}
     .sc-tl>span{padding:0.3rem 1.4rem 0.3rem 0;border-bottom:1px solid var(--hair);white-space:nowrap;}
     .sc-tl>span:nth-child(4n){text-align:right;padding-right:0;}
-    .sc-tl>.h{position:sticky;top:0;background:var(--card);font-size:0.72rem;font-weight:500;color:var(--t3);}
+    .sc-tl>.h{position:sticky;top:0;background:var(--inset);font-size:0.72rem;font-weight:500;color:var(--t3);}
     .sc-det .sc-val{margin:0;}
 
     /* links into the Arabic guide: a small "؟", or a term underlined with dots.
@@ -2414,74 +2375,85 @@ def render_auto_scanner_page() -> None:
     [data-sg]{cursor:pointer;}
     /* "؟" is always blue, so it reads as a link into the guide */
     .qg{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
-        width:17px;height:17px;margin:0 0.3rem;border-radius:50%;background:var(--blue);
-        color:#FFFFFF;font:700 0.68rem/1 'IBM Plex Sans Arabic',sans-serif;vertical-align:middle;
-        box-shadow:0 1px 3px rgba(0,99,209,0.28);user-select:none;letter-spacing:0;text-transform:none;
-        transition:background .15s ease,transform .15s ease,box-shadow .15s ease;}
-    .qg:hover{background:#004FA8;transform:scale(1.12);box-shadow:0 2px 6px rgba(0,99,209,0.35);}
-    .sgt{text-decoration:underline dotted rgba(60,60,67,0.5);text-decoration-thickness:1px;
-        text-underline-offset:3px;}
+        width:15px;height:15px;margin:0 0.3rem;border-radius:50%;background:var(--blue-fill);
+        color:#FFFFFF;font:600 0.625rem/1 'IBM Plex Sans Arabic',sans-serif;vertical-align:middle;
+        user-select:none;letter-spacing:0;text-transform:none;
+        transition:background-color .2s var(--ease),transform .2s var(--ease);}
+    .qg:hover{background:var(--blue-fill-h);transform:scale(1.1);}
+    .sgt{text-decoration:underline dotted rgba(0,0,0,0.20);text-decoration-thickness:1px;
+        text-underline-offset:3px;transition:color .2s var(--ease),text-decoration-color .2s var(--ease);}
     .sgt:hover{color:var(--blue)!important;text-decoration-color:var(--blue);}
     .sc-grid .sc-tr-alt{padding-left:0;}
-    .sc-grid details.sc-more>summary{padding:0.6rem 1.2rem;}
+    .sc-grid details.sc-more>summary{padding:0.7rem 1.5rem;}
     @media (max-width:900px){ .sc-grid{grid-template-columns:minmax(0,1fr);} }
 
-    .lsc-tbl-s{font-size:0.86rem;color:var(--t2);}
-    .st-key-lsc_xlsx [data-testid="stDownloadButton"] button{background:var(--card)!important;
-        border:1px solid var(--hair)!important;color:var(--blue)!important;font-weight:600!important;
-        border-radius:980px!important;min-height:2.4rem!important;box-shadow:var(--shadow)!important;}
+    .lsc-tbl-s{font-size:0.875rem;color:var(--t3);letter-spacing:-0.006em;}
+    .st-key-lsc_xlsx [data-testid="stDownloadButton"] button{background:var(--blue-bg)!important;
+        color:var(--blue)!important;font-weight:500!important;
+        min-height:2.15rem!important;}
     .st-key-lsc_xlsx [data-testid="stDownloadButton"] button p{color:var(--blue)!important;
-        font-weight:600!important;}
-    .st-key-lsc_xlsx [data-testid="stDownloadButton"] button:hover{background:var(--blue-bg)!important;}
+        font-weight:500!important;font-size:0.875rem!important;}
+    .st-key-lsc_xlsx [data-testid="stDownloadButton"] button:hover{background:rgba(0,113,227,0.13)!important;color:var(--blue)!important;}
+    .st-key-lsc_expand .stButton button{min-height:2.5rem!important;color:var(--blue)!important;
+        background:var(--card)!important;box-shadow:var(--shadow-sm)!important;}
+    .st-key-lsc_expand .stButton button:hover{background:var(--card)!important;color:var(--blue)!important;
+        box-shadow:var(--shadow)!important;}
     .lsc-regime2{background:var(--fill);color:var(--t1);}
 
     /* ── Live Signal Check: the table ────────────────────────────────────────
        One grid per row. .lt-lv holds the entry plan's five numbers: they join the
        row's own grid on wide screens and become their own strip on narrow ones. */
-    .st-key-lsc_tbl{background:var(--card);border:1px solid var(--hair);border-radius:var(--r-lg);
-        box-shadow:var(--shadow);overflow:clip;gap:0!important;margin:0.15rem 0 0.7rem;}
+    .st-key-lsc_tbl{background:var(--card);border:none;border-radius:var(--r-lg);
+        box-shadow:var(--shadow);overflow:clip;gap:0!important;margin:0.2rem 0 0.9rem;}
     .st-key-lsc_tbl [data-testid="stMarkdownContainer"]{margin-bottom:0!important;}
     .st-key-lsc_tbl>[data-testid="stElementContainer"]:first-child{position:sticky;top:0;z-index:5;}
-    .lt-g{display:grid;align-items:center;column-gap:0.9rem;padding:0.78rem 1.15rem;
-        grid-template-columns:2rem minmax(8.5rem,1.05fr) 6.4rem minmax(16rem,2.7fr)
-            5.4rem repeat(3,minmax(4.3rem,0.55fr)) 5.2rem 3.4rem 3.6rem 0.8rem;}
+    .lt-g{display:grid;align-items:center;column-gap:1rem;padding:0.95rem 1.4rem;
+        grid-template-columns:1.5rem minmax(8.5rem,1.05fr) 6.4rem minmax(16rem,2.7fr)
+            5.4rem repeat(3,minmax(4.3rem,0.55fr)) 5.2rem 3.4rem 3.6rem 0.7rem;}
     .lt-lv{display:contents;}
-    .lt-head{background:var(--inset);padding-top:0.62rem;padding-bottom:0.62rem;font-size:0.75rem;
-        font-weight:600;color:var(--t2);line-height:1.25;}
+    .lt-head{background:rgba(255,255,255,0.82);-webkit-backdrop-filter:saturate(180%) blur(20px);
+        backdrop-filter:saturate(180%) blur(20px);padding-top:0.7rem;padding-bottom:0.7rem;font-size:0.75rem;
+        font-weight:400;color:var(--t3);line-height:1.25;}
     .lt-row{border-top:1px solid var(--hair);font-variant-numeric:tabular-nums;color:var(--t1);
-        transition:background .15s ease;}
-    .lt-rk{text-align:center;font-weight:600;font-size:0.9rem;color:var(--t3);}
-    .lt-rk.top{color:var(--blue);}
-    .lt-st{min-width:0;display:flex;flex-direction:column;gap:0.05rem;}
-    .lt-sym{font-size:1.02rem;font-weight:700;letter-spacing:-0.015em;color:var(--t1);}
-    .lt-nm{font-size:0.8rem;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .lt-sig b{display:flex;align-items:center;gap:0.35rem;font-size:0.84rem;font-weight:600;
-        color:var(--t1);white-space:nowrap;}
+        transition:background-color .22s var(--ease);}
+    .lt-rk{text-align:center;font-weight:400;font-size:0.875rem;color:var(--t4);}
+    .lt-rk.top{color:var(--blue);font-weight:500;}
+    .lt-st{min-width:0;display:flex;flex-direction:column;gap:0.08rem;}
+    .lt-sym{font-size:1rem;font-weight:600;letter-spacing:-0.014em;color:var(--t1);}
+    .lt-nm{font-size:0.78rem;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .lt-sig b{display:flex;align-items:center;gap:0.36rem;font-size:0.84rem;font-weight:500;
+        color:var(--t1);white-space:nowrap;letter-spacing:-0.006em;}
     .lt-sig b::before{content:'';flex:none;width:6px;height:6px;border-radius:50%;background:var(--d);}
-    .lt-sig small{display:block;font-size:0.74rem;color:var(--t2);margin-top:0.1rem;white-space:nowrap;}
-    .lt-str{min-width:0;display:flex;flex-direction:column;gap:0.35rem;}
+    .lt-sig small{display:block;font-size:0.75rem;color:var(--t3);margin-top:0.12rem;white-space:nowrap;}
+    .lt-str{min-width:0;display:flex;flex-direction:column;gap:0.4rem;}
     .lt-str-t{display:flex;flex-wrap:wrap;align-items:center;gap:0.3rem;}
-    .lt-str-t .lsc-regime2{font-size:0.72rem;padding:0.18rem 0.6rem;cursor:help;}
+    .lt-str-t .lsc-regime2{font-size:0.72rem;padding:0.15rem 0.52rem;cursor:help;}
+    .lt-str-t .sc-vb{font-size:0.72rem;padding:0.15rem 0.52rem;}
     .lt-chips{display:flex;flex-wrap:wrap;align-items:center;row-gap:0.25rem;}
-    .lt-chips .sc-chip-ind{font-size:0.76rem;padding:0.16rem 0.55rem;}
-    .lt-chips .sc-chip-plus{margin:0 0.2rem;font-size:0.76rem;}
-    .lt-n{text-align:right;font-size:0.92rem;font-weight:600;color:var(--t1);white-space:nowrap;}
-    .lt-n small{display:block;font-size:0.74rem;font-weight:600;color:var(--t2);margin-top:0.1rem;}
+    .lt-chips .sc-chip-ind{font-size:0.75rem;padding:0.15rem 0.52rem 0.15rem 0.44rem;gap:0.3rem;}
+    .lt-chips .sc-chip-ind::before{width:5px;height:5px;}
+    .lt-chips .sc-chip-plus{margin:0 0.18rem;font-size:0.75rem;}
+    .lt-n{text-align:right;font-size:0.9rem;font-weight:500;color:var(--t1);white-space:nowrap;letter-spacing:-0.008em;}
+    .lt-n small{display:block;font-size:0.75rem;font-weight:400;color:var(--t3);margin-top:0.12rem;letter-spacing:-0.002em;}
     .lt-n .up{color:var(--green);}
     .lt-n .dn{color:var(--red);}
     .lt-n .few{color:var(--orange);}
-    .lt-wr{font-size:1.02rem;font-weight:700;}
-    .lt-head .lt-n{font-size:0.75rem;font-weight:600;color:var(--t2);white-space:normal;}
-    .lt-chev{width:0.5rem;height:0.5rem;justify-self:end;border-right:2px solid var(--t4);
-        border-bottom:2px solid var(--t4);transform:rotate(-45deg);transition:transform .2s ease;}
-    .lt-open{background:var(--blue-bg);}
-    .lt-open .lt-chev{transform:rotate(45deg);border-color:var(--blue);}
+    .lt-wr{font-size:1.0625rem;font-weight:600;letter-spacing:-0.016em;}
+    .lt-head .lt-n{font-size:0.75rem;font-weight:400;color:var(--t3);white-space:normal;letter-spacing:0;}
+    .lt-chev{width:0.42rem;height:0.42rem;justify-self:end;border-right:1.5px solid var(--hair2);
+        border-bottom:1.5px solid var(--hair2);transform:rotate(-45deg);
+        transition:transform .28s var(--ease-out),border-color .2s var(--ease);}
+    .lt-open{background:rgba(0,113,227,0.05);}
+    .lt-open .lt-chev{transform:rotate(45deg);border-color:var(--blue-fill);}
 
     /* A row is a tap target: an invisible button is spread over its HTML. The
        regime and validation badges sit above it, so they still open the guide. */
     [class*="st-key-lsc_row_"]{position:relative;gap:0!important;scroll-margin-top:2.6rem;}
-    [class*="st-key-lsc_row_"]:hover .lt-row:not(.lt-open){background:#F5F8FD;}
-    [class*="st-key-lsc_row_"]:hover .lt-chev{border-color:var(--blue);}
+    [class*="st-key-lsc_row_"]:hover .lt-row:not(.lt-open){background:#FAFAFC;}
+    [class*="st-key-lsc_row_"]:hover .lt-chev{border-color:var(--t4);}
+    /* the tap answers at once, before the chart has come back from the server */
+    .stApp[data-test-script-state="running"] [class*="st-key-lsc_row_"]:has(button:focus) .lt-row{background:rgba(0,113,227,0.05);}
+    .stApp[data-test-script-state="running"] [class*="st-key-lsc_row_"]:has(button:focus) .lt-chev{transform:rotate(45deg);border-color:var(--blue-fill);}
     [class*="st-key-lsc_row_"]:has(button:focus-visible) .lt-row{box-shadow:inset 0 0 0 2px var(--blue);}
     .stApp [class*="st-key-lsc_open_"]{position:absolute!important;inset:0;z-index:2;
         width:auto!important;height:auto!important;margin:0!important;}
@@ -2493,19 +2465,18 @@ def render_auto_scanner_page() -> None:
     .lt-row [data-sg]{position:relative;z-index:3;}
 
     /* what a tapped row opens: its chart and "View strategy" */
-    [class*="st-key-lsc_panel_"]{background:var(--inset);border-top:1px solid var(--hair);
-        padding:0.7rem 1.15rem 0.9rem;gap:0.55rem!important;}
+    [class*="st-key-lsc_panel_"]{background:#FAFAFC;border-top:1px solid var(--hair);
+        padding:0.9rem 1.4rem 1.2rem;gap:0.7rem!important;}
     [class*="st-key-lsc_panel_"] [data-testid="stPlotlyChart"]{background:#FFFFFF;
-        border:1px solid var(--hair);border-radius:var(--r-md);overflow:hidden;}
+        border:none;border-radius:var(--r-md);overflow:hidden;box-shadow:0 0 0 0.5px rgba(0,0,0,0.06);}
     .lt-leg{display:flex;flex-wrap:wrap;align-items:center;gap:0.4rem;}
     .lt-leg .sc-vb{cursor:default;}
     .lt-leg-sig{background:var(--orange-bg);color:var(--orange);}
-    .lt-nochart{padding:1.2rem;text-align:center;font-size:0.88rem;color:var(--t2);}
+    .lt-nochart{padding:1.2rem;text-align:center;font-size:0.875rem;color:var(--t3);}
 
     /* Below laptop width the numbers no longer fit one line. The header row goes
        and every number carries its own label. */
     @media (max-width:1279px){
-      .sc-pts{grid-template-columns:repeat(4,minmax(0,1fr));}
       .lt-head{display:none;}
       .lt-g.lt-row{grid-template-columns:2rem minmax(0,1fr) auto auto 0.8rem;gap:0.55rem 0.9rem;
           align-items:start;grid-template-areas:"rk st wr tr chev" ". str str str str"
@@ -2520,32 +2491,32 @@ def render_auto_scanner_page() -> None:
       .lt-sig b{display:inline-flex;}
       .lt-sig small{display:inline;margin:0 0 0 0.45rem;}
       .lt-lv{grid-area:lv;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0.5rem;
-          padding:0.55rem 0.75rem;border-radius:var(--r-sm);background:var(--inset);}
+          padding:0.6rem 0.8rem;border-radius:var(--r-sm);background:var(--inset);}
       .lt-lv .lt-n{text-align:left;}
-      .lt-row .lt-n::before{content:attr(data-l);display:block;font-size:0.7rem;font-weight:500;
-          color:var(--t2);margin-bottom:0.1rem;}
+      .lt-row .lt-n::before{content:attr(data-l);display:block;font-size:0.72rem;font-weight:400;
+          color:var(--t3);margin-bottom:0.12rem;letter-spacing:0;}
     }
 
     .st-key-lsc_xlsx [data-testid="stCaptionContainer"] p{color:var(--t3)!important;}
 
     /* commodity prices */
-    .sc-h3{display:flex;flex-wrap:wrap;align-items:baseline;gap:0.1rem 0.5rem;font-size:1.05rem;font-weight:700;
-        color:var(--t1);letter-spacing:-0.015em;margin:1.2rem 0 0.55rem;}
-    .sc-h3-s{font-size:0.82rem;font-weight:400;color:var(--t2);letter-spacing:0;}
-    .sc-pts{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:0.5rem;margin-bottom:0.8rem;}
-    .sc-pt{background:var(--card);border:1px solid var(--hair);border-radius:var(--r-md);
-        padding:0.6rem 0.75rem;box-shadow:var(--shadow-sm);min-width:0;}
-    .sc-pt-n{font-size:0.8rem;font-weight:600;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .sc-pt-v{font-size:1.1rem;font-weight:600;color:var(--t1);letter-spacing:-0.02em;
-        font-variant-numeric:tabular-nums;margin-top:0.1rem;}
-    .sc-pt-s{font-size:0.72rem;color:var(--t3);margin-top:0.1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .sc-pt-s .up{color:var(--green);font-weight:600;}
-    .sc-pt-s .dn{color:var(--red);font-weight:600;}
+    .sc-h3{display:flex;flex-wrap:wrap;align-items:baseline;gap:0.1rem 0.5rem;font-size:1.1875rem;font-weight:600;
+        color:var(--t1);letter-spacing:-0.018em;margin:1.7rem 0 0.75rem;}
+    .sc-h3-s{font-size:0.8125rem;font-weight:400;color:var(--t3);letter-spacing:-0.004em;}
+    .sc-pts{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:0.6rem;margin-bottom:1rem;}
+    .sc-pt{background:var(--card);border:none;border-radius:var(--r-md);
+        padding:0.8rem 0.95rem 0.75rem;box-shadow:var(--shadow-sm);min-width:0;}
+    .sc-pt-n{font-size:0.8125rem;font-weight:400;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .sc-pt-v{font-size:1.1875rem;font-weight:600;color:var(--t1);letter-spacing:-0.022em;
+        font-variant-numeric:tabular-nums;margin-top:0.15rem;}
+    .sc-pt-s{font-size:0.72rem;color:var(--t3);margin-top:0.18rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .sc-pt-s .up{color:var(--green);font-weight:500;}
+    .sc-pt-s .dn{color:var(--red);font-weight:500;}
 
     /* a stock card's latest price */
-    .sc-px{margin-left:auto;font-size:1.02rem;font-weight:600;color:var(--t1);white-space:nowrap;
-        font-variant-numeric:tabular-nums;letter-spacing:-0.015em;}
-    .sc-px small{font-size:0.72rem;font-weight:500;color:var(--t2);margin-left:0.2rem;letter-spacing:0;}
+    .sc-px{margin-left:auto;font-size:1rem;font-weight:500;color:var(--t1);white-space:nowrap;
+        font-variant-numeric:tabular-nums;letter-spacing:-0.014em;}
+    .sc-px small{font-size:0.72rem;font-weight:400;color:var(--t3);margin-left:0.2rem;letter-spacing:0;}
     .sc-stock-hdr .sc-px+.sc-cfire,.sc-stock-hdr .sc-px+.sc-ct{margin-left:0!important;}
     [data-testid="stHorizontalBlock"]:has(.st-key-lsc_xlsx) [data-testid="stMarkdownContainer"]{
         margin-bottom:0!important;}
@@ -2556,6 +2527,7 @@ def render_auto_scanner_page() -> None:
       [class*="st-key-sc_flt_f"] [role="radiogroup"] button{padding:0 0.6rem!important;}
     }
     @media (max-width:1279px){
+      .sc-pts{grid-template-columns:repeat(4,minmax(0,1fr));}
       /* Market / Period / Run Scan: each on its own line */
       [data-testid="stHorizontalBlock"]:has(.st-key-sc_market_box){flex-wrap:wrap!important;row-gap:0.55rem!important;}
       [data-testid="stHorizontalBlock"]:has(.st-key-sc_market_box)>[data-testid="stColumn"]{
@@ -2582,11 +2554,11 @@ def render_auto_scanner_page() -> None:
       .st-key-sc_back .stButton button{width:auto!important;}
       .sc-tb{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0.7rem 0.4rem;margin-bottom:0.9rem;}
       .sc-tb>div:first-child{grid-column:1/-1;margin:0!important;}
-      .sc-title{font-size:1.7rem;}
-      .sc-sub{font-size:0.86rem;line-height:1.4;}
+      .sc-title{font-size:2rem;}
+      .sc-sub{font-size:0.9rem;line-height:1.4;margin-top:0.35rem;}
       .sc-kpi{text-align:left;min-width:0;}
-      .sc-kv{font-size:1.2rem;}
-      .sc-kl{font-size:0.68rem;line-height:1.25;}
+      .sc-kv{font-size:1.25rem;}
+      .sc-kl{font-size:0.6875rem;line-height:1.25;margin-top:0.3rem;}
       .sc-kl .qg{display:none;}
       /* segmented controls fill the width, with their text as tight as it stays readable */
       .st-key-sc_market_box [data-testid="stElementContainer"],.st-key-sc_seg_box [data-testid="stElementContainer"],
@@ -2606,44 +2578,44 @@ def render_auto_scanner_page() -> None:
           flex:1 1 100%!important;width:100%!important;}
       [data-testid="stHorizontalBlock"]:has([class*="st-key-sc_flt_f"])>[data-testid="stColumn"]:not(:has(*)){display:none!important;}
       /* commodity prices: one line to swipe, gold and silver first */
-      .sc-pts{display:flex;overflow-x:auto;gap:0.45rem;margin:0 -0.8rem 0.6rem;padding:0.1rem 0.8rem 0.3rem;
+      .sc-pts{display:flex;overflow-x:auto;gap:0.5rem;margin:0 -0.8rem 0.8rem;padding:0.15rem 0.8rem 0.45rem;
           scrollbar-width:none;}
       .sc-pts::-webkit-scrollbar{display:none;}
-      .sc-pt{flex:0 0 7.4rem;}
+      .sc-pt{flex:0 0 7.6rem;}
       /* section titles */
       .lsc-section-hdr{margin:1.4rem 0 0.9rem;}
-      .lsc-section-label,.sc-h2-t{font-size:1.25rem;}
-      .sc-h2{flex-wrap:wrap;gap:0.2rem 0.6rem;margin-top:2rem!important;}
+      .lsc-section-label,.sc-h2-t{font-size:1.4375rem;}
+      .sc-h2{flex-wrap:wrap;gap:0.2rem 0.6rem;margin-top:2.6rem!important;}
       .sc-h2-s{font-size:0.84rem;line-height:1.4;}
       .sc-h2-c{margin-left:0;}
-      .sc-legend{gap:0.3rem 0.7rem;font-size:0.76rem;margin-bottom:0.8rem;}
+      .sc-legend{gap:0.25rem 0.8rem;font-size:0.75rem;margin-bottom:0.8rem;}
       /* the table: a compact card per row */
       .st-key-lsc_tbl{border-radius:var(--r-md);}
-      .lt-g.lt-row{grid-template-columns:1.5rem minmax(0,1fr) auto auto 0.6rem;gap:0.45rem 0.6rem;
-          padding:0.7rem 0.75rem;grid-template-areas:"rk st wr tr chev" "str str str str str"
+      .lt-g.lt-row{grid-template-columns:1.25rem minmax(0,1fr) auto auto 0.55rem;gap:0.5rem 0.65rem;
+          padding:0.85rem 0.9rem;grid-template-areas:"rk st wr tr chev" "str str str str str"
               "sig sig sig sig sig" "lv lv lv lv lv";}
       .lt-sym{font-size:1rem;}
       .lt-nm{font-size:0.76rem;}
-      .lt-lv{gap:0.3rem;padding:0.5rem 0.55rem;}
-      .lt-lv .lt-n{font-size:0.82rem;}
-      .lt-lv .lt-n small{font-size:0.7rem;}
-      .lt-row .lt-n::before{content:attr(data-s);font-size:0.66rem;}
+      .lt-lv{gap:0.3rem;padding:0.55rem 0.65rem;}
+      .lt-lv .lt-n{font-size:0.8125rem;}
+      .lt-lv .lt-n small{font-size:0.6875rem;}
+      .lt-row .lt-n::before{content:attr(data-s);font-size:0.6875rem;}
       .lt-qw{display:none;}
       /* on a phone the whole row is the tap target, badges included */
       .lt-row [data-sg]{position:static;z-index:auto;}
       .lt-wr{font-size:1rem;}
-      [class*="st-key-lsc_panel_"]{padding:0.6rem 0.55rem 0.7rem;}
+      [class*="st-key-lsc_panel_"]{padding:0.75rem 0.6rem 0.8rem;}
       [data-testid="stHorizontalBlock"]:has(.st-key-lsc_xlsx){gap:0.4rem!important;}
       /* stock cards in Scanned Strategies */
       .sc-grid{gap:0.8rem;}
-      .sc-grid .sc-stock-hdr{padding:0.8rem 0.85rem 0.7rem;gap:0.5rem;flex-wrap:wrap;}
-      .sc-sym{font-size:1.15rem;}
-      .sc-sname{font-size:0.82rem;max-width:100%;}
-      .sc-grid .sc-tr{padding:0.75rem 0.85rem;gap:0.5rem 0.55rem;}
-      .sc-grid .sc-tr-n{font-size:0.98rem;}
-      .sc-tr-l{font-size:0.66rem;width:auto;}
+      .sc-grid .sc-stock-hdr{padding:0.95rem 1rem 0.8rem;gap:0.5rem;flex-wrap:wrap;}
+      .sc-sym{font-size:1.1875rem;}
+      .sc-sname{font-size:0.8125rem;max-width:100%;}
+      .sc-grid .sc-tr{padding:0.9rem 1rem;gap:0.55rem 0.55rem;}
+      .sc-grid .sc-tr-n{font-size:1rem;}
+      .sc-tr-l{font-size:0.6875rem;width:auto;}
       .sc-chip-ind{white-space:normal;}
-      .sc-grid details.sc-more>summary{padding:0.55rem 0.85rem;}
+      .sc-grid details.sc-more>summary{padding:0.55rem 1rem;}
       .sc-det-hint{display:none;}
       .sc-det-body{padding:0.7rem 0.7rem;}
       .sc-det-ind{flex-direction:column;gap:0.1rem;}
@@ -2655,6 +2627,11 @@ def render_auto_scanner_page() -> None:
       .st-key-sc_market_box [role="radiogroup"] button p,.st-key-sc_seg_box [role="radiogroup"] button p,
       [class*="st-key-sc_flt_f"] [role="radiogroup"] button p{font-size:0.78rem!important;}
     }
+
+    /* a page with nothing to show yet */
+    .sc-empty{background:var(--card);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:4.5rem 2rem;text-align:center;}
+    .sc-empty-t{font-size:1.1875rem;font-weight:600;color:var(--t1);letter-spacing:-0.018em;}
+    .sc-empty-s{font-size:0.9375rem;color:var(--t3);margin-top:0.45rem;line-height:1.5;letter-spacing:-0.008em;}
 
     /* fewer "?" marks: the regime pill tooltip is enough */
     .sc-rcard-top .sc-help-pill{display:none;}
@@ -2830,23 +2807,22 @@ def render_auto_scanner_page() -> None:
     # source of truth), so a chip's colour always matches the guide's grouping.
     from scanner_guide import _INDICATORS as _GUIDE_INDS
     _IND_TYPES = [   # same order as scanner_guide._INDICATORS
-        ('Trend',      '#4B47C4', '75,71,196'),
-        ('Momentum',   '#A34800', '255,149,0'),
-        ('Volume',     '#086F8C', '8,111,140'),
-        ('Volatility', '#8E3FBA', '142,63,186'),
-        ('Levels',     '#0063D1', '0,99,209'),
-        ('Oversold',   '#B0124F', '194,24,91'),
-        ('Position',   '#4A5A12', '120,140,30'),
+        ('Trend',      '#5856D6'),
+        ('Momentum',   '#FF9500'),
+        ('Volume',     '#30B0C7'),
+        ('Volatility', '#AF52DE'),
+        ('Levels',     '#007AFF'),
+        ('Oversold',   '#FF2D55'),
+        ('Position',   '#A2845E'),
     ]
     _IND_TYPE_OF = {k: i for i, (_c, _items) in enumerate(_GUIDE_INDS)
                     for (k, _cond, _w) in _items}
 
     def _chip(k) -> str:
         _i = _IND_TYPE_OF.get(k)
-        _nm, _fg, _rgb = _IND_TYPES[_i] if _i is not None else ('', '#3F3F46', '63,63,70')
+        _nm, _fg = _IND_TYPES[_i] if _i is not None else ('', '#86868B')
         return (f"<span class='sc-chip-ind' title='{_nm} indicator' "
-                f"style='color:{_fg};background:rgba({_rgb},0.11);"
-                f"box-shadow:inset 0 0 0 1px rgba({_rgb},0.22);'>{_ind_label([k])}</span>")
+                f"style='--c:{_fg};'>{_ind_label([k])}</span>")
 
     def _chips(keys) -> str:
         return "<span class='sc-chip-plus'>+</span>".join(_chip(k) for k in keys)
@@ -2854,10 +2830,16 @@ def render_auto_scanner_page() -> None:
     _IND_LEGEND = (
         "<div class='sc-legend'><span class='sc-legend-t'>Indicator types</span>"
         + ''.join(f"<span class='sc-legend-i'><i style='background:{_fg};'></i>{_nm}</span>"
-                  for _nm, _fg, _rgb in _IND_TYPES)
+                  for _nm, _fg in _IND_TYPES)
         + "</div>")
 
-    _REGIME_ICON = {'TREND': '↗', 'RANGE': '↔', 'VOLATILE': '⚡'}
+    from apple_theme import FONT as _CHART_FONT
+    # Drawn, not typed: an emoji bolt next to plain arrows looks like two different apps.
+    _RI = ("<svg class='sc-ri' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.6' "
+           "stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>{}</svg>")
+    _REGIME_ICON = {'TREND': _RI.format("<path d='M4 12 12 4M6 4h6v6'/>"),
+                    'RANGE': _RI.format("<path d='M2.5 8h11M5 5.5 2.5 8 5 10.5M11 5.5 13.5 8 11 10.5'/>"),
+                    'VOLATILE': _RI.format("<path d='M9 2 4 9h4l-1 5 5-7H8z'/>")}
     _REGIME_HELP = {
         'TREND':    ('Trending regime — directional, sustained price moves. '
                      'Best for momentum/breakout strategies.'),
@@ -3057,7 +3039,7 @@ def render_auto_scanner_page() -> None:
             unsafe_allow_html=True)
     with _tr:
         with st.container(key="sc_back"):
-            if st.button("← Back", key="sc_back_btn", use_container_width=True):
+            if st.button("‹  Back", key="sc_back_btn", use_container_width=True):
                 st.session_state.show_champions_vault = False
                 st.rerun()
 
@@ -3272,11 +3254,9 @@ def render_auto_scanner_page() -> None:
 
     if not st.session_state.sc_requested:
         st.markdown(
-            "<div style='background:#FFFFFF;border:1px solid #DEDEE3;"
-            "border-radius:12px;padding:4rem 2rem;text-align:center;'>"
-            "<div style='font-size:1rem;font-weight:800;color:#6E6E75;'>"
+            "<div class='sc-empty'><div class='sc-empty-t'>"
             "Choose a market and a period above, then tap Run Scan</div>"
-            "<div style='font-size:0.8rem;color:#6E6E75;margin-top:0.5rem;'>"
+            "<div class='sc-empty-s'>"
             "The scanner does not run automatically — pick a market and Short / Medium / Long, "
             "then start the scan.</div></div>",
             unsafe_allow_html=True)
@@ -3285,9 +3265,7 @@ def render_auto_scanner_page() -> None:
     _rows_all = st.session_state.sc_results or []
     if not _rows_all:
         st.markdown(
-            "<div style='background:#FFFFFF;border:1px solid #DEDEE3;"
-            "border-radius:12px;padding:4rem 2rem;text-align:center;'>"
-            "<div style='font-size:1rem;font-weight:800;color:#6E6E75;'>"
+            "<div class='sc-empty'><div class='sc-empty-t'>"
             "No results — tap ↻ Run Scan</div></div>",
             unsafe_allow_html=True)
         return
@@ -3331,12 +3309,9 @@ def render_auto_scanner_page() -> None:
     _rejected = len(_rows_all) - len(_rows)
     if not _rows:
         st.markdown(
-            "<div style='background:#FFFFFF;border:1px solid #DEDEE3;"
-            "border-radius:12px;padding:2.5rem 1.5rem;text-align:center;'>"
-            "<div style='font-size:0.85rem;font-weight:800;color:#3F3F46;'>"
+            "<div class='sc-empty'><div class='sc-empty-t'>"
             "No profitable strategy found</div>"
-            "<div style='font-size:0.66rem;color:#6E6E75;margin-top:0.5rem;"
-            "line-height:1.5;'>"
+            "<div class='sc-empty-s'>"
             f"None of the {len(_rows_all)} scanned {_M['nouns']} had an indicator combo "
             "that made money in any regime over this period."
             "</div></div>",
@@ -3370,7 +3345,7 @@ def render_auto_scanner_page() -> None:
     # ── search bar (styled in the page CSS block) ────────────────────────────
     with st.container(key="sc_search_box"):
         _sc_query = st.text_input(
-            " ", placeholder=f"🔍  {_M['search']}",
+            " ", placeholder=_M['search'],
             key="sc_search_q", label_visibility="collapsed")
     _sc_q = (_sc_query or '').strip().lower()
     if _sc_q:
@@ -3449,11 +3424,9 @@ def render_auto_scanner_page() -> None:
             unsafe_allow_html=True)
     if not _rows:
         st.markdown(
-            "<div style='background:var(--card);border:1px solid var(--hair);"
-            "border-radius:var(--r-lg);padding:3rem 1.5rem;text-align:center;'>"
-            "<div style='font-size:1.05rem;font-weight:600;color:var(--t1);'>"
+            "<div class='sc-empty'><div class='sc-empty-t'>"
             f"No {_M['noun']} matches</div>"
-            "<div style='font-size:0.9rem;color:var(--t2);margin-top:0.4rem;'>"
+            "<div class='sc-empty-s'>"
             + ("Try a lower win rate, fewer trades, another market regime or Validation All."
                if _f_on else "Try another symbol or name.")
             + "</div></div>",
@@ -3511,11 +3484,11 @@ def render_auto_scanner_page() -> None:
 
     if not _fire_rows:
         st.markdown(
-            "<div style='background:#FFFFFF;border:1px solid #DEDEE3;"
+            "<div style='background:#FFFFFF;border:1px solid #E8E8ED;"
             "border-radius:14px;padding:3rem;text-align:center;'>"
-            "<div style='font-size:0.75rem;font-weight:800;color:#6E6E75;"
+            "<div style='font-size:0.75rem;font-weight:800;color:#636366;"
             "text-transform:uppercase;letter-spacing:1.2px;'>No best-fit signals</div>"
-            "<div style='font-size:0.62rem;color:#6E6E75;margin-top:0.4rem;'>"
+            "<div style='font-size:0.62rem;color:#636366;margin-top:0.4rem;'>"
             + ("No live signal matches the filter" if _f_on else
                f"No {_M['noun']}'s current-regime strategy triggered in the last "
                f"{_LIVE_MAX_AGE + 1} trading days")
@@ -3537,7 +3510,7 @@ def render_auto_scanner_page() -> None:
             return df
 
         # ── price levels of a live signal ─────────────────────────────────────
-        _RR_COL = {'Great': '#1B7A36', 'Good': '#A34800', 'Weak': '#C1121F'}
+        _RR_COL = {'Great': '#1B7A36', 'Good': '#C93400', 'Weak': '#D70015'}
         _lv_cache = st.session_state.setdefault('_lsc_levels', {})
 
         def _lsc_levels(sym, df, price):
@@ -3838,10 +3811,10 @@ def render_auto_scanner_page() -> None:
                     # crossover made the strategy fire, drawn on real price
                     # data so it's visible proof, not just a stat box.
                     _OVERLAY_COLORS = {
-                        'EMA': ('#0063D1', '#8E3FBA'), 'SMA': ('#0063D1', '#8E3FBA'),
-                        'WMA': ('#A33A00',), 'HULL': ('#086F8C',), 'VWAP': ('#A34800',),
+                        'EMA': ('#0066CC', '#8944AB'), 'SMA': ('#0066CC', '#8944AB'),
+                        'WMA': ('#A33A00',), 'HULL': ('#0071A4',), 'VWAP': ('#C93400',),
                         'PSAR': ('#D4153F',), 'KELT': ('#A2845E', '#A2845E'),
-                        'DONCH': ('#15704A', '#15704A'), 'BB': ('#8E3FBA', '#8E3FBA'),
+                        'DONCH': ('#15704A', '#15704A'), 'BB': ('#8944AB', '#8944AB'),
                     }
                     try:
                         import pandas_ta as _ta_ov
@@ -3853,19 +3826,19 @@ def render_auto_scanner_page() -> None:
                                 _e20 = _ta_ov.ema(_c_full, 20); _e50 = _ta_ov.ema(_c_full, 50)
                                 if _e20 is not None:
                                     fig.add_trace(go.Scatter(x=_xd, y=_e20.iloc[_offset:],
-                                        mode='lines', line=dict(color='#0063D1', width=1.3),
+                                        mode='lines', line=dict(color='#0066CC', width=1.3),
                                         name='EMA 20', hovertemplate='EMA20 %{y:.2f}<extra></extra>'))
                                 if _e50 is not None:
                                     fig.add_trace(go.Scatter(x=_xd, y=_e50.iloc[_offset:],
-                                        mode='lines', line=dict(color='#8E3FBA', width=1.3),
+                                        mode='lines', line=dict(color='#8944AB', width=1.3),
                                         name='EMA 50', hovertemplate='EMA50 %{y:.2f}<extra></extra>'))
                             elif _ov_k == 'SMA':
                                 _s50 = _c_full.rolling(50).mean(); _s200 = _c_full.rolling(200).mean()
                                 fig.add_trace(go.Scatter(x=_xd, y=_s50.iloc[_offset:],
-                                    mode='lines', line=dict(color='#0063D1', width=1.3),
+                                    mode='lines', line=dict(color='#0066CC', width=1.3),
                                     name='SMA 50', hovertemplate='SMA50 %{y:.2f}<extra></extra>'))
                                 fig.add_trace(go.Scatter(x=_xd, y=_s200.iloc[_offset:],
-                                    mode='lines', line=dict(color='#8E3FBA', width=1.3),
+                                    mode='lines', line=dict(color='#8944AB', width=1.3),
                                     name='SMA 200', hovertemplate='SMA200 %{y:.2f}<extra></extra>'))
                             elif _ov_k == 'WMA':
                                 _w20 = _ta_ov.wma(_c_full, 20)
@@ -3877,14 +3850,14 @@ def render_auto_scanner_page() -> None:
                                 _hl = _ta_ov.hma(_c_full, 16)
                                 if _hl is not None:
                                     fig.add_trace(go.Scatter(x=_xd, y=_hl.iloc[_offset:],
-                                        mode='lines', line=dict(color='#086F8C', width=1.3),
+                                        mode='lines', line=dict(color='#0071A4', width=1.3),
                                         name='Hull MA', hovertemplate='Hull %{y:.2f}<extra></extra>'))
                             elif _ov_k == 'VWAP':
                                 _tp_ov = (_h_full + _l_full + _c_full) / 3
                                 _vo_ov = _df_f['Volume'].astype(float)
                                 _vwap_ov = (_tp_ov * _vo_ov).rolling(20).sum() / _vo_ov.rolling(20).sum()
                                 fig.add_trace(go.Scatter(x=_xd, y=_vwap_ov.iloc[_offset:],
-                                    mode='lines', line=dict(color='#A34800', width=1.3, dash='dot'),
+                                    mode='lines', line=dict(color='#C93400', width=1.3, dash='dot'),
                                     name='VWAP', hovertemplate='VWAP %{y:.2f}<extra></extra>'))
                             elif _ov_k == 'PSAR':
                                 _psar_ov = _ta_ov.psar(_h_full, _l_full, _c_full)
@@ -3899,10 +3872,10 @@ def render_auto_scanner_page() -> None:
                                 _bb_ov = _ta_ov.bbands(_c_full, 20)
                                 if _bb_ov is not None and _bb_ov.shape[1] >= 3:
                                     fig.add_trace(go.Scatter(x=_xd, y=_bb_ov.iloc[_offset:, 2],
-                                        mode='lines', line=dict(color='#8E3FBA', width=1, dash='dot'),
+                                        mode='lines', line=dict(color='#8944AB', width=1, dash='dot'),
                                         name='BB Upper', hovertemplate='BB Up %{y:.2f}<extra></extra>'))
                                     fig.add_trace(go.Scatter(x=_xd, y=_bb_ov.iloc[_offset:, 0],
-                                        mode='lines', line=dict(color='#8E3FBA', width=1, dash='dot'),
+                                        mode='lines', line=dict(color='#8944AB', width=1, dash='dot'),
                                         name='BB Lower', fill='tonexty',
                                         fillcolor='rgba(175,82,222,0.05)',
                                         hovertemplate='BB Low %{y:.2f}<extra></extra>'))
@@ -3929,7 +3902,7 @@ def render_auto_scanner_page() -> None:
                     _win_x, _win_y, _win_t    = [], [], []
                     _loss_x, _loss_y, _loss_t = [], [], []
                     _REASON = {'target': 'Hit target', 'stop': 'Hit stop', 'time': 'Time limit'}
-                    _msize  = 10 if _PHONE else 15
+                    _msize  = 10 if _PHONE else 13
 
                     for _fi in sorted(_fire_idxs):
                         _ci = _fi - _offset
@@ -3956,16 +3929,16 @@ def render_auto_scanner_page() -> None:
                         fig.add_trace(go.Scatter(
                             x=_win_x, y=_win_y, mode='markers', text=_win_t,
                             marker=dict(symbol='triangle-up', size=_msize,
-                                        color='#1FA855', opacity=1.0,
-                                        line=dict(width=1.5, color='#1FA855')),
+                                        color='#34C759', opacity=1.0,
+                                        line=dict(width=1, color='#FFFFFF')),
                             hovertemplate='%{text}<extra></extra>', name='Win',
                             showlegend=False))
                     if _loss_x:
                         fig.add_trace(go.Scatter(
                             x=_loss_x, y=_loss_y, mode='markers', text=_loss_t,
                             marker=dict(symbol='triangle-up', size=_msize,
-                                        color='#E0282E', opacity=1.0,
-                                        line=dict(width=1.5, color='#E0282E')),
+                                        color='#FF3B30', opacity=1.0,
+                                        line=dict(width=1, color='#FFFFFF')),
                             hovertemplate='%{text}<extra></extra>', name='Loss',
                             showlegend=False))
 
@@ -3980,10 +3953,10 @@ def render_auto_scanner_page() -> None:
                             x=[_sx], y=[_slo * 0.988],
                             mode='markers+text',
                             marker=dict(symbol='triangle-up', size=_msize + 1,
-                                        color='#A34800', opacity=1.0,
-                                        line=dict(width=1, color='#A34800')),
+                                        color='#FF9500', opacity=1.0,
+                                        line=dict(width=1, color='#FFFFFF')),
                             text=['SIGNAL'], textposition='bottom center',
-                            textfont=dict(size=8, color='#A34800'),
+                            textfont=dict(size=8, color='#C93400'),
                             hovertemplate=f'SIGNAL — {_eng_date}<extra></extra>', name='',
                             showlegend=False))
 
@@ -3992,20 +3965,20 @@ def render_auto_scanner_page() -> None:
                         text=f'<b>{_today_s}</b>',
                         showarrow=True, arrowhead=0, arrowcolor='#D2D2D7',
                         arrowwidth=1, ax=0, ay=-22,
-                        font=dict(size=9, color='#A34800' if _cur_firing else '#5C5C63'),
+                        font=dict(size=9, color='#C93400' if _cur_firing else '#636366'),
                         bgcolor='rgba(255,255,255,0.85)', borderpad=3)
 
                     # levels
                     if _ladder:
                         for _lval, _lc, _ln, _ld in [
-                            (_en,   '#0063D1', 'Entry', 'dash'),
+                            (_en,   '#0071E3', 'Entry', 'dash'),
                             (_t1,   '#1B7A36', 'T1',    'dot'),
-                            (_t2,   '#15704A', 'T2',    'dot'),
-                            (_sl_p, '#C1121F', 'Stop',  'dashdot')]:
+                            (_t2,   '#1B7A36', 'T2',    'dot'),
+                            (_sl_p, '#D70015', 'Stop',  'dash')]:
                             fig.add_hline(
                                 row=1, col=1,
                                 y=_lval, line_color=_lc, line_dash=_ld,
-                                line_width=1.4, opacity=0.9,
+                                line_width=1, opacity=0.75,
                                 annotation_text=f'<b>{_ln}</b> {_lval:{_pf}}',
                                 annotation_font_color=_lc,
                                 annotation_font_size=8 if _PHONE else 9,
@@ -4027,13 +4000,13 @@ def render_auto_scanner_page() -> None:
                                 _ti = _IND_TYPE_OF.get(_k)
                                 _proof_rows.append((_ind_label([_k]),
                                                     _states_all[_k][_offset:].astype(int),
-                                                    _IND_TYPES[_ti][1] if _ti is not None else '#3F3F46'))
+                                                    _IND_TYPES[_ti][1] if _ti is not None else '#86868B'))
                         if _inds and all(k in _states_all for k in _inds):
-                            _proof_rows.append(('All agree', _combo_arr[_offset:].astype(int), '#111114'))
+                            _proof_rows.append(('All agree', _combo_arr[_offset:].astype(int), '#3A3A3C'))
                         if _reg_arr_chart is not None:
                             _proof_rows.append((f'{_best_rname.title()} regime',
                                                 (_np.asarray(_reg_arr_chart[_offset:]) == _best_rname).astype(int),
-                                                '#8A8A91'))
+                                                '#AEAEB2'))
                         # Drawn as a grey track + coloured squares on the
                         # "true" days (a Heatmap on this category axis
                         # crashes plotly.js in a subplot layout).
@@ -4041,13 +4014,13 @@ def render_auto_scanner_page() -> None:
                         for _lb, _z, _cl in _proof_rows:
                             fig.add_trace(go.Scatter(
                                 x=_xl, y=[_lb] * len(_xl), mode='lines',
-                                line=dict(color='#EDEDF1', width=6 if _PHONE else 10),
+                                line=dict(color='#F2F2F4', width=5 if _PHONE else 7),
                                 hoverinfo='skip', showlegend=False), row=2, col=1)
                             _on = [_xl[_q] for _q in range(len(_xl)) if _z[_q]]
                             if _on:
                                 fig.add_trace(go.Scatter(
                                     x=_on, y=[_lb] * len(_on), mode='markers',
-                                    marker=dict(symbol='square', size=5 if _PHONE else 9, color=_cl,
+                                    marker=dict(symbol='square', size=4 if _PHONE else 7, color=_cl,
                                                 line=dict(width=0)),
                                     hovertemplate=f'{_lb}: <b>true</b><br>%{{x|%d %b %Y}}<extra></extra>',
                                     showlegend=False), row=2, col=1)
@@ -4055,14 +4028,14 @@ def render_auto_scanner_page() -> None:
                         if _win_x:
                             fig.add_trace(go.Scatter(
                                 x=_win_x, y=['All agree'] * len(_win_x), mode='markers',
-                                marker=dict(symbol='triangle-up', size=8 if _PHONE else 11, color='#1FA855',
+                                marker=dict(symbol='triangle-up', size=8 if _PHONE else 10, color='#34C759',
                                             line=dict(width=1, color='#FFFFFF')),
                                 hovertemplate='Signal → win<extra></extra>', showlegend=False),
                                 row=2, col=1)
                         if _loss_x:
                             fig.add_trace(go.Scatter(
                                 x=_loss_x, y=['All agree'] * len(_loss_x), mode='markers',
-                                marker=dict(symbol='triangle-up', size=8 if _PHONE else 11, color='#E0282E',
+                                marker=dict(symbol='triangle-up', size=8 if _PHONE else 10, color='#FF3B30',
                                             line=dict(width=1, color='#FFFFFF')),
                                 hovertemplate='Signal → loss<extra></extra>', showlegend=False),
                                 row=2, col=1)
@@ -4071,10 +4044,10 @@ def render_auto_scanner_page() -> None:
 
                     fig.update_layout(
                         xaxis2=dict(type='date', tickformat='%d %b', showgrid=False,
-                                    tickfont=dict(size=10, color='#3F3F46'), nticks=5 if _PHONE else 10),
+                                    tickfont=dict(size=10, color='#636366'), nticks=5 if _PHONE else 10),
                         yaxis2=dict(type='category', autorange='reversed', showgrid=False,
                                     side='left', automargin=True, ticksuffix='  ',
-                                    tickfont=dict(size=9 if _PHONE else 11, color='#111114')),
+                                    tickfont=dict(size=9 if _PHONE else 11, color='#424245')),
                     )
                     fig.update_layout(
                         paper_bgcolor='#FFFFFF', plot_bgcolor='#FFFFFF',
@@ -4083,19 +4056,19 @@ def render_auto_scanner_page() -> None:
                         height=(280 + 22 * len(_proof_rows) if _PHONE
                                 else 440 + 30 * len(_proof_rows)),
                         dragmode=False if _PHONE else 'zoom',
-                        font=dict(family='sans-serif'),
-                        xaxis=dict(showgrid=True, gridcolor='#DEDEE3', zeroline=False,
+                        font=dict(family=_CHART_FONT),
+                        xaxis=dict(showgrid=False, zeroline=False,
                                    rangeslider=dict(visible=False),
                                    type='date', tickformat='%d %b',
-                                   tickfont=dict(size=10, color='#5C5C63'), nticks=5 if _PHONE else 10),
-                        yaxis=dict(showgrid=True, gridcolor='#DEDEE3', zeroline=False,
-                                   tickfont=dict(size=9 if _PHONE else 10, color='#5C5C63'), side='right'),
+                                   tickfont=dict(size=10, color='#636366'), nticks=5 if _PHONE else 10),
+                        yaxis=dict(showgrid=True, gridcolor='#F2F2F4', zeroline=False,
+                                   tickfont=dict(size=9 if _PHONE else 10, color='#636366'), side='right'),
                         legend=dict(orientation='h', yanchor='bottom', y=1.01,
-                                    xanchor='left', x=0, font=dict(size=9, color='#3F3F46'),
+                                    xanchor='left', x=0, font=dict(size=9, color='#424245'),
                                     bgcolor='rgba(255,255,255,0)'),
                         showlegend=False,
-                        hoverlabel=dict(bgcolor='#F2F2F5', bordercolor='#DEDEE3',
-                                         font=dict(size=11, color='#111114', family='monospace')))
+                        hoverlabel=dict(bgcolor='#FFFFFF', bordercolor='#E8E8ED',
+                                         font=dict(size=12, color='#1D1D1F', family=_CHART_FONT)))
                     fig.update_xaxes(showspikes=True, spikecolor='#D2D2D7', spikethickness=1,
                                       spikemode='across', spikedash='dot')
                     fig.update_yaxes(showspikes=True, spikecolor='#D2D2D7', spikethickness=1,

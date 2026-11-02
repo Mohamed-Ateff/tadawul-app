@@ -25,7 +25,7 @@ BDR  = HAIR
 
 # shared inline-style fragments
 _LBL = f"font-size:0.8rem;font-weight:600;color:{T3};"
-_NUM = "letter-spacing:-0.02em;font-variant-numeric:tabular-nums;"
+_NUM = "letter-spacing:-0.02em;"
 
 
 def _wr_tone(wr):
@@ -85,7 +85,7 @@ def signal_analysis_tab(df, info_icon):
         }}
         .sa-kpi-card {{
             background: {CARD};
-            border: 1px solid {HAIR};
+            border: none;
             border-radius: 16px;
             box-shadow: {SHADOW};
             padding: 1.1rem 1.25rem;
@@ -98,10 +98,10 @@ def signal_analysis_tab(df, info_icon):
         }}
         .sa-kpi-value {{
             font-size: 1.75rem;
-            font-weight: 700;
+            font-weight: 600;
             line-height: 1.1;
             letter-spacing: -0.02em;
-            font-variant-numeric: tabular-nums;
+            
         }}
         .sa-kpi-sub {{
             font-size: 0.8rem;
@@ -139,7 +139,7 @@ def signal_analysis_tab(df, info_icon):
 
     st.markdown(
         f"<div class='ap-section' style='margin-top:0.4rem;'><div>"
-        f"<div class='ap-section-title' style='font-size:1.25rem;font-weight:700;color:{T1};'>Signal analysis</div>"
+        f"<div class='ap-section-title' style='font-size:1.25rem;font-weight:600;color:{T1};'>Signal analysis</div>"
         f"<div class='ap-section-sub' style='font-size:0.88rem;color:{T3};'>"
         f"How every indicator's buy signals played out, with your risk/reward and holding period.</div>"
         f"</div></div>",
@@ -507,10 +507,10 @@ def signal_analysis_tab(df, info_icon):
                 ) if _tip else ""
                 _disp = label[:1] + label[1:].lower()
                 return (
-                    f"<div style='background:{INSET};border:1px solid {HAIR};"
+                    f"<div style='background:{INSET};border:none;"
                     f"border-radius:12px;padding:0.9rem 0.8rem;text-align:center;'>"
                     f"<div style='{_LBL}margin-bottom:0.4rem;'>{_disp}{_tip_html}</div>"
-                    f"<div style='font-size:1.3rem;font-weight:700;color:{color};line-height:1.1;{_NUM}'>{value}</div>"
+                    f"<div style='font-size:1.3rem;font-weight:600;color:{color};line-height:1.1;{_NUM}'>{value}</div>"
                     f"{_sh}</div>"
                 )
 
@@ -544,12 +544,12 @@ def signal_analysis_tab(df, info_icon):
                     return (
                         f"<div style='text-align:center;padding:0.15rem 0.4rem;{_bl}'>"
                         f"<div style='{_LBL}margin-bottom:0.3rem;'>{lbl}</div>"
-                        f"<div style='font-size:1.2rem;font-weight:700;color:{col};line-height:1.1;{_NUM}'>{val}</div>"
+                        f"<div style='font-size:1.2rem;font-weight:600;color:{col};line-height:1.1;{_NUM}'>{val}</div>"
                         f"<div style='font-size:0.78rem;color:{T3};margin-top:0.25rem;'>{sub}</div></div>"
                     )
 
                 _train_test_html = (
-                    f"<div style='background:{INSET};border:1px solid {HAIR};border-radius:12px;"
+                    f"<div style='background:{INSET};border:none;border-radius:12px;"
                     f"padding:0.85rem 1rem;margin-bottom:0.9rem;'>"
                     f"<div style='display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;'>"
                     + _tt_cell("Train WR", _trw_str, _trw_c, "first 70% bars", first=True)
@@ -560,25 +560,25 @@ def signal_analysis_tab(df, info_icon):
                 )
 
                 st.markdown((
-                    f"<div style='background:{CARD};border:1px solid {HAIR};box-shadow:{SHADOW};"
+                    f"<div style='background:{CARD};border:none;box-shadow:{SHADOW};"
                     f"border-radius:18px;overflow:hidden;margin-bottom:1.1rem;'>"
                     f"<div style='padding:1.4rem 1.5rem;'>"
                     f"<div style='display:flex;align-items:center;gap:1.1rem;margin-bottom:1.1rem;flex-wrap:wrap;'>"
                     f"<div style='width:2.75rem;height:2.75rem;border-radius:50%;"
                     f"background:{FILL};border:1px solid {HAIR};"
                     f"display:flex;align-items:center;justify-content:center;flex-shrink:0;'>"
-                    f"<span style='font-size:1rem;font-weight:700;color:{T1};{_NUM}'>#{idx+1}</span></div>"
+                    f"<span style='font-size:1rem;font-weight:600;color:{T1};{_NUM}'>#{idx+1}</span></div>"
                     f"<div style='flex:1;min-width:220px;'>"
-                    f"<div style='font-size:1.2rem;font-weight:700;color:{T1};letter-spacing:-0.01em;'>{ind['name']}</div>"
+                    f"<div style='font-size:1.2rem;font-weight:600;color:{T1};letter-spacing:-0.01em;'>{ind['name']}</div>"
                     f"<div style='display:flex;align-items:center;gap:0.45rem;margin-top:0.4rem;flex-wrap:wrap;'>"
-                    + _pill(ind['category'], BLUE, "rgba(0,99,209,0.09)")
+                    + _pill(ind['category'], BLUE, "rgba(0,113,227,0.09)")
                     + _pill(logic, T2, GREY_BG)
                     + f"<span style='font-size:0.82rem;color:{T3};font-weight:500;'>{ind['role']}</span>"
                     f"<span style='font-size:0.78rem;color:{T3};border:1px solid {HAIR};border-radius:6px;"
                     f"padding:0.08rem 0.45rem;font-weight:500;background:{CARD};'>params: {ind['params']}</span>"
                     f"</div></div>"
                     f"<div style='text-align:right;flex-shrink:0;'>"
-                    f"<div style='font-size:2.5rem;font-weight:700;color:{_wp_c};line-height:1;{_NUM}'>{win_pct:.0f}%</div>"
+                    f"<div style='font-size:2.5rem;font-weight:600;color:{_wp_c};line-height:1;{_NUM}'>{win_pct:.0f}%</div>"
                     f"<div style='{_LBL}margin-top:0.3rem;'>Win rate</div>"
                     f"</div></div>"
                     f"<div style='margin-bottom:1rem;'>"
@@ -617,10 +617,10 @@ def signal_analysis_tab(df, info_icon):
 
         def _wr_color(wr):
             # (background tint, text colour) on the light design
-            if wr >= 65: return ("rgba(27,122,54,0.12)", GREEN)
-            if wr >= 55: return ("rgba(27,122,54,0.08)", GREEN)
-            if wr >= 45: return ("rgba(0,99,209,0.09)", BLUE)
-            if wr >= 35: return ("rgba(193,18,31,0.08)", RED)
+            if wr >= 65: return ("rgba(52,199,89,0.12)", GREEN)
+            if wr >= 55: return ("rgba(52,199,89,0.08)", GREEN)
+            if wr >= 45: return ("rgba(0,113,227,0.09)", BLUE)
+            if wr >= 35: return ("rgba(255,59,48,0.08)", RED)
             return (GREY_BG, T3)
 
         _regime_meta = {
@@ -764,10 +764,10 @@ def signal_analysis_tab(df, info_icon):
                     if sub else ""
                 )
                 return (
-                    f"<div style='background:{panel_alt};border:1px solid {border};"
+                    f"<div style='background:{panel_alt};border:none;"
                     f"border-radius:12px;padding:0.85rem 0.8rem;text-align:center;'>"
                     f"<div style='{_LBL}margin-bottom:0.4rem;'>{label}{_tip_html}</div>"
-                    f"<div style='font-size:1.25rem;font-weight:700;color:{color};line-height:1.1;{_NUM}'>{value}</div>"
+                    f"<div style='font-size:1.25rem;font-weight:600;color:{color};line-height:1.1;{_NUM}'>{value}</div>"
                     f"{_sub_html}</div>"
                 )
 
@@ -791,10 +791,10 @@ def signal_analysis_tab(df, info_icon):
                 _card_rad = "16px" if hero else "14px"
                 _accent_bg = _meta.get("bg", GREY_BG)
                 _sample_bg = (
-                    "rgba(27,122,54,0.10)" if _sample_color == BULL else
-                    "rgba(193,18,31,0.08)" if _sample_color == BEAR else
-                    "rgba(161,92,0,0.10)" if _sample_color == NEUT else
-                    "rgba(0,99,209,0.09)"
+                    "rgba(52,199,89,0.10)" if _sample_color == BULL else
+                    "rgba(255,59,48,0.08)" if _sample_color == BEAR else
+                    "rgba(255,149,0,0.10)" if _sample_color == NEUT else
+                    "rgba(0,113,227,0.09)"
                 )
                 _title_pill = (
                     _pill(_title, _accent, _accent_bg) if hero else
@@ -802,7 +802,7 @@ def signal_analysis_tab(df, info_icon):
                 )
                 st.markdown(
                     (
-                        f"<div style='background:{panel};border:1px solid {border};border-radius:{'18px' if hero else '16px'};"
+                        f"<div style='background:{panel};border:none;border-radius:{'18px' if hero else '16px'};"
                         f"box-shadow:{SHADOW};overflow:hidden;margin-bottom:0.6rem;'>"
                         f"<div style='padding:{'1.4rem 1.5rem' if hero else '1.15rem 1.3rem'};'>"
                         f"<div style='display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap;margin-bottom:1rem;'>"
@@ -813,14 +813,14 @@ def signal_analysis_tab(df, info_icon):
                         + _pill(f"{row['size']}-way", T2, GREY_BG)
                         + _pill(f"Best in {_label}", _accent, _accent_bg)
                         + f"</div>"
-                        f"<div style='font-size:{'1.25rem' if hero else '1.08rem'};font-weight:700;color:{text_col};"
+                        f"<div style='font-size:{'1.25rem' if hero else '1.08rem'};font-weight:600;color:{text_col};"
                         f"letter-spacing:-0.01em;line-height:1.35;'>"
                         f"{row['label']}</div>"
                         f"</div>"
                         f"<div style='text-align:right;min-width:150px;'>"
                         f"<div style='{_LBL}'>"
                         f"Overall win{_tip_icon('Win rate across the full test period.')}</div>"
-                        f"<div style='font-size:{'2.7rem' if hero else '2.1rem'};font-weight:700;color:{_wr_col};line-height:1.05;"
+                        f"<div style='font-size:{'2.7rem' if hero else '2.1rem'};font-weight:600;color:{_wr_col};line-height:1.05;"
                         f"margin-top:0.2rem;{_NUM}'>{row['win_rate']:.1f}%</div>"
                         f"<div style='font-size:0.82rem;color:{muted};margin-top:0.3rem;font-weight:500;'>"
                         f"{row['wins']} winners · {row['losses']} losers</div>"
@@ -877,7 +877,7 @@ def signal_analysis_tab(df, info_icon):
                     f"<div style='display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;"
                     f"margin:0.4rem 0 0.9rem 0;flex-wrap:wrap;'>"
                     f"<div>"
-                    f"<div style='font-size:1.25rem;color:{T1};font-weight:700;letter-spacing:-0.015em;'>"
+                    f"<div style='font-size:1.25rem;color:{T1};font-weight:600;letter-spacing:-0.015em;'>"
                     f"{_section_name} champions</div>"
                     f"<div style='font-size:0.88rem;color:{T3};margin-top:0.2rem;'>"
                     f"Best 10 setups in {_section_name.lower()} conditions</div>"
@@ -889,7 +889,7 @@ def signal_analysis_tab(df, info_icon):
 
                 if not _regime_combos:
                     st.markdown(
-                        f"<div style='background:{panel};border:1px solid {border};border-radius:16px;"
+                        f"<div style='background:{panel};border:none;border-radius:16px;"
                         f"box-shadow:{SHADOW};padding:1.1rem 1.25rem;color:{T2};font-size:0.9rem;'>"
                         f"No {_section_name.lower()} combinations found.</div>",
                         unsafe_allow_html=True,
@@ -904,7 +904,7 @@ def signal_analysis_tab(df, info_icon):
                 if len(_regime_combos) > 1:
                     st.markdown(
                         f"<div style='display:flex;align-items:baseline;gap:0.6rem;margin:1.6rem 0 0.8rem 0;flex-wrap:wrap;'>"
-                        f"<span style='font-size:1.1rem;font-weight:700;color:{T1};letter-spacing:-0.01em;'>"
+                        f"<span style='font-size:1.1rem;font-weight:600;color:{T1};letter-spacing:-0.01em;'>"
                         f"More {_section_name.lower()} setups</span>"
                         f"<span style='font-size:0.85rem;color:{T3};'>Top {len(_regime_combos)} only</span>"
                         f"</div>",

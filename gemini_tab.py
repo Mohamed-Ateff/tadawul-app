@@ -27,17 +27,17 @@ BG    = CARD
 BG2   = INSET
 BDR   = HAIR
 
-_NUM = "letter-spacing:-0.02em;font-variant-numeric:tabular-nums;"
-_CARD_CSS = (f"background:{CARD};border:1px solid {HAIR};border-radius:18px;"
+_NUM = "letter-spacing:-0.02em;"
+_CARD_CSS = (f"background:{CARD};border:none;border-radius:18px;"
              f"box-shadow:{SHADOW};")
-_TILE_CSS = f"background:{INSET};border:1px solid {HAIR};border-radius:14px;"
+_TILE_CSS = f"background:{INSET};border:none;border-radius:14px;"
 
 
 def _tint(color, alpha=0.10):
     """Soft background tint of a '#RRGGBB' colour."""
     if isinstance(color, str) and color.startswith('#') and len(color) == 7:
         return rgba(color, alpha)
-    return "rgba(17,17,20,0.05)"
+    return "rgba(0,0,0,0.05)"
 
 
 def _kv(label, val, color=INFO, sub="", big=False):
@@ -45,7 +45,7 @@ def _kv(label, val, color=INFO, sub="", big=False):
     return (
         f"<div style='{_TILE_CSS}padding:1rem 1.05rem;text-align:center;'>"
         f"<div style='font-size:0.8rem;color:{T3};font-weight:600;margin-bottom:0.3rem;'>{label}</div>"
-        f"<div style='font-size:{vsize};font-weight:700;color:{color};line-height:1.15;{_NUM}'>{val}</div>"
+        f"<div style='font-size:{vsize};font-weight:600;color:{color};line-height:1.15;{_NUM}'>{val}</div>"
         + (f"<div style='font-size:0.8rem;color:{T3};margin-top:0.22rem;'>{sub}</div>" if sub else "")
         + "</div>"
     )
@@ -143,9 +143,9 @@ def _compute_ai_score(latest, df, current_price):
     else:                   rs = 15
     scores["RSI (14)"] = rs
     if rsi > 70:
-        signals.append(("⚠", f"RSI overbought at {rsi:.1f}", "Mean-reversion risk elevated", BEAR))
+        signals.append(("▼", f"RSI overbought at {rsi:.1f}", "Mean-reversion risk elevated", BEAR))
     elif rsi < 30:
-        signals.append(("⚡", f"RSI oversold at {rsi:.1f}", "Bounce / mean-reversion potential", BULL))
+        signals.append(("▲", f"RSI oversold at {rsi:.1f}", "Bounce / mean-reversion potential", BULL))
     elif rsi > 55:
         signals.append(("▲", f"RSI in bullish momentum zone ({rsi:.1f})", "Healthy uptrend reading", BULL))
 
@@ -178,9 +178,9 @@ def _compute_ai_score(latest, df, current_price):
     else:                               bs = 50
     scores["Bollinger"] = bs
     if bb_pos <= 15:
-        signals.append(("⚡", "Price at lower Bollinger Band", "Potential oversold bounce zone", BULL))
+        signals.append(("▲", "Price at lower Bollinger Band", "Potential oversold bounce zone", BULL))
     elif bb_pos >= 85:
-        signals.append(("⚠", "Price at upper Bollinger Band", "Potential overbought zone", BEAR))
+        signals.append(("▼", "Price at upper Bollinger Band", "Potential overbought zone", BEAR))
 
     # 5. ADX (trend strength)
     adx = _g("ADX_14", "ADX", 20)
@@ -208,9 +208,9 @@ def _compute_ai_score(latest, df, current_price):
     else:                               sts = 50
     scores["Stochastic"] = sts
     if stk < 20:
-        signals.append(("⚡", f"Stochastic oversold ({stk:.1f})", "Potential reversal zone", BULL))
+        signals.append(("▲", f"Stochastic oversold ({stk:.1f})", "Potential reversal zone", BULL))
     elif stk > 80:
-        signals.append(("⚠", f"Stochastic overbought ({stk:.1f})", "Potential pullback zone", BEAR))
+        signals.append(("▼", f"Stochastic overbought ({stk:.1f})", "Potential pullback zone", BEAR))
 
     # 7. Volume trend
     if "Volume" in df.columns and len(df) >= 20:
@@ -1480,7 +1480,7 @@ def gemini_tab(df, symbol_input, stock_name, latest,
         return (
             f"<div style='{_TILE_CSS}text-align:center;padding:0.7rem 0.6rem;'>"
             f"<div style='font-size:0.78rem;color:{T3};font-weight:600;margin-bottom:0.2rem;'>{lbl}</div>"
-            f"<div style='font-size:0.95rem;font-weight:700;color:{col};{_NUM}'>{val}</div>"
+            f"<div style='font-size:0.95rem;font-weight:600;color:{col};{_NUM}'>{val}</div>"
             f"</div>"
         )
 
@@ -1495,7 +1495,7 @@ def gemini_tab(df, symbol_input, stock_name, latest,
             f"<div style='{_TILE_CSS}padding:1rem 1.05rem;min-width:0;'>"
             f"<div style='font-size:0.8rem;color:{T3};font-weight:600;margin-bottom:0.3rem;'>{lbl}</div>"
             f"<div style='font-size:{'1.8rem' if len(str(big_val)) <= 9 else '1.05rem'};"
-            f"font-weight:700;color:{t_col};line-height:1.25;"
+            f"font-weight:600;color:{t_col};line-height:1.25;"
             f"overflow-wrap:anywhere;{_NUM}'>{big_val}</div>"
             f"{bar_html}"
             f"<div style='font-size:0.8rem;color:{T3};margin-top:0.25rem;'>{sub}</div>"
@@ -1519,21 +1519,21 @@ def gemini_tab(df, symbol_input, stock_name, latest,
         f"<span style='font-size:0.76rem;font-weight:600;padding:0.2rem 0.65rem;border-radius:980px;"
         f"background:{_tint(hero_col)};color:{hero_col};'>{hero_txt.capitalize()}</span>"
         f"</div>"
-        f"<div style='font-size:2.4rem;font-weight:700;color:{hero_col};"
+        f"<div style='font-size:2.4rem;font-weight:600;color:{hero_col};"
         f"line-height:1;letter-spacing:-0.03em;'>{hero_dir}</div>"
         f"<div style='font-size:0.9rem;color:{T2};margin-top:0.45rem;'>{hero_sub}</div>"
         f"</div>"
         f"<div style='display:flex;gap:2.5rem;text-align:right;flex-shrink:0;'>"
         f"<div>"
         f"<div style='font-size:0.8rem;color:{T3};font-weight:600;margin-bottom:0.25rem;'>AI score</div>"
-        f"<div style='font-size:2.6rem;font-weight:700;color:{score_col};line-height:1;{_NUM}'>"
+        f"<div style='font-size:2.6rem;font-weight:600;color:{score_col};line-height:1;{_NUM}'>"
         f"{score}<span style='font-size:0.95rem;color:{T3};font-weight:600;'>/100</span></div>"
         f"<div style='font-size:0.8rem;color:{T3};margin-top:0.25rem;'>"
         f"{len(bull_inds)}&#9650; &middot; {len(bear_inds)}&#9660; &middot; {len(neut_inds)} neutral</div>"
         f"</div>"
         f"<div>"
         f"<div style='font-size:0.8rem;color:{T3};font-weight:600;margin-bottom:0.25rem;'>Signal edge</div>"
-        f"<div style='font-size:2.6rem;font-weight:700;color:{hero_col};line-height:1;letter-spacing:-0.02em;'>"
+        f"<div style='font-size:2.6rem;font-weight:600;color:{hero_col};line-height:1;letter-spacing:-0.02em;'>"
         f"{'HIGH' if bp >= rp + 5 else ('MOD' if bp >= rp + 2 else ('LOW' if bp >= rp else 'NONE'))}"
         f"</div>"
         f"<div style='font-size:0.8rem;color:{T3};margin-top:0.25rem;'>{bp} bull &middot; {rp} bear pts</div>"
@@ -1601,7 +1601,7 @@ def gemini_tab(df, symbol_input, stock_name, latest,
                 f"<div style='{_CARD_CSS}padding:1.1rem 1.3rem;'>"
                 f"<div style='display:flex;align-items:center;justify-content:space-between;"
                 f"gap:0.5rem;margin-bottom:0.4rem;'>"
-                f"<span style='font-size:1rem;color:{T1};font-weight:700;'>Bullish evidence</span>"
+                f"<span style='font-size:1rem;color:{T1};font-weight:600;'>Bullish evidence</span>"
                 + _badge(f"▲ {bp} pts", BULL) +
                 f"</div>"
             )
@@ -1619,7 +1619,7 @@ def gemini_tab(df, symbol_input, stock_name, latest,
                 f"<div style='{_CARD_CSS}padding:1.1rem 1.3rem;'>"
                 f"<div style='display:flex;align-items:center;justify-content:space-between;"
                 f"gap:0.5rem;margin-bottom:0.4rem;'>"
-                f"<span style='font-size:1rem;color:{T1};font-weight:700;'>Bearish evidence</span>"
+                f"<span style='font-size:1rem;color:{T1};font-weight:600;'>Bearish evidence</span>"
                 + _badge(f"▼ {rp} pts", BEAR) +
                 f"</div>"
             )
@@ -1648,7 +1648,7 @@ def gemini_tab(df, symbol_input, stock_name, latest,
             f"<div style='display:flex;justify-content:space-between;align-items:center;"
             f"margin-bottom:0.45rem;'>"
             f"<span style='font-size:0.88rem;color:{T1};font-weight:600;'>{_fk}</span>"
-            f"<span style='font-size:0.95rem;color:{_fc};font-weight:700;{_NUM}'>{_fv}</span>"
+            f"<span style='font-size:0.95rem;color:{_fc};font-weight:600;{_NUM}'>{_fv}</span>"
             f"</div>"
             + _glowbar(_fv, _fc, "6px")
             + f"<div style='font-size:0.78rem;color:{_fc};font-weight:600;margin-top:0.4rem;'>{_flabel}</div>"
@@ -1675,7 +1675,7 @@ def gemini_tab(df, symbol_input, stock_name, latest,
                         f"<div style='{_CARD_CSS}padding:1.15rem 1.25rem;text-align:center;'>"
                         f"<div style='font-size:0.88rem;color:{T3};font-weight:600;"
                         f"margin-bottom:0.45rem;'>{_hor_lbl} forecast</div>"
-                        f"<div style='font-size:2.2rem;font-weight:700;color:{_mc};line-height:1;{_NUM}'>"
+                        f"<div style='font-size:2.2rem;font-weight:600;color:{_mc};line-height:1;{_NUM}'>"
                         f"{_mu:.0f}%</div>"
                         f"<div style='font-size:0.85rem;color:{T2};margin:0.4rem 0 0.6rem;'>"
                         f"Direction: <b style='color:{_mc};font-weight:600;'>{_md}</b></div>"
@@ -1683,7 +1683,7 @@ def gemini_tab(df, symbol_input, stock_name, latest,
                         + f"<div style='margin-top:0.8rem;padding-top:0.7rem;"
                         f"border-top:1px solid {HAIR};'>"
                         f"<div style='font-size:0.82rem;color:{T3};'>CV accuracy: "
-                        f"<span style='color:{T1};font-weight:700;'>{_ma:.1f}%</span> "
+                        f"<span style='color:{T1};font-weight:600;'>{_ma:.1f}%</span> "
                         f"· {_ml_data['test_size']} bars</div>"
                     )
                     if _ml_data.get('model_accs'):
@@ -1692,7 +1692,7 @@ def gemini_tab(df, symbol_input, stock_name, latest,
                         for _mn, _mv in _ml_data['model_accs'].items():
                             _ml_card += (
                                 f"<span style='font-size:0.76rem;color:{T2};font-weight:600;"
-                                f"background:{INSET};border:1px solid {HAIR};border-radius:980px;"
+                                f"background:{INSET};border:none;border-radius:980px;"
                                 f"padding:0.12rem 0.55rem;'>{_mn} {_mv:.0f}%</span>"
                             )
                         _ml_card += "</div>"
@@ -1724,7 +1724,7 @@ def gemini_tab(df, symbol_input, stock_name, latest,
                 _pt_html += (
                     f"<div style='{_TILE_CSS}text-align:center;padding:0.9rem 0.6rem;'>"
                     f"<div style='font-size:0.8rem;color:{T3};font-weight:600;margin-bottom:0.3rem;'>{_pl}</div>"
-                    f"<div style='font-size:1.4rem;font-weight:700;color:{_pcol};{_NUM}'>"
+                    f"<div style='font-size:1.4rem;font-weight:600;color:{_pcol};{_NUM}'>"
                     f"{_pv:.2f}</div>"
                     f"<div style='font-size:0.82rem;font-weight:600;color:{_pcol};margin-top:0.15rem;'>"
                     f"{_pchg:+.1f}%</div></div>"
@@ -1758,7 +1758,7 @@ def gemini_tab(df, symbol_input, stock_name, latest,
             return (
                 f"<div style='{_TILE_CSS}text-align:center;padding:0.6rem 0.4rem;'>"
                 f"<div style='font-size:0.78rem;color:{T3};font-weight:600;'>{lbl}</div>"
-                f"<div style='font-size:1rem;font-weight:700;color:{col};{_NUM}'>{val}</div></div>"
+                f"<div style='font-size:1rem;font-weight:600;color:{col};{_NUM}'>{val}</div></div>"
             )
 
         for _i, (_ana_d, _hor_lbl) in enumerate([(ana5, "5-Day"), (ana10, "10-Day"), (ana20, "20-Day")]):
@@ -1771,7 +1771,7 @@ def gemini_tab(df, symbol_input, stock_name, latest,
                         f"<div style='font-size:0.88rem;color:{T3};font-weight:600;margin-bottom:0.45rem;"
                         f"text-align:center;'>{_hor_lbl} analogs</div>"
                         f"<div style='text-align:center;'>"
-                        f"<div style='font-size:2rem;font-weight:700;color:{_ac_col};line-height:1.1;{_NUM}'>"
+                        f"<div style='font-size:2rem;font-weight:600;color:{_ac_col};line-height:1.1;{_NUM}'>"
                         f"{_aw:.0f}%</div>"
                         f"<div style='font-size:0.82rem;color:{T3};margin:0.2rem 0 0.6rem;'>Win rate</div>"
                         f"</div>"
@@ -1813,7 +1813,7 @@ def gemini_tab(df, symbol_input, stock_name, latest,
                 f"<div style='{_CARD_CSS}padding:1.15rem 1.25rem;'>"
                 f"<div style='text-align:center;margin-bottom:0.8rem;'>"
                 f"<div style='font-size:0.88rem;color:{T3};font-weight:600;margin-bottom:0.3rem;'>Prob. up</div>"
-                f"<div style='font-size:2.2rem;font-weight:700;color:{_mc_prob_col};line-height:1.1;{_NUM}'>"
+                f"<div style='font-size:2.2rem;font-weight:600;color:{_mc_prob_col};line-height:1.1;{_NUM}'>"
                 f"{mc['prob_up']:.0f}%</div>"
                 f"</div>"
                 + _glowbar(mc['prob_up'], _mc_prob_col, "6px")
@@ -1832,7 +1832,7 @@ def gemini_tab(df, symbol_input, stock_name, latest,
                     f"<div style='display:flex;justify-content:space-between;align-items:baseline;"
                     f"padding:0.5rem 0;border-bottom:1px solid {HAIR};'>"
                     f"<span style='font-size:0.85rem;color:{T2};'>{_ml}</span>"
-                    f"<span style='font-size:0.9rem;font-weight:700;color:{_mcc};{_NUM}'>"
+                    f"<span style='font-size:0.9rem;font-weight:600;color:{_mcc};{_NUM}'>"
                     f"{_mv:.2f} <span style='font-size:0.78rem;font-weight:600;'>({_mpchg:+.1f}%)</span></span>"
                     f"</div>"
                 )
@@ -1847,7 +1847,7 @@ def gemini_tab(df, symbol_input, stock_name, latest,
     # ── METHODOLOGY NOTE ──────────────────────────────────────────────────────
     st.markdown(
         f"<div style='margin-top:1.4rem;padding:0.95rem 1.15rem;"
-        f"background:{INSET};border:1px solid {HAIR};border-radius:14px;"
+        f"background:{INSET};border:none;border-radius:14px;"
         f"font-size:0.85rem;color:{T3};line-height:1.6;'>"
         f"<b style='color:{T2};font-weight:600;'>Methodology:</b> "
         f"Trade direction determined by {len(factor_scores)}-factor scoring engine, "

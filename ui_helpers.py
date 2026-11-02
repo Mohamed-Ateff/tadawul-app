@@ -7,18 +7,11 @@ _INSIGHT_CSS = """
 /* Light Apple design: white card, hairline border, dark readable text, blue accent */
 details.insight-toggle {
     background: #FFFFFF;
-    border: 1px solid #DEDEE3;
+    border: none;
     border-radius: 14px;
     margin: 0.5rem 0 1rem 0;
     overflow: hidden;
-    box-shadow: 0 1px 2px rgba(17,17,20,0.05);
-    transition: border-color 0.2s;
-}
-details.insight-toggle:hover {
-    border-color: #C9C9CF;
-}
-details.insight-toggle[open] {
-    border-color: rgba(0,99,209,0.28);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
 }
 details.insight-toggle summary {
     display: flex;
@@ -27,20 +20,20 @@ details.insight-toggle summary {
     padding: 0.8rem 1.1rem;
     cursor: pointer;
     list-style: none;
-    font-size: 0.86rem;
-    font-weight: 600;
-    color: #3F3F46;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #424245;
     user-select: none;
-    transition: background 0.15s, color 0.15s;
+    transition: background-color 0.2s, color 0.2s;
 }
 details.insight-toggle summary:hover {
-    background: #F7F7FA;
-    color: #111114;
+    background: rgba(0,0,0,0.02);
+    color: #1D1D1F;
 }
 details.insight-toggle[open] summary {
-    color: #0063D1;
+    color: #1D1D1F;
     background: #FFFFFF;
-    border-bottom: 1px solid #DEDEE3;
+    border-bottom: 1px solid #E8E8ED;
 }
 details.insight-toggle summary::-webkit-details-marker { display: none; }
 details.insight-toggle summary::marker { display: none; content: ''; font-size: 0; }
@@ -49,28 +42,28 @@ details.insight-toggle summary .itog-icon {
     font-size: 0.95rem;
     line-height: 1;
     flex-shrink: 0;
-    color: #0063D1;
+    color: #0066CC;
 }
 details.insight-toggle[open] summary .itog-icon {
-    color: #0063D1;
+    color: #0066CC;
 }
 
 details.insight-toggle .itog-body {
     padding: 1rem 1.25rem 1.15rem;
-    background: #F7F7FA;
-    color: #3F3F46;
+    background: #FFFFFF;
+    color: #424245;
     font-size: 0.85rem;
     line-height: 1.65;
 }
 details.insight-toggle .itog-body p {
     font-size: 0.85rem;
-    color: #3F3F46;
+    color: #424245;
     line-height: 1.65;
     margin: 0.4rem 0 0 0;
 }
 details.insight-toggle .itog-body strong,
 details.insight-toggle .itog-body b {
-    color: #111114;
+    color: #1D1D1F;
     font-weight: 600;
 }
 details.insight-toggle .itog-body ul {
@@ -79,12 +72,12 @@ details.insight-toggle .itog-body ul {
 }
 details.insight-toggle .itog-body li {
     font-size: 0.85rem;
-    color: #3F3F46;
+    color: #424245;
     line-height: 1.65;
     margin-bottom: 0.3rem;
 }
 details.insight-toggle .itog-body li strong {
-    color: #111114;
+    color: #1D1D1F;
 }
 details.insight-toggle .itog-body .itog-row {
     display: flex;
@@ -92,13 +85,13 @@ details.insight-toggle .itog-body .itog-row {
     gap: 0.6rem;
     margin: 0.5rem 0;
     font-size: 0.85rem;
-    color: #3F3F46;
+    color: #424245;
     line-height: 1.6;
 }
 details.insight-toggle .itog-body .itog-dot {
     width: 6px; height: 6px;
     border-radius: 50%;
-    background: #0063D1;
+    background: #0066CC;
     flex-shrink: 0;
     margin-top: 0.5rem;
 }
@@ -124,7 +117,7 @@ def info_icon(tooltip_text):
 
     """Create a small help icon with tooltip explanation."""
 
-    return f'<span title="{tooltip_text}" style="color: #0063D1; font-weight: bold; cursor: help; margin-left: 0.3rem;">?</span>'
+    return f'<span title="{tooltip_text}" style="color: #0066CC; font-weight: bold; cursor: help; margin-left: 0.3rem;">?</span>'
 
 
 
@@ -228,7 +221,8 @@ def apply_ui_theme():
     # ... and so does the Market Scan Results page (shown before show_results in main()).
     _light_market = bool(st.session_state.get('show_market_results')) and not any(
         st.session_state.get(k) for k in ('show_champions_vault', 'show_trade_journal'))
-    if st.session_state.get('show_champions_vault') or _home or _light_results or _light_market:
+    _light_page = bool(st.session_state.get('show_champions_vault') or _home or _light_results or _light_market)
+    if _light_page:
         _text_rules = ''
         _plotly_rules = ''
     else:
@@ -281,7 +275,10 @@ def apply_ui_theme():
 
     }
 
-
+    # Every page this app can reach is on apple_theme: the dark rules below would only
+    # fight it, and repaint the page dark for a moment on every load.
+    if _light_page:
+        return
 
     st.markdown(f"""
 

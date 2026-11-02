@@ -4,7 +4,7 @@ from ui_helpers import insight_toggle
 from apple_theme import (
     T1, T2, T3, T4, CARD, INSET, FILL, HAIR, SHADOW,
     GREEN, RED, BLUE, AMBER, ORANGE, PURPLE,
-    REGIME_COLORS, REGIME_BG, style_fig,
+    REGIME_COLORS, REGIME_BG, REGIME_FILLS, style_fig,
 )
 
 BULL = GREEN
@@ -20,7 +20,7 @@ BDR  = HAIR
 def _sec(title, sub="", color=INFO):
     return (
         f"<div class='ap-section' style='display:block;margin:2.2rem 0 0.9rem;'>"
-        f"<div class='ap-section-title' style='font-size:1.25rem;font-weight:700;color:{T1};"
+        f"<div class='ap-section-title' style='font-size:1.25rem;font-weight:600;color:{T1};"
         f"letter-spacing:-0.015em;'>{title}</div>"
         + (f"<div class='ap-section-sub' style='font-size:0.88rem;color:{T3};margin-top:0.15rem;'>{sub}</div>"
            if sub else "")
@@ -45,20 +45,20 @@ REGIME_DESC = {
 
 REGIME_STRATEGY = {
     "TREND": [
-        ("✅ Follow the trend",       "Enter in the trend direction. Use trailing stops to lock in profits."),
-        ("✅ Buy pullbacks to EMA",   "Don’t chase the top. Wait for a dip to the 20 or 50 EMA then buy."),
-        ("⚠️ Avoid counter-trades",  "Going against a strong trend has low odds. Wait for reversal confirmation first."),
+        ("Follow the trend",       "Enter in the trend direction. Use trailing stops to lock in profits."),
+        ("Buy pullbacks to EMA",   "Don’t chase the top. Wait for a dip to the 20 or 50 EMA then buy."),
+        ("Avoid counter-trades",  "Going against a strong trend has low odds. Wait for reversal confirmation first."),
     ],
     "RANGE": [
-        ("✅ Buy at support",          "Enter near the lower bound where price has bounced before."),
-        ("✅ Take profit at resistance", "Don’t be greedy — the upper bound is where sellers show up."),
-        ("⚠️ Watch out for breakouts", "If price closes strongly above resistance, the range may be ending — that’s a new opportunity."),
+        ("Buy at support",          "Enter near the lower bound where price has bounced before."),
+        ("Take profit at resistance", "Don’t be greedy — the upper bound is where sellers show up."),
+        ("Watch out for breakouts", "If price closes strongly above resistance, the range may be ending — that’s a new opportunity."),
     ],
     "VOLATILE": [
-        ("⚠️ Cut your position size",  "In volatile markets, losses can be bigger than expected. Trade smaller."),
-        ("✅ Widen your stop loss",    "Tight stops will get hit by noise. Give the trade more room, or skip it."),
-        ("✅ Wait for a clear setup",  "Volatile regimes often transition to TREND or RANGE. Patience pays."),
-        ("⚠️ Avoid breakout entries",  "Breakouts in volatile markets fail often. Wait for a confirmed close above/below the level."),
+        ("Cut your position size",  "In volatile markets, losses can be bigger than expected. Trade smaller."),
+        ("Widen your stop loss",    "Tight stops will get hit by noise. Give the trade more room, or skip it."),
+        ("Wait for a clear setup",  "Volatile regimes often transition to TREND or RANGE. Patience pays."),
+        ("Avoid breakout entries",  "Breakouts in volatile markets fail often. Wait for a confirmed close above/below the level."),
     ],
 }
 
@@ -110,12 +110,12 @@ def _stat_tile(label, value, sub, val_color, bg, border, muted, bar_pct=None, ba
             f"border-radius:999px;'></div></div>"
         )
     return (
-        f"<div style='background:{INSET};border:1px solid {HAIR};"
+        f"<div style='background:{INSET};border:none;"
         f"border-radius:14px;padding:1rem 1.2rem;'>"
         f"<div style='font-size:0.8rem;color:{T3};"
         f"margin-bottom:0.45rem;font-weight:600;'>{label}</div>"
-        f"<div style='font-size:1.4rem;font-weight:700;color:{val_color};line-height:1.15;"
-        f"letter-spacing:-0.02em;font-variant-numeric:tabular-nums;'>{value}</div>"
+        f"<div style='font-size:1.4rem;font-weight:600;color:{val_color};line-height:1.15;"
+        f"letter-spacing:-0.02em;'>{value}</div>"
         f"<div style='font-size:0.8rem;color:{T3};margin-top:0.3rem;'>{sub}</div>"
         f"{bar_html}"
         f"</div>"
@@ -270,21 +270,21 @@ def render_regime_analysis_tab(df, info_icon, create_regime_distribution_chart):
         transform:translateX(-50%);background:{CARD};color:{T2};border:1px solid {HAIR};
         border-radius:12px;padding:0.6rem 0.75rem;font-size:0.8rem;font-weight:500;
         line-height:1.5;white-space:normal;width:250px;text-align:left;z-index:200;
-        pointer-events:none;transition:opacity .15s;box-shadow:0 8px 24px rgba(17,17,20,0.12);
+        pointer-events:none;transition:opacity .15s;box-shadow:0 8px 24px rgba(0,0,0,0.12);
         text-transform:none;letter-spacing:0}}
     .reg-tip-wrap .reg-tt::after{{content:'';position:absolute;top:100%;left:50%;
         transform:translateX(-50%);border:6px solid transparent;border-top-color:{CARD}}}
     .reg-tip-wrap:hover .reg-tt{{visibility:visible;opacity:1}}
     .reg-metrics{{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0.8rem;
         padding:0 1.75rem 1.5rem;}}
-    .reg-metric{{background:{INSET};border:1px solid {HAIR};border-radius:14px;padding:0.95rem 1.1rem;}}
+    .reg-metric{{background:{INSET};border:none;border-radius:14px;padding:0.95rem 1.1rem;}}
     </style>""", unsafe_allow_html=True)
 
     def _rtip(text):
         return (
             f"<span class='reg-tip-wrap'>"
             f"<span style='display:inline-flex;align-items:center;justify-content:center;"
-            f"width:16px;height:16px;border-radius:50%;border:1px solid {HAIR};background:{CARD};"
+            f"width:16px;height:16px;border-radius:50%;border:none;background:{CARD};"
             f"font-size:0.7rem;color:{T3};font-weight:600;line-height:1;'>?</span>"
             f"<span class='reg-tt'>{text}</span></span>"
         )
@@ -297,17 +297,17 @@ def render_regime_analysis_tab(df, info_icon, create_regime_distribution_chart):
             + f"</div>"
         )
 
-    _num = "font-size:1.45rem;font-weight:700;letter-spacing:-0.02em;line-height:1.15;font-variant-numeric:tabular-nums;"
+    _num = "font-size:1.45rem;font-weight:600;letter-spacing:-0.02em;line-height:1.15;"
     _msub = f"font-size:0.82rem;color:{T3};margin-top:0.2rem;"
 
     st.markdown(
-        f"<div style='background:{CARD};border:1px solid {HAIR};box-shadow:{SHADOW};"
+        f"<div style='background:{CARD};border:none;box-shadow:{SHADOW};"
         f"border-radius:18px;margin-bottom:1.4rem;'>"
         f"<div style='padding:1.5rem 1.75rem 1.4rem;"
         f"display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:1.5rem;'>"
         f"<div style='min-width:0;flex:1 1 320px;'>"
         f"<div style='font-size:0.85rem;color:{T3};font-weight:600;margin-bottom:0.4rem;'>Decision</div>"
-        f"<div style='font-size:2.8rem;font-weight:700;color:{_dec_col};"
+        f"<div style='font-size:2.8rem;font-weight:600;color:{_dec_col};"
         f"letter-spacing:-0.03em;line-height:1;'>{_dec_v}</div>"
         f"<div style='font-size:0.92rem;color:{T2};margin-top:0.6rem;"
         f"font-weight:500;line-height:1.6;max-width:460px;'>{_dec_sub}</div>"
@@ -321,7 +321,7 @@ def render_regime_analysis_tab(df, info_icon, create_regime_distribution_chart):
                 "VOLATILE = large unpredictable swings — reduce size, wait for clarity.")
         + f"</div>"
         f"<div style='display:inline-block;background:{rc_bg};color:{rc};border-radius:12px;"
-        f"padding:0.35rem 0.85rem;font-size:1.6rem;font-weight:700;line-height:1.1;"
+        f"padding:0.35rem 0.85rem;font-size:1.6rem;font-weight:600;line-height:1.1;"
         f"letter-spacing:-0.01em;'>{current_regime}</div>"
         f"<div style='font-size:0.85rem;color:{T2};font-weight:600;margin-top:0.45rem;'>{streak}d streak</div>"
         f"<div style='font-size:0.85rem;color:{T3};line-height:1.55;margin-top:0.35rem;"
@@ -402,7 +402,7 @@ def render_regime_analysis_tab(df, info_icon, create_regime_distribution_chart):
             f"<div style='display:flex;justify-content:space-between;align-items:center;"
             f"gap:1rem;margin-bottom:0.6rem;'>"
             f"<div style='display:flex;align-items:center;gap:0.55rem;'>"
-            f"<span style='width:10px;height:10px;border-radius:50%;background:{color};"
+            f"<span style='width:8px;height:8px;border-radius:50%;background:{REGIME_FILLS[key]};"
             f"display:inline-block;'></span>"
             f"<span style='font-size:0.98rem;font-weight:600;color:{T1};'>{label}</span>"
             + (f"<span style='font-size:0.76rem;font-weight:600;padding:0.15rem 0.6rem;"
@@ -410,16 +410,16 @@ def render_regime_analysis_tab(df, info_icon, create_regime_distribution_chart):
                if _is_cur else "")
             + f"</div>"
             f"<div style='display:flex;align-items:baseline;gap:0.7rem;'>"
-            f"<span style='font-size:0.85rem;color:{T3};font-variant-numeric:tabular-nums;'>{days} days</span>"
-            f"<span style='font-size:1.25rem;font-weight:700;color:{color};letter-spacing:-0.02em;"
-            f"font-variant-numeric:tabular-nums;min-width:4.2rem;text-align:right;'>{pct}%</span>"
+            f"<span style='font-size:0.85rem;color:{T3};'>{days} days</span>"
+            f"<span style='font-size:1.25rem;font-weight:600;color:{color};letter-spacing:-0.02em;"
+            f"min-width:4.2rem;text-align:right;'>{pct}%</span>"
             f"</div>"
             f"</div>"
-            + _glowbar(pct, color, "8px")
+            + _glowbar(pct, REGIME_FILLS[key], "6px")
             + f"</div>"
         )
     st.markdown(
-        f"<div style='background:{CARD};border:1px solid {HAIR};border-radius:18px;"
+        f"<div style='background:{CARD};border:none;border-radius:18px;"
         f"box-shadow:{SHADOW};padding:0.35rem 1.5rem;margin-bottom:0.6rem;'>"
         f"{_dist_rows}</div>",
         unsafe_allow_html=True,
@@ -442,7 +442,7 @@ def render_regime_analysis_tab(df, info_icon, create_regime_distribution_chart):
     )
     timeline_df = df.tail(120).copy()
     fig = go.Figure()
-    for regime, color in REGIME_COLOR.items():
+    for regime, color in REGIME_FILLS.items():
         mask = timeline_df["REGIME"] == regime
         fig.add_trace(go.Bar(
             x=timeline_df.loc[mask, "Date"],
@@ -458,7 +458,7 @@ def render_regime_analysis_tab(df, info_icon, create_regime_distribution_chart):
         height=140,
         plot_bgcolor=CARD,
         paper_bgcolor=CARD,
-        font=dict(color=T3, family="Inter, Arial, sans-serif", size=12),
+        font=dict(color=T3, size=12),
         xaxis=dict(showgrid=False, showline=False, zeroline=False,
                    tickfont=dict(color=T3), tickformat="%b %y"),
         yaxis=dict(visible=False),

@@ -580,18 +580,18 @@ def price_ladder_html(cp, stop, t1, t2, t3, is_bullish,
         return (
             f"<div style='display:flex;flex-direction:column;align-items:center;"
             f"text-align:center;padding:1rem 0.75rem 1rem;"
-            f"background:{INSET};border:1px solid {HAIR};"
+            f"background:{INSET};border:none;"
             f"border-radius:14px;gap:0.3rem;min-width:0;'>"
             f"<div style='display:flex;align-items:center;gap:0.4rem;font-size:0.82rem;font-weight:600;color:{accent};'>"
             f"<span style='width:7px;height:7px;border-radius:50%;background:{accent};flex-shrink:0;'></span>"
             f"{label}</div>"
-            f"<div style='font-size:1.45rem;font-weight:700;color:{T1};"
-            f"letter-spacing:-0.02em;line-height:1.15;font-variant-numeric:tabular-nums;'>{price:.2f}</div>"
+            f"<div style='font-size:1.45rem;font-weight:600;color:{T1};"
+            f"letter-spacing:-0.02em;line-height:1.15;'>{price:.2f}</div>"
             f"<div style='font-size:0.82rem;font-weight:600;color:{accent if not is_entry else T3};"
-            f"font-variant-numeric:tabular-nums;'>{pct_text}</div>"
+            f"'>{pct_text}</div>"
             + (f"<div style='font-size:0.78rem;font-weight:600;color:{accent};background:{_abg};"
                f"border-radius:980px;padding:0.15rem 0.6rem;margin-top:0.15rem;"
-               f"font-variant-numeric:tabular-nums;white-space:nowrap;'>{rr}</div>" if rr else "")
+               f"white-space:nowrap;'>{rr}</div>" if rr else "")
             + (f"<div style='font-size:0.8rem;color:{T3};margin-top:0.1rem;'>{action}</div>" if action else "")
             + f"</div>"
         )
@@ -610,7 +610,7 @@ def price_ladder_html(cp, stop, t1, t2, t3, is_bullish,
     )
 
     return (
-        f"<div style='background:{CARD};border:1px solid {HAIR};box-shadow:{SHADOW};"
+        f"<div style='background:{CARD};border:none;box-shadow:{SHADOW};"
         f"border-radius:18px;overflow:hidden;margin-bottom:1rem;'>"
 
         f"<div style='display:flex;align-items:center;justify-content:space-between;gap:0.8rem;"
