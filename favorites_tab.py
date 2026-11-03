@@ -1899,632 +1899,469 @@ def render_auto_scanner_page() -> None:
     def _wr_col(wr):
         return '#1B7A36' if wr >= 55 else ('#C93400' if wr >= 45 else '#D70015')
 
-    def _price_box(df, price):
-        """Return price-ladder HTML or ''."""
-        if df is None or price <= 0:
-            return ''
-        try:
-            from _levels import compute_structural_levels
-            lv  = compute_structural_levels(df, price, True)
-            en  = lv['entry']; st_ = lv['stop']
-            t1  = lv['t1'];    t2  = lv['t2']
-            rp  = round(abs(en - st_) / en * 100, 1) if en else 0
-            t1p = round((t1 - en) / en * 100, 1)     if en else 0
-            t2p = round((t2 - en) / en * 100, 1)     if en else 0
-            return (
-                f"<div class='sc-pb'>"
-                f"<div class='sc-pc'>"
-                f"<div class='sc-pcb' style='background:#0066CC;'></div>"
-                f"<div class='sc-pcl'>Entry</div>"
-                f"<div class='sc-pcv' style='color:#0066CC;'>{en:.2f}</div>"
-                f"</div>"
-                f"<div class='sc-pc'>"
-                f"<div class='sc-pcb' style='background:#D70015;'></div>"
-                f"<div class='sc-pcl'>Stop Loss</div>"
-                f"<div class='sc-pcv' style='color:#D70015;'>{st_:.2f}</div>"
-                f"<div class='sc-pcs'>−{rp}%</div>"
-                f"</div>"
-                f"<div class='sc-pc'>"
-                f"<div class='sc-pcb' style='background:#1B7A36;'></div>"
-                f"<div class='sc-pcl'>Target 1</div>"
-                f"<div class='sc-pcv' style='color:#1B7A36;'>{t1:.2f}</div>"
-                f"<div class='sc-pcs'>+{t1p}%</div>"
-                f"</div>"
-                f"<div class='sc-pc'>"
-                f"<div class='sc-pcb' style='background:#15704A;'></div>"
-                f"<div class='sc-pcl'>Target 2</div>"
-                f"<div class='sc-pcv' style='color:#15704A;'>{t2:.2f}</div>"
-                f"<div class='sc-pcs'>+{t2p}%</div>"
-                f"</div>"
-                f"</div>"
-            )
-        except Exception:
-            return ''
-
     # ── CSS ───────────────────────────────────────────────────────────────────
-    # Light, Apple-style design system. Colours are tokens (CSS variables) so
-    # the whole page can be re-themed from this one block.
+    # This page's layer on top of apple_theme (tokens, type, buttons, inputs).
+    # Grouped top to bottom in page order; the screen-size rules come last.
     st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap');
-    header[data-testid="stHeader"],[data-testid="stToolbar"],
-    [data-testid="stDecoration"]{display:none!important;}
-    .main .block-container,div.block-container{
-        max-width:1680px!important;padding:2rem 3.5rem 6rem!important;margin:0 auto!important;}
-    /* st.markdown blocks that only inject <style> still take a row + gap in
-       the layout; hide them so the page starts right at the title. */
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap');
+    header[data-testid="stHeader"],[data-testid="stToolbar"],[data-testid="stDecoration"]{display:none!important;}
+    /* --sc-pad: the page's side padding (the section bar reaches through it to
+       the screen edges); --sc-nav: the section bar's height, which the sticky
+       table headers sit under. */
+    .stApp{--sc-pad:3.5rem;--sc-nav:3.25rem;--sc-col:9.75rem;}
+    .main .block-container,div.block-container{max-width:1680px!important;
+        padding:1.2rem var(--sc-pad) 6rem!important;margin:0 auto!important;}
     [data-testid="stElementContainer"]:has(> .stMarkdown [data-testid="stMarkdownContainer"] > style:only-child){
         display:none!important;}
-    @media (max-width:1100px){.main .block-container,div.block-container{padding:1.6rem 1.4rem 4rem!important;}}
-    .stApp h4{color:var(--t1)!important;}
-
-    /* streamlit widgets on this page */
     .stApp [data-testid="stExpander"] details{border-radius:var(--r-md)!important;}
     .stApp [data-testid="stExpander"] summary{padding:0.85rem 1.15rem!important;}
-    .stApp [data-testid="stExpander"] summary p{color:var(--t1)!important;font-weight:500!important;
-        font-size:0.9375rem!important;}
-    .stApp [data-testid="stTooltipIcon"] svg{stroke:var(--t3)!important;}
+    .stApp [data-testid="stExpander"] summary p{color:var(--t1)!important;font-weight:500!important;font-size:0.9375rem!important;}
 
-    /* ── top bar ─────────────────────────────────────────────────────────── */
-    .sc-tb{display:flex;align-items:flex-end;gap:2.75rem;margin-bottom:1.75rem;}
-    .sc-tb>div:first-child{flex:1 1 0;min-width:0;}
-    .sc-kpi{flex:none;}
-    .sc-title{font-size:2.625rem;font-weight:600;color:var(--t1);letter-spacing:-0.03em;line-height:1.08;}
-    .sc-sub{font-size:1.0313rem;color:var(--t3);font-weight:400;margin-top:0.5rem;letter-spacing:-0.012em;}
-    .sc-div{display:none;}
-    .sc-kv{font-size:1.625rem;font-weight:600;line-height:1;letter-spacing:-0.026em;
-           font-variant-numeric:tabular-nums;}
-    .sc-kl{font-size:0.75rem;font-weight:400;color:var(--t3);margin-top:0.4rem;}
-
-    /* ── back button ─────────────────────────────────────────────────────── */
-    .st-key-sc_back .stButton button{font-size:0.875rem!important;padding:0.4rem 0.9rem!important;
-        min-height:auto!important;white-space:nowrap!important;}
-    .st-key-sc_back .stButton button p{white-space:nowrap!important;}
-
-    /* ── controls panel ──────────────────────────────────────────────────── */
-    .sc-panel{display:none;}
-    .sc-panel-row{display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.4rem;}
-    .sc-panel-row:last-child{margin-bottom:0;}
-    .sc-ctrl-lbl{font-size:0.85rem;font-weight:600;color:var(--t2);white-space:nowrap;min-width:3.2rem;}
-    .sc-vsep{width:1px;height:1.6rem;background:var(--hair);flex-shrink:0;margin:0.3rem auto 0;}
-
-    /* period segmented control */
-    [class*="st-key-scp_"] .stButton button,[class*="st-key-scd_"] .stButton button{
-        background:var(--card)!important;border:1px solid var(--hair)!important;
-        border-radius:980px!important;color:var(--t1)!important;
-        font-size:0.9rem!important;font-weight:500!important;min-height:2.5rem!important;
-        padding:0 1.1rem!important;text-transform:none!important;letter-spacing:0!important;
-        box-shadow:var(--shadow-sm)!important;}
-    [class*="st-key-scp_"] .stButton button:hover,[class*="st-key-scd_"] .stButton button:hover{
-        border-color:var(--hair2)!important;background:var(--fill)!important;}
-    [class*="st-key-scp_on"] .stButton button,[class*="st-key-scd_on"] .stButton button{
-        background:var(--t1)!important;border-color:var(--t1)!important;color:#FFFFFF!important;
-        font-weight:600!important;}
-    [class*="st-key-scp_on"] .stButton button:hover,[class*="st-key-scd_on"] .stButton button:hover{
-        background:#000!important;}
-    .st-key-sc_days_box .stNumberInput input{border-radius:12px!important;color:var(--t1)!important;
-        font-size:0.95rem!important;font-weight:600!important;text-align:center!important;
+    /* ── title ───────────────────────────────────────────────────────────── */
+    .st-key-sc_back{margin-bottom:-0.45rem;}
+    .stApp .st-key-sc_back .stButton button{background:transparent!important;color:var(--blue)!important;
+        min-height:2rem!important;padding:0 0.4rem 0 0!important;font-size:0.9375rem!important;font-weight:400!important;}
+    .stApp .st-key-sc_back .stButton button:hover{background:transparent!important;color:var(--blue)!important;opacity:0.7;}
+    .stApp .st-key-sc_back .stButton button:active{transform:none;opacity:0.5;}
+    .stApp .st-key-sc_back [data-testid="stIconMaterial"]{color:var(--blue)!important;font-size:1.4rem!important;
+        margin:0 -0.2rem 0 -0.4rem;}
+    .sc-tb{display:flex;align-items:flex-end;gap:3rem;margin:0 0 1.5rem;}
+    .sc-tb-l{flex:1 1 0;min-width:0;}
+    .sc-title{font-size:2.75rem;font-weight:600;color:var(--t1);letter-spacing:-0.034em;line-height:1.06;}
+    .sc-sub{font-size:1.0625rem;color:var(--t3);margin-top:0.6rem;letter-spacing:-0.012em;line-height:1.45;}
+    .sc-kpis{flex:none;display:flex;gap:2.6rem;padding-bottom:0.2rem;}
+    .sc-kpi{text-align:right;}
+    .sc-kv{font-size:1.75rem;font-weight:600;color:var(--t1);line-height:1;letter-spacing:-0.028em;
         font-variant-numeric:tabular-nums;}
-    .st-key-sc_days_box [data-testid="stNumberInputContainer"]{border-radius:980px!important;
-        border:1px solid var(--hair)!important;background:var(--card)!important;overflow:hidden;
-        min-height:2.5rem;}
-    .st-key-sc_days_box .stNumberInput button{background:var(--card)!important;border:none!important;
-        color:var(--t2)!important;box-shadow:none!important;border-radius:0!important;}
+    .sc-kv.g{color:var(--green);}
+    .sc-kv small{font-size:inherit;font-weight:500;color:var(--t4);letter-spacing:inherit;}
+    .sc-kl{font-size:0.8125rem;color:var(--t3);margin-top:0.5rem;white-space:nowrap;}
 
-    /* run scan — primary CTA */
-    .st-key-sc_run .stButton button{background:var(--blue-fill)!important;
-        color:#FFFFFF!important;font-size:0.9375rem!important;font-weight:500!important;
-        min-height:2.4rem!important;padding:0 1.4rem!important;text-transform:none!important;
-        box-shadow:none!important;}
-    .st-key-sc_run .stButton button:hover{background:var(--blue-fill-h)!important;color:#FFFFFF!important;}
+    /* ── section bar: under the title, then stuck to the top while scrolling ── */
+    [data-testid="stElementContainer"]:has(.sc-nav){position:sticky;top:0;z-index:40;}
+    .sc-nav{position:relative;display:flex;align-items:center;gap:0.15rem;height:var(--sc-nav);
+        margin:0 calc(-1 * var(--sc-pad));padding:0 var(--sc-pad);overflow-x:auto;scrollbar-width:none;
+        background:rgba(245,245,247,0.88);-webkit-backdrop-filter:saturate(180%) blur(20px);
+        backdrop-filter:saturate(180%) blur(20px);
+        box-shadow:0 0 0 100vmax rgba(245,245,247,0.88);clip-path:inset(0 -100vmax);}
+    .sc-nav::-webkit-scrollbar{display:none;}
+    .sc-nav::after{content:'';position:absolute;left:-100vmax;right:-100vmax;bottom:0;height:1px;
+        background:rgba(0,0,0,0.08);opacity:0;transition:opacity .25s var(--ease);}
+    .sc-nav.stuck::after{opacity:1;}
+    .sc-nav-t{flex:none;max-width:0;overflow:hidden;opacity:0;white-space:nowrap;font-size:0.9375rem;font-weight:600;
+        color:var(--t1);letter-spacing:-0.014em;
+        transition:max-width .4s var(--ease-out),opacity .3s var(--ease),margin .4s var(--ease-out);}
+    .sc-nav.stuck .sc-nav-t{max-width:12rem;opacity:1;margin-right:1.1rem;}
+    .sc-nav-a{flex:none;display:inline-flex;align-items:center;gap:0.45rem;height:2.1rem;padding:0 0.9rem;
+        border-radius:980px;font-size:0.875rem;font-weight:500;color:var(--t2);white-space:nowrap;cursor:pointer;
+        user-select:none;-webkit-tap-highlight-color:transparent;
+        transition:background-color .22s var(--ease),color .22s var(--ease),box-shadow .22s var(--ease);}
+    .sc-nav-a:hover{color:var(--t1);background:rgba(0,0,0,0.04);}
+    .sc-nav-a:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(0,113,227,0.3);}
+    .sc-nav-a .c{font-weight:400;color:var(--t3);font-variant-numeric:tabular-nums;}
+    .sc-nav-a .s{display:none;}
+    .sc-nav-a.on{color:var(--t1);background:#FFFFFF;box-shadow:var(--seg-on);}
+    .sc-nav-a[data-go='guide']{font-family:'IBM Plex Sans Arabic',var(--font)!important;}
+    .sc-nav-r{flex:none;margin-left:auto;padding-left:1.5rem;font-size:0.8125rem;color:var(--t3);white-space:nowrap;}
+    .st-key-sg_wrap{scroll-margin-top:calc(var(--sc-nav) + 0.8rem);}
 
-    /* ── section headings ────────────────────────────────────────────────── */
-    .sc-h2{display:flex;align-items:baseline;gap:0.8rem;margin:2.2rem 0 1rem;}
-    .sc-h2-t{font-size:1.75rem;font-weight:600;color:var(--t1);letter-spacing:-0.024em;
-        white-space:nowrap;flex:none;}
-    .sc-h2-s{font-size:0.9rem;color:var(--t3);letter-spacing:-0.008em;}
-    .sc-h2-c{margin-left:auto;font-size:0.875rem;color:var(--t3);font-variant-numeric:tabular-nums;
-        white-space:nowrap;flex:none;}
-    .sc-summary{display:flex;gap:0.4rem 1.4rem;flex-wrap:wrap;margin:0 0 1.1rem;}
-    .sc-chip{display:inline-flex;align-items:center;gap:0.4rem;font-size:0.875rem;font-weight:400;
-        padding:0;background:transparent;border:none;
-        color:var(--t3);font-variant-numeric:tabular-nums;}
-    .sc-chip b{color:var(--t1);font-weight:600;}
-
-    /* ── stock band (Section 1 — Scanned Strategies) ────────────────────── */
-    .sc-band{margin:1.6rem 0 0.7rem;}
-    .sc-band-hdr{display:flex;align-items:center;gap:0.7rem;padding:0 0.2rem;}
-    .sc-sym{font-size:1.3125rem;font-weight:600;color:var(--t1);letter-spacing:-0.022em;
-            font-variant-numeric:tabular-nums;}
-    .sc-sname{font-size:0.875rem;color:var(--t3);font-weight:400;
-              white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:22rem;}
-    .sc-ct{margin-left:auto;font-size:0.8125rem;color:var(--t3);font-weight:400;
-           background:transparent;border:none;padding:0;}
-
-    /* ── regime card ─────────────────────────────────────────────────────── */
-    .sc-rpill{font-size:0.78rem;font-weight:600;padding:0.25rem 0.7rem;border-radius:980px;
-              white-space:nowrap;flex-shrink:0;color:#FFFFFF;letter-spacing:0;}
-    .sc-rcard{border:1px solid var(--hair);border-radius:var(--r-lg);overflow:hidden;
-              background:var(--card);height:100%;box-shadow:var(--shadow);}
-    .sc-rcard-top{display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;padding:1rem 1.1rem 0.6rem;}
-    .sc-rcard-inds{padding:0 1.1rem 0.9rem;display:flex;flex-wrap:wrap;gap:0.35rem;align-items:center;}
-    .sc-rind-tag{display:inline-block;background:var(--fill);border:none;border-radius:8px;
-                 padding:0.22rem 0.55rem;font-size:0.8rem;font-weight:500;color:var(--t1);}
-    .sc-rind-plus{display:inline-flex;align-items:center;justify-content:center;width:auto;height:auto;
-                  background:none;border:none;color:var(--t4);font-size:0.8rem;font-weight:500;margin:0 0.05rem;}
-    .sc-rcard-stats{display:grid;grid-template-columns:repeat(3,1fr);
-                    margin:0 0.8rem;border-top:1px solid var(--hair);}
-    .sc-rstat{padding:0.95rem 0.4rem 0.8rem;text-align:center;}
-    .sc-rstat-v{font-size:1.55rem;font-weight:600;line-height:1;margin-bottom:0.4rem;
-                letter-spacing:-0.03em;font-variant-numeric:tabular-nums;}
-    .sc-rstat-l{font-size:0.75rem;font-weight:500;color:var(--t2);
-                display:inline-flex;align-items:center;gap:0.3rem;}
-    .sc-help{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;
-             border-radius:50%;background:var(--fill);border:none;color:var(--t3);
-             font-size:0.62rem;font-weight:700;cursor:help;margin-left:0.25rem;}
-    .sc-help-pill{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;
-                  border-radius:50%;background:var(--fill);border:none;color:var(--t3);
-                  font-size:0.66rem;font-weight:700;cursor:help;transition:all .15s;}
-    .sc-help-pill:hover{color:var(--blue);background:var(--blue-bg);}
-    .sc-rcard-stats2{display:grid;grid-template-columns:repeat(3,1fr);margin:0 0.8rem;
-                     border-top:1px solid var(--hair);}
-    .sc-rstat2{padding:0.75rem 0.4rem 0.85rem;text-align:center;}
-    .sc-rstat2-v{font-size:1.05rem;font-weight:600;line-height:1;margin-bottom:0.3rem;
-                 font-variant-numeric:tabular-nums;}
-    .sc-rstat2-l{font-size:0.72rem;font-weight:500;color:var(--t2);}
-    .sc-cfire{display:inline-flex;align-items:center;gap:0.32rem;margin-left:auto;font-size:0.75rem;
-              font-weight:500;padding:0.2rem 0.6rem;border-radius:980px;
-              background:var(--green-bg);color:var(--green);}
-    .sc-cfire::before{content:'';width:6px;height:6px;border-radius:50%;background:#34C759;}
-
-    /* ── more strategies ─────────────────────────────────────────────────── */
-    .sc-alts{border-top:1px solid var(--hair);background:var(--inset);padding:0.9rem 0.9rem 0.9rem;}
-    .sc-alts-hdr{display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;font-weight:600;
-                 color:var(--t2);margin-bottom:0.6rem;}
-    .sc-alt-row{background:var(--card);border:1px solid var(--hair);border-radius:var(--r-md);
-                padding:0.75rem 0.9rem 0.4rem;margin-bottom:0.55rem;}
-    .sc-alt-row:last-child{margin-bottom:0;}
-    .sc-alt-row .sc-rcard-stats,.sc-alt-row .sc-rcard-stats2{margin:0 -0.2rem!important;width:auto!important;}
-    .sc-alt-row .sc-rstat-v{font-size:1.15rem!important;}
-    .sc-alt-tags{display:flex;flex-wrap:wrap;gap:0.35rem;align-items:center;margin-bottom:0.55rem;}
-    .sc-alt-fire{margin-left:auto;font-size:0.72rem;font-weight:600;padding:0.18rem 0.55rem;
-                 border-radius:980px;background:var(--green-bg);border:none;color:var(--green);}
-
-    /* ── live pulse ──────────────────────────────────────────────────────── */
-    @keyframes lp{0%,100%{box-shadow:0 0 0 0 rgba(52,199,89,0.40);}
-                  70%{box-shadow:0 0 0 7px rgba(52,199,89,0);}}
-    .sc-live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;
-                 background:#34C759;animation:lp 2.4s ease-out infinite;flex-shrink:0;}
-
-    /* ── Live Signal Check heading ───────────────────────────────────────── */
-    .lsc-section-hdr{display:flex;align-items:center;gap:0.7rem;margin:2.6rem 0 0.5rem;}
-    .sc-h2{margin-top:3.75rem!important;}
-    .lsc-section-line,.lsc-section-line-r{display:none;}
-    .lsc-section-pill{display:flex;align-items:center;gap:0.6rem;}
-    .lsc-section-label{font-size:1.75rem;font-weight:600;color:var(--t1);letter-spacing:-0.024em;}
-    .lsc-section-count{font-size:0.8125rem;font-weight:500;background:var(--fill);
-                       color:var(--t2);border-radius:980px;padding:0.14rem 0.58rem;
-                       font-variant-numeric:tabular-nums;}
-
-    .lsc-regime2{font-size:0.75rem;font-weight:500;padding:0.2rem 0.62rem;border-radius:980px;
-                 white-space:nowrap;display:inline-flex;align-items:center;gap:0.3rem;}
-
-    /* "View strategy" in an opened row */
-    [class*="st-key-lsc_goto_"] .stButton button{font-size:0.875rem!important;color:var(--blue)!important;
-        min-height:2.15rem!important;background:var(--blue-bg)!important;box-shadow:none!important;}
-    [class*="st-key-lsc_goto_"] .stButton button:hover{background:rgba(0,113,227,0.13)!important;color:var(--blue)!important;}
-    [class*="st-key-lsc_goto_"] .stButton button p{color:var(--blue)!important;font-weight:500!important;}
-    .lsc-more{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:500;
-        padding:0.16rem 0.55rem;border-radius:980px;background:var(--blue-bg);color:var(--blue);
-        white-space:nowrap;cursor:help;}
-
-    /* the stock card a "View strategy" tap jumped to */
-    .sc-stock.sc-focus{box-shadow:0 0 0 2px var(--blue-fill),var(--shadow-lift);}
-    .sc-tr.sc-tr-focus{background:rgba(0,113,227,0.06)!important;}
-
-    /* top-bar KPIs */
-    .sc-kpi{text-align:right;min-width:4.5rem;}
-    .sc-kpi .sc-kv{color:var(--t1);}
-
-    /* validation pill */
-    .sc-vb{display:inline-flex;align-items:center;font-size:0.75rem;font-weight:500;
-           padding:0.2rem 0.62rem;border-radius:980px;white-space:nowrap;cursor:help;}
-    .sc-vb-ok{background:var(--green-bg);color:var(--green);}
-    .sc-vb-warn{background:var(--orange-bg);color:var(--orange);}
-    .sc-vb-bad{background:var(--red-bg);color:var(--red);}
-
-    /* validation box */
-    .sc-val{margin:0.2rem 0.8rem 0.9rem;padding:0.8rem 0.9rem;background:var(--inset);
-            border:none;border-radius:var(--r-md);}
-    .sc-val-h{display:flex;align-items:center;gap:0.3rem;font-size:0.78rem;font-weight:600;
-              color:var(--t2);margin-bottom:0.55rem;}
-    .sc-val-row{display:flex;align-items:center;gap:0.6rem;}
-    .sc-val-c{flex:1;min-width:0;}
-    .sc-val-l{font-size:0.72rem;color:var(--t2);margin-bottom:0.15rem;}
-    .sc-val-v{display:flex;align-items:baseline;gap:0.4rem;font-variant-numeric:tabular-nums;}
-    .sc-val-v b{font-size:1.05rem;font-weight:600;color:var(--t1);}
-    .sc-val-n{font-size:0.75rem;color:var(--t3);}
-    .sc-val-na{font-size:0.85rem;color:var(--t3);}
-    .sc-val-arrow{color:var(--t4);font-size:1rem;}
-    .sc-val-note{margin-top:0.55rem;font-size:0.75rem;line-height:1.45;color:var(--t2);}
-
-    /* inputs: one rounded outline only (no inner base-web border) */
-    .st-key-sc_search_box [data-baseweb="input"],.st-key-sc_search_box [data-baseweb="base-input"],
-    .st-key-sc_days_box [data-baseweb="input"],.st-key-sc_days_box [data-baseweb="base-input"]{
-        border:none!important;background:var(--card)!important;}
-    .st-key-sc_days_box{margin-top:0!important;}
-    .sc-h2{margin-top:1.2rem;}
-
-    /* ── round 2: critique fixes ─────────────────────────────────────────── */
-    /* segmented control (Short | Medium | Long | Days) */
-    .st-key-sc_market_box [role="radiogroup"],
-    .st-key-sc_seg_box [role="radiogroup"],
+    /* ── scan settings, search and filters: one card ─────────────────────── */
+    .st-key-sc_ctl{background:var(--card);border-radius:var(--r-lg);box-shadow:var(--shadow);
+        padding:1.15rem 1.5rem 1.3rem;gap:0.95rem!important;}
+    .sc-ctl-hr{height:1px;background:var(--hair);margin:0.1rem -1.5rem 0;}
+    .sc-flt-l{display:flex;align-items:center;font-size:0.8125rem;font-weight:500;color:var(--t2);
+        margin:0 0 0.45rem 0.1rem;}
+    .sc-flt-sum{font-size:0.875rem;color:var(--t3);margin:-0.2rem 0 0 0.1rem;}
+    .sc-flt-sum b{color:var(--t1);font-weight:600;}
+    /* segmented controls: market, period, the four filters */
+    .st-key-sc_market_box [role="radiogroup"],.st-key-sc_seg_box [role="radiogroup"],
     [class*="st-key-sc_flt_f"] [role="radiogroup"]{background:var(--fill)!important;border-radius:11px!important;
         padding:2px!important;display:inline-flex!important;gap:0!important;flex-wrap:nowrap!important;}
-    .st-key-sc_market_box [role="radiogroup"] button,
-    .st-key-sc_seg_box [role="radiogroup"] button,
+    .st-key-sc_market_box [role="radiogroup"] button,.st-key-sc_seg_box [role="radiogroup"] button,
     [class*="st-key-sc_flt_f"] [role="radiogroup"] button{background:transparent!important;border:none!important;
         box-shadow:none!important;border-radius:9px!important;color:var(--t2)!important;
         min-height:2.15rem!important;padding:0 1.05rem!important;font-weight:500!important;
         transition:background-color .22s var(--ease),color .22s var(--ease),box-shadow .22s var(--ease)!important;}
-    .st-key-sc_market_box [role="radiogroup"] button p,
-    .st-key-sc_seg_box [role="radiogroup"] button p,
+    .st-key-sc_market_box [role="radiogroup"] button p,.st-key-sc_seg_box [role="radiogroup"] button p,
     [class*="st-key-sc_flt_f"] [role="radiogroup"] button p{font-size:0.875rem!important;color:inherit!important;
         font-weight:inherit!important;letter-spacing:-0.008em;}
-    .st-key-sc_market_box [role="radiogroup"] button:hover,
-    .st-key-sc_seg_box [role="radiogroup"] button:hover,
+    .st-key-sc_market_box [role="radiogroup"] button:hover,.st-key-sc_seg_box [role="radiogroup"] button:hover,
     [class*="st-key-sc_flt_f"] [role="radiogroup"] button:hover{color:var(--t1)!important;background:transparent!important;}
     .st-key-sc_market_box [role="radiogroup"] button[aria-checked="true"],
     .st-key-sc_seg_box [role="radiogroup"] button[aria-checked="true"],
-    [class*="st-key-sc_flt_f"] [role="radiogroup"] button[aria-checked="true"]{
-        background:#FFFFFF!important;color:var(--t1)!important;font-weight:600!important;
-        box-shadow:var(--seg-on)!important;}
-
-    /* filter row (Win rate · Trades · Market regime) */
-    [class*="st-key-sc_flt_f"] [role="radiogroup"] button{padding:0 0.95rem!important;
-        min-height:2rem!important;}
-    .sc-flt-l{font-size:0.8125rem;font-weight:500;color:var(--t2);margin:0.4rem 0 0.45rem 0.1rem;
-        display:flex;align-items:center;}
-    .sc-flt-sum{font-size:0.875rem;color:var(--t3);margin:0.3rem 0 0 0.1rem;}
-    .sc-flt-sum b{color:var(--t1);font-weight:600;}
-    .st-key-sc_flt_clear .stButton button{background:transparent!important;border:none!important;
-        box-shadow:none!important;color:var(--blue)!important;font-weight:400!important;
-        font-size:0.875rem!important;min-height:2rem!important;}
-    .st-key-sc_flt_clear .stButton button:hover{background:var(--blue-bg)!important;}
-
-    /* rank number on stock cards (1 = highest win rate) */
-    .sc-rank{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
-        min-width:1.75rem;height:1.75rem;padding:0 0.4rem;border-radius:980px;background:var(--fill);
-        color:var(--t2);font-size:0.8125rem;font-weight:600;font-variant-numeric:tabular-nums;cursor:help;}
-    .sc-rank-top{background:var(--blue-bg);color:var(--blue);}
-    .sc-grp{margin:1.8rem 0 1.1rem;padding:0;background:transparent;
-        color:var(--t3);font-size:0.9rem;line-height:1.45;}
-    .sc-grp b{color:var(--t1);font-weight:600;}
-    .st-key-sc_days_box [data-testid="stNumberInputContainer"]{border-radius:11px!important;
-        border:none!important;background:var(--fill)!important;min-height:2.4rem;}
+    [class*="st-key-sc_flt_f"] [role="radiogroup"] button[aria-checked="true"]{background:#FFFFFF!important;
+        color:var(--t1)!important;font-weight:600!important;box-shadow:var(--seg-on)!important;}
+    [class*="st-key-sc_flt_f"] [role="radiogroup"] button{padding:0 0.95rem!important;min-height:2rem!important;}
+    /* the custom number of days */
+    .st-key-sc_days_box{margin-top:0!important;}
+    .st-key-sc_days_box [data-testid="stNumberInputContainer"]{border-radius:11px!important;border:none!important;
+        background:var(--fill)!important;min-height:2.4rem;overflow:hidden;}
     .st-key-sc_days_box [data-baseweb="input"],.st-key-sc_days_box [data-baseweb="base-input"],
-    .st-key-sc_days_box input,.st-key-sc_days_box .stNumberInput button{background:transparent!important;}
-
-    /* search: filled, iOS style */
-    .stApp .st-key-sc_search_box [data-testid="stTextInputRootElement"]{
-        border:0!important;outline:0!important;box-shadow:var(--shadow-sm)!important;
-        background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23636366' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='4.75'/%3E%3Cpath d='m10.6 10.6 3.4 3.4'/%3E%3C/svg%3E") no-repeat 0.9rem center/15px!important;
-        border-radius:12px!important;overflow:hidden;}
+    .st-key-sc_days_box input,.st-key-sc_days_box .stNumberInput button{background:transparent!important;border:none!important;}
+    .st-key-sc_days_box .stNumberInput input{color:var(--t1)!important;font-size:0.95rem!important;font-weight:600!important;
+        text-align:center!important;font-variant-numeric:tabular-nums;}
+    .st-key-sc_days_box .stNumberInput button{color:var(--t2)!important;box-shadow:none!important;border-radius:0!important;}
+    /* Run Scan */
+    .stApp .st-key-sc_run .stButton button{background:var(--blue-fill)!important;color:#FFFFFF!important;
+        font-size:0.9375rem!important;font-weight:500!important;min-height:2.4rem!important;padding:0 1.4rem!important;}
+    .stApp .st-key-sc_run .stButton button:hover{background:var(--blue-fill-h)!important;color:#FFFFFF!important;}
+    /* search: a filled field, iOS style */
+    .stApp .st-key-sc_search_box [data-testid="stTextInputRootElement"]{border:0!important;outline:0!important;
+        box-shadow:none!important;border-radius:12px!important;overflow:hidden;
+        background:var(--fill) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23636366' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='4.75'/%3E%3Cpath d='m10.6 10.6 3.4 3.4'/%3E%3C/svg%3E") no-repeat 0.9rem center/15px!important;}
     .stApp .st-key-sc_search_box [data-testid="stTextInputRootElement"] *{border:0!important;background:transparent!important;}
-    .stApp .st-key-sc_search_box input{background:transparent!important;color:var(--t1)!important;
-        font-size:0.9375rem!important;padding:0.68rem 1rem 0.68rem 2.35rem!important;height:auto!important;letter-spacing:-0.008em;}
+    .stApp .st-key-sc_search_box input{color:var(--t1)!important;font-size:0.9375rem!important;
+        padding:0.66rem 1rem 0.66rem 2.35rem!important;height:auto!important;letter-spacing:-0.008em;}
     .stApp .st-key-sc_search_box input::placeholder{color:var(--t3)!important;opacity:1;}
     .stApp .st-key-sc_search_box [data-testid="stTextInputRootElement"]:focus-within{
         box-shadow:0 0 0 3.5px rgba(0,113,227,0.20)!important;}
+    .stApp .st-key-sc_flt_clear .stButton button{background:transparent!important;color:var(--blue)!important;
+        font-weight:400!important;font-size:0.875rem!important;min-height:2rem!important;}
+    .stApp .st-key-sc_flt_clear .stButton button:hover{background:var(--blue-bg)!important;color:var(--blue)!important;}
 
-    /* regime pill: quiet, coloured dot only */
-    .sc-rpill{background:var(--fill)!important;color:var(--t1)!important;font-weight:600;
-        display:inline-flex;align-items:center;gap:0.4rem;cursor:help;}
-    .sc-rpill::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--rc,#636366);}
-    .sc-now-pill{font-size:0.72rem;font-weight:500;padding:0.14rem 0.52rem;border-radius:980px;
-        background:var(--blue-bg);color:var(--blue);cursor:help;}
-
-    /* card body: neutral numbers, one caption line instead of a 2nd stat row */
-    .sc-rcard{display:flex;flex-direction:column;}
-    .sc-rcard-stats{border-top:none;padding-top:0.2rem;}
-    .sc-rstat-v{color:var(--t1);}
-    .sc-thin .sc-rstat-v{color:var(--t2)!important;}
-    .sc-rcard-cap{margin:0 1.1rem 0.9rem;font-size:0.8rem;color:var(--t2);text-align:center;
-        font-variant-numeric:tabular-nums;}
-    .sc-val{margin:auto 0.8rem 0.9rem;background:var(--inset);}
-    .sc-vb-warn{background:var(--fill);color:var(--t2);}
-
-    /* collapsed alternatives */
-    details.sc-alts{border-top:1px solid var(--hair);background:var(--card);padding:0;}
-    details.sc-alts>summary{list-style:none;cursor:pointer;color:var(--blue);font-weight:400;
-        font-size:0.875rem;padding:0.8rem 1.1rem;margin:0;}
-    details.sc-alts>summary::-webkit-details-marker{display:none;}
-    details.sc-alts>summary::after{content:' ›';}
-    details.sc-alts[open]>summary::after{content:' ⌄';}
-    details.sc-alts[open]{background:var(--inset);padding-bottom:0.8rem;}
-    details.sc-alts .sc-alt-row{margin:0 0.8rem 0.6rem;padding:0.8rem 0.4rem 0.2rem;}
-    details.sc-alts .sc-alt-tags{padding:0 0.5rem;margin-bottom:0;}
-    details.sc-alts .sc-rcard-inds{padding:0.5rem 0.5rem 0.4rem;}
-    details.sc-alts .sc-rcard-stats{margin:0 0.2rem;}
-    details.sc-alts .sc-rcard-cap{margin:0 0.5rem 0.6rem;}
-
-    /* ── round 3: coloured indicator chips + table-style stock cards ─────── */
-    .sc-chip-ind{display:inline-flex;align-items:center;gap:0.36rem;font-size:0.8125rem;font-weight:500;
-        padding:0.2rem 0.62rem 0.2rem 0.52rem;border-radius:980px;white-space:nowrap;cursor:help;
-        background:var(--fill);color:var(--t1);letter-spacing:-0.006em;}
-    .sc-chip-ind::before{content:'';flex:none;width:6px;height:6px;border-radius:50%;background:var(--c,#86868B);}
-    .sc-chip-plus{color:var(--t4);font-weight:400;margin:0 0.26rem;font-size:0.8125rem;}
-    .sc-legend{display:flex;flex-wrap:wrap;align-items:center;gap:0.3rem 1.05rem;margin:0 0 1rem;
-        font-size:0.78rem;color:var(--t3);}
-    .sc-legend-t{font-weight:500;color:var(--t2);margin-right:0.1rem;}
+    /* ── section titles ──────────────────────────────────────────────────── */
+    .sc-sec{margin:3.4rem 0 0;scroll-margin-top:calc(var(--sc-nav) + 1rem);}
+    .sc-sec-h{display:flex;align-items:center;gap:0.55rem;}
+    .sc-sec-t{font-size:1.875rem;font-weight:600;color:var(--t1);letter-spacing:-0.026em;line-height:1.15;}
+    .sc-sec-c{margin-left:auto;font-size:0.9375rem;color:var(--t3);white-space:nowrap;}
+    .sc-sec-s{font-size:0.9375rem;color:var(--t3);margin:0.5rem 0 0;line-height:1.5;letter-spacing:-0.006em;max-width:62rem;}
+    .lsc-section-count{font-size:0.8125rem;font-weight:500;background:var(--fill);color:var(--t2);border-radius:980px;
+        padding:0.12rem 0.58rem;font-variant-numeric:tabular-nums;}
+    @keyframes lp{0%,100%{box-shadow:0 0 0 0 rgba(52,199,89,0.40);}70%{box-shadow:0 0 0 7px rgba(52,199,89,0);}}
+    .sc-live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#34C759;
+        animation:lp 2.4s ease-out infinite;flex-shrink:0;margin-right:0.1rem;}
+    .sc-legend{display:flex;flex-wrap:wrap;align-items:center;gap:0.3rem 1.05rem;margin:0.75rem 0 0;
+        font-size:0.8125rem;color:var(--t3);}
+    .sc-legend-t{color:var(--t2);}
     .sc-legend-i{display:inline-flex;align-items:center;gap:0.36rem;}
     .sc-legend-i i{display:inline-block;width:6px;height:6px;border-radius:50%;}
 
-    .sc-stock{background:var(--card);border:none;border-radius:var(--r-lg);
-        box-shadow:var(--shadow);margin:0 0 1.2rem;overflow:hidden;
-        transition:box-shadow .3s var(--ease);}
-    .sc-stock-hdr{display:flex;align-items:center;gap:0.75rem;padding:1.1rem 1.5rem 0.9rem;}
-    .sc-stock-hdr .sc-ct{margin-left:auto;}
-    .sc-table{border-top:1px solid var(--hair);}
-    .sc-tr{display:grid;align-items:center;gap:0 1.2rem;padding:0.95rem 1.5rem;
-        grid-template-columns:minmax(150px,1.05fr) minmax(240px,2.5fr) 0.7fr 0.8fr 0.85fr 0.85fr minmax(190px,1.45fr);
-        border-top:1px solid var(--hair);}
-    .sc-table>.sc-tr:first-child{border-top:none;}
-    .sc-th{padding-top:0.6rem;padding-bottom:0.6rem;background:transparent;font-size:0.75rem;
-        font-weight:500;color:var(--t3);}
-    .sc-th>div:nth-child(n+3):nth-child(-n+6){text-align:right;}
-    .sc-tr-reg{display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap;cursor:help;}
-    .sc-tr-ico{display:inline-flex;align-items:center;justify-content:center;width:1.5rem;height:1.5rem;
-        border-radius:7px;background:var(--fill);color:var(--t2);}
+    /* a strategy's indicators: plain words, each with a small dot of its type */
+    .sc-chip-ind{display:inline-flex;align-items:center;gap:0.38rem;font-size:0.9063rem;font-weight:500;
+        color:var(--t1);white-space:nowrap;cursor:help;letter-spacing:-0.008em;}
+    .sc-chip-ind::before{content:'';flex:none;width:6px;height:6px;border-radius:50%;background:var(--c,#86868B);}
+    .sc-chip-plus{color:var(--t4);font-weight:400;margin:0 0.45rem;font-size:0.875rem;}
     .sc-ri{width:0.8rem;height:0.8rem;display:block;flex:none;}
-    .lsc-regime2 .sc-ri{width:0.72rem;height:0.72rem;color:var(--t3);}
-    .sc-tr-rn{font-size:0.9688rem;font-weight:600;color:var(--t1);letter-spacing:-0.012em;}
-    .sc-tr-alt{font-size:0.8125rem;color:var(--t3);padding-left:2.15rem;cursor:default;}
-    .sc-tr-strat{display:flex;align-items:center;flex-wrap:wrap;gap:0.35rem 0;}
-    .sc-tr-strat .sc-cfire{margin-left:0.6rem;}
-    .sc-tr-n{text-align:right;font-size:1.15rem;font-weight:600;color:var(--t1);
-        font-variant-numeric:tabular-nums;letter-spacing:-0.01em;}
-    .sc-tr-sm{font-size:0.75rem;font-weight:500;color:var(--t2);margin-top:0.15rem;letter-spacing:0;}
-    .sc-thin .sc-tr-n{color:var(--t3);}
-    .sc-thin .sc-tr-sm{color:var(--orange);}
-    .sc-tv{display:flex;flex-direction:column;align-items:flex-start;gap:0.25rem;cursor:help;}
-    .sc-tv-l{font-size:0.78rem;color:var(--t2);font-variant-numeric:tabular-nums;}
-    .sc-tr-sub{background:var(--inset);padding-top:0.85rem;padding-bottom:0.85rem;}
-    .sc-tr-sub .sc-tr-n{font-size:1rem;}
-    details.sc-more{border-top:1px solid var(--hair);}
-    details.sc-more>summary{list-style:none;cursor:pointer;color:var(--blue);font-size:0.875rem;
-        font-weight:400;padding:0.6rem 1.5rem 0.6rem 3.65rem;transition:background-color .2s var(--ease);}
-    details.sc-more>summary::-webkit-details-marker{display:none;}
-    details.sc-more>summary::after{content:' ›';}
-    details.sc-more[open]>summary::after{content:' ⌄';}
-    details.sc-more>summary:hover{background:var(--inset);}
-    @media (max-width:1150px){
-      .sc-th{display:none;}
-      .sc-tr{grid-template-columns:repeat(4,1fr);gap:0.6rem 1rem;}
-      .sc-tr-reg,.sc-tr-strat,.sc-tv{grid-column:1/-1;}
-      .sc-tr-n{text-align:left;}
-    }
 
-    /* Scanned Strategies: two cards side by side. Each strategy is a 3-line
-       block: regime | validation · indicators · four labelled numbers. */
-    .sc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.25rem;
-        align-items:start;margin:0 0 1.25rem;}
-    .sc-grid .sc-stock{margin:0;}
-    .sc-grid .sc-stock-hdr{padding:1.2rem 1.5rem 1.05rem;}
-    .sc-grid .sc-tr{grid-template-columns:repeat(4,minmax(0,1fr));gap:0.7rem 1rem;align-items:start;
-        padding:1.05rem 1.5rem 1.1rem;grid-template-areas:"reg reg val val" "strat strat strat strat" "wr pf exp tr"
-        "wl wl wl wl" "det det det det";}
-    .sc-grid .sc-tr>:nth-child(1){grid-area:reg;}
-    .sc-grid .sc-tr>:nth-child(2){grid-area:strat;}
-    .sc-grid .sc-tr>:nth-child(3){grid-area:wr;}
-    .sc-grid .sc-tr>:nth-child(4){grid-area:pf;}
-    .sc-grid .sc-tr>:nth-child(5){grid-area:exp;}
-    .sc-grid .sc-tr>:nth-child(6){grid-area:tr;}
-    .sc-grid .sc-tr>:nth-child(7){grid-area:val;justify-self:end;align-items:flex-end;text-align:right;}
-    .sc-grid .sc-tr-n{text-align:left;font-size:1.125rem;letter-spacing:-0.018em;}
-    .sc-tr-l{display:block;width:max-content;font-size:0.72rem;font-weight:400;color:var(--t3);
-        margin-bottom:0.14rem;letter-spacing:-0.002em;}
-    .sc-tr-sm:empty{display:none;}
+    /* validation: only Validated and Failed test get a colour */
+    .sc-vb{display:inline-flex;align-items:center;font-size:0.75rem;font-weight:500;padding:0.18rem 0.6rem;
+        border-radius:980px;white-space:nowrap;cursor:help;}
+    .sc-vb-ok{background:var(--green-bg);color:var(--green);}
+    .sc-vb-warn{background:transparent;color:var(--t2);padding-left:0;padding-right:0;}
+    .sc-vb-bad{background:var(--red-bg);color:var(--red);}
 
-    /* winning vs losing trades bar, and the folded "Strategy details" */
-    .sc-wl,.sc-det{grid-column:1/-1;}
-    .sc-grid .sc-tr>:nth-child(8){grid-area:wl;}
-    .sc-grid .sc-tr>:nth-child(9){grid-area:det;}
-    .sc-wl{display:flex;flex-direction:column;gap:0.35rem;margin-top:0.1rem;}
-    .sc-wl-bar{display:flex;gap:2px;height:4px;border-radius:980px;overflow:hidden;background:var(--fill);}
-    .sc-wl-bar i{display:block;height:100%;}
-    .sc-wl-bar i.w{background:#34C759;}
-    .sc-wl-bar i.l{background:#FF3B30;}
-    .sc-wl-row{display:flex;justify-content:space-between;flex-wrap:wrap;gap:0.2rem 1rem;
-        font-size:0.78rem;color:var(--t3);font-variant-numeric:tabular-nums;}
-    .sc-wl-w b{color:var(--green);font-weight:500;}
-    .sc-wl-l b{color:var(--red);font-weight:500;}
-    .sc-wl-row .z b{color:var(--t3);}
-    details.sc-det>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;
-        color:var(--blue);font-size:0.8125rem;font-weight:400;padding:0.1rem 0;}
-    details.sc-det>summary::-webkit-details-marker{display:none;}
-    details.sc-det>summary::after{content:'›';margin-left:0.35rem;transition:transform .25s var(--ease-out);}
-    details.sc-det[open]>summary::after{transform:rotate(90deg);}
-    .sc-det-hint{color:var(--t3);font-weight:400;margin-left:0.25rem;}
-    .sc-det-body{display:grid;gap:1.1rem;margin-top:0.6rem;padding:1rem 1.05rem;background:var(--inset);
-        border:none;border-radius:var(--r-md);}
-    .sc-det-h{font-size:0.78rem;font-weight:600;color:var(--t1);margin-bottom:0.35rem;}
-    .sc-det-sub{font-size:0.78rem;color:var(--t2);line-height:1.5;margin-top:0.35rem;}
-    .sc-det-sub b{color:var(--t1);font-weight:600;}
-    .sc-det-ind{display:flex;align-items:baseline;gap:0.7rem;padding:0.28rem 0;
-        border-top:1px solid var(--hair);font-size:0.84rem;}
-    .sc-det-h+.sc-det-ind{border-top:none;}
-    .sc-det-ind>b{flex:0 0 7.5rem;color:var(--t1);font-weight:600;}
-    .sc-det-ar{flex:1;text-align:left;unicode-bidi:isolate;color:var(--t1);line-height:1.6;
-        font-family:'IBM Plex Sans Arabic','Inter',sans-serif;}
-    .sc-det-ex{display:flex;flex-wrap:wrap;gap:0.4rem;}
-    .sc-det-ex span{background:var(--card);border-radius:980px;padding:0.2rem 0.65rem;
-        font-size:0.8125rem;color:var(--t1);}
-    .sc-det .u{color:var(--green);font-weight:600;}
-    .sc-det .d{color:var(--red);font-weight:600;}
-    .sc-tl{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;
-        max-height:280px;overflow:auto;margin-top:0.45rem;font-size:0.82rem;color:var(--t1);
-        font-variant-numeric:tabular-nums;}
-    .sc-tl>span{padding:0.3rem 1.4rem 0.3rem 0;border-bottom:1px solid var(--hair);white-space:nowrap;}
-    .sc-tl>span:nth-child(4n){text-align:right;padding-right:0;}
-    .sc-tl>.h{position:sticky;top:0;background:var(--inset);font-size:0.72rem;font-weight:500;color:var(--t3);}
-    .sc-det .sc-val{margin:0;}
-
-    /* links into the Arabic guide: a small "؟", or a term underlined with dots.
-       Clicking anything with data-sg opens the guide on that section. */
-    [data-sg]{cursor:pointer;}
-    /* "؟" is always blue, so it reads as a link into the guide */
-    .qg{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
-        width:15px;height:15px;margin:0 0.3rem;border-radius:50%;background:var(--blue-fill);
-        color:#FFFFFF;font:600 0.625rem/1 'IBM Plex Sans Arabic',sans-serif;vertical-align:middle;
-        user-select:none;letter-spacing:0;text-transform:none;
-        transition:background-color .2s var(--ease),transform .2s var(--ease);}
-    .qg:hover{background:var(--blue-fill-h);transform:scale(1.1);}
-    .sgt{text-decoration:underline dotted rgba(0,0,0,0.20);text-decoration-thickness:1px;
-        text-underline-offset:3px;transition:color .2s var(--ease),text-decoration-color .2s var(--ease);}
-    .sgt:hover{color:var(--blue)!important;text-decoration-color:var(--blue);}
-    .sc-grid .sc-tr-alt{padding-left:0;}
-    .sc-grid details.sc-more>summary{padding:0.7rem 1.5rem;}
-    @media (max-width:900px){ .sc-grid{grid-template-columns:minmax(0,1fr);} }
-
-    .lsc-tbl-s{font-size:0.875rem;color:var(--t3);letter-spacing:-0.006em;}
-    .st-key-lsc_xlsx [data-testid="stDownloadButton"] button{background:var(--blue-bg)!important;
-        color:var(--blue)!important;font-weight:500!important;
-        min-height:2.15rem!important;}
-    .st-key-lsc_xlsx [data-testid="stDownloadButton"] button p{color:var(--blue)!important;
-        font-weight:500!important;font-size:0.875rem!important;}
-    .st-key-lsc_xlsx [data-testid="stDownloadButton"] button:hover{background:rgba(0,113,227,0.13)!important;color:var(--blue)!important;}
-    .st-key-lsc_expand .stButton button{min-height:2.5rem!important;color:var(--blue)!important;
-        background:var(--card)!important;box-shadow:var(--shadow-sm)!important;}
-    .st-key-lsc_expand .stButton button:hover{background:var(--card)!important;color:var(--blue)!important;
-        box-shadow:var(--shadow)!important;}
-    .lsc-regime2{background:var(--fill);color:var(--t1);}
-
-    /* ── Live Signal Check: the table ────────────────────────────────────────
-       One grid per row. .lt-lv holds the entry plan's five numbers: they join the
-       row's own grid on wide screens and become their own strip on narrow ones. */
-    .st-key-lsc_tbl{background:var(--card);border:none;border-radius:var(--r-lg);
-        box-shadow:var(--shadow);overflow:clip;gap:0!important;margin:0.2rem 0 0.9rem;}
+    /* ── Live Signal Check ───────────────────────────────────────────────── */
+    /* Download Excel: a link on the section title's line, at the right */
+    .st-key-lsc_xlsx{align-items:flex-end;padding-top:3.35rem;}
+    .stApp .st-key-lsc_xlsx [data-testid="stDownloadButton"] button{background:transparent!important;
+        color:var(--blue)!important;min-height:2.2rem!important;padding:0 0.1rem!important;white-space:nowrap;}
+    .stApp .st-key-lsc_xlsx [data-testid="stDownloadButton"] button p{color:var(--blue)!important;
+        font-weight:400!important;font-size:0.9375rem!important;white-space:nowrap;}
+    .stApp .st-key-lsc_xlsx [data-testid="stDownloadButton"] button:hover{background:transparent!important;
+        color:var(--blue)!important;opacity:0.7;}
+    .st-key-lsc_xlsx [data-testid="stCaptionContainer"] p{color:var(--t3)!important;}
+    .st-key-lsc_tbl{background:var(--card);border:none;border-radius:var(--r-lg);box-shadow:var(--shadow);
+        overflow:clip;gap:0!important;margin:1.2rem 0 0.9rem;}
     .st-key-lsc_tbl [data-testid="stMarkdownContainer"]{margin-bottom:0!important;}
-    .st-key-lsc_tbl>[data-testid="stElementContainer"]:first-child{position:sticky;top:0;z-index:5;}
-    .lt-g{display:grid;align-items:center;column-gap:1rem;padding:0.95rem 1.4rem;
-        grid-template-columns:1.5rem minmax(8.5rem,1.05fr) 6.4rem minmax(16rem,2.7fr)
-            5.4rem repeat(3,minmax(4.3rem,0.55fr)) 5.2rem 3.4rem 3.6rem 0.7rem;}
+    .st-key-lsc_tbl>[data-testid="stElementContainer"]:first-child{position:sticky;top:var(--sc-nav);z-index:5;}
+    /* one grid per row; .lt-lv holds the entry plan's five numbers: part of the
+       row's grid on wide screens, their own strip on narrow ones */
+    .lt-g{display:grid;align-items:center;column-gap:1.1rem;padding:1rem 1.5rem;
+        grid-template-columns:1.4rem minmax(8.5rem,1fr) 6.7rem minmax(15rem,2.6fr)
+            5.4rem repeat(3,minmax(4.4rem,0.55fr)) 5.3rem 3.6rem 3.8rem 0.6rem;}
     .lt-lv{display:contents;}
-    .lt-head{background:rgba(255,255,255,0.82);-webkit-backdrop-filter:saturate(180%) blur(20px);
-        backdrop-filter:saturate(180%) blur(20px);padding-top:0.7rem;padding-bottom:0.7rem;font-size:0.75rem;
-        font-weight:400;color:var(--t3);line-height:1.25;}
+    .lt-head{background:rgba(255,255,255,0.86);-webkit-backdrop-filter:saturate(180%) blur(20px);
+        backdrop-filter:saturate(180%) blur(20px);padding-top:0.72rem;padding-bottom:0.72rem;
+        font-size:0.75rem;color:var(--t3);line-height:1.25;}
     .lt-row{border-top:1px solid var(--hair);font-variant-numeric:tabular-nums;color:var(--t1);
         transition:background-color .22s var(--ease);}
-    .lt-rk{text-align:center;font-weight:400;font-size:0.875rem;color:var(--t4);}
+    .lt-rk{text-align:center;font-size:0.875rem;color:var(--t4);}
     .lt-rk.top{color:var(--blue);font-weight:500;}
-    .lt-st{min-width:0;display:flex;flex-direction:column;gap:0.08rem;}
+    .lt-st{min-width:0;display:flex;flex-direction:column;gap:0.1rem;}
     .lt-sym{font-size:1rem;font-weight:600;letter-spacing:-0.014em;color:var(--t1);}
-    .lt-nm{font-size:0.78rem;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .lt-sig b{display:flex;align-items:center;gap:0.36rem;font-size:0.84rem;font-weight:500;
-        color:var(--t1);white-space:nowrap;letter-spacing:-0.006em;}
+    .lt-nm{font-size:0.8125rem;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    /* dates keep Inter's normal figures: its tabular hyphen is wide ("2026 - 10 - 29") */
+    .lt-sig b,.ps-d,.ps-x small,.sc-tl>span:nth-child(4n+1){font-variant-numeric:normal;}
+    .lt-sig b{display:flex;align-items:center;gap:0.4rem;font-size:0.875rem;font-weight:500;color:var(--t1);white-space:nowrap;}
     .lt-sig b::before{content:'';flex:none;width:6px;height:6px;border-radius:50%;background:var(--d);}
-    .lt-sig small{display:block;font-size:0.75rem;color:var(--t3);margin-top:0.12rem;white-space:nowrap;}
-    .lt-str{min-width:0;display:flex;flex-direction:column;gap:0.4rem;}
-    .lt-str-t{display:flex;flex-wrap:wrap;align-items:center;gap:0.3rem;}
-    .lt-str-t .lsc-regime2{font-size:0.72rem;padding:0.15rem 0.52rem;cursor:help;}
-    .lt-str-t .sc-vb{font-size:0.72rem;padding:0.15rem 0.52rem;}
-    .lt-chips{display:flex;flex-wrap:wrap;align-items:center;row-gap:0.25rem;}
-    .lt-chips .sc-chip-ind{font-size:0.75rem;padding:0.15rem 0.52rem 0.15rem 0.44rem;gap:0.3rem;}
-    .lt-chips .sc-chip-ind::before{width:5px;height:5px;}
-    .lt-chips .sc-chip-plus{margin:0 0.18rem;font-size:0.75rem;}
-    .lt-n{text-align:right;font-size:0.9rem;font-weight:500;color:var(--t1);white-space:nowrap;letter-spacing:-0.008em;}
-    .lt-n small{display:block;font-size:0.75rem;font-weight:400;color:var(--t3);margin-top:0.12rem;letter-spacing:-0.002em;}
+    .lt-sig small{display:block;font-size:0.75rem;color:var(--t3);margin-top:0.15rem;padding-left:0.78rem;white-space:nowrap;}
+    .lt-str{min-width:0;display:flex;flex-direction:column;gap:0.34rem;}
+    .lt-chips{display:flex;flex-wrap:wrap;align-items:center;row-gap:0.2rem;}
+    .lt-str-t{display:flex;flex-wrap:wrap;align-items:center;gap:0.25rem 0.8rem;}
+    .lsc-regime2{display:inline-flex;align-items:center;gap:0.32rem;font-size:0.78rem;color:var(--t3);
+        white-space:nowrap;cursor:help;}
+    .lsc-regime2 .sc-ri{width:0.72rem;height:0.72rem;}
+    .lt-str-t .sc-vb{font-size:0.72rem;padding:0.1rem 0.5rem;}
+    .lt-str-t .sc-vb-warn{padding:0;color:var(--t3);font-size:0.78rem;}
+    .lsc-more{font-size:0.78rem;color:var(--blue);white-space:nowrap;}
+    .lt-n{text-align:right;font-size:0.9375rem;font-weight:500;color:var(--t1);white-space:nowrap;letter-spacing:-0.01em;}
+    .lt-n small{display:block;font-size:0.75rem;font-weight:400;color:var(--t3);margin-top:0.15rem;letter-spacing:0;}
     .lt-n .up{color:var(--green);}
     .lt-n .dn{color:var(--red);}
     .lt-n .few{color:var(--orange);}
-    .lt-wr{font-size:1.0625rem;font-weight:600;letter-spacing:-0.016em;}
+    .lt-tr small .up,.lt-tr small .dn{color:var(--t3);}
+    .lt-wr{font-size:1.125rem;font-weight:600;letter-spacing:-0.02em;}
     .lt-head .lt-n{font-size:0.75rem;font-weight:400;color:var(--t3);white-space:normal;letter-spacing:0;}
     .lt-chev{width:0.42rem;height:0.42rem;justify-self:end;border-right:1.5px solid var(--hair2);
         border-bottom:1.5px solid var(--hair2);transform:rotate(-45deg);
         transition:transform .28s var(--ease-out),border-color .2s var(--ease);}
-    .lt-open{background:rgba(0,113,227,0.05);}
+    .lt-open{background:rgba(0,113,227,0.045);}
     .lt-open .lt-chev{transform:rotate(45deg);border-color:var(--blue-fill);}
-
     /* A row is a tap target: an invisible button is spread over its HTML. The
-       regime and validation badges sit above it, so they still open the guide. */
-    [class*="st-key-lsc_row_"]{position:relative;gap:0!important;scroll-margin-top:2.6rem;}
+       regime and validation labels sit above it, so they still open the guide. */
+    [class*="st-key-lsc_row_"]{position:relative;gap:0!important;scroll-margin-top:calc(var(--sc-nav) + 2.6rem);}
     [class*="st-key-lsc_row_"]:hover .lt-row:not(.lt-open){background:#FAFAFC;}
     [class*="st-key-lsc_row_"]:hover .lt-chev{border-color:var(--t4);}
-    /* the tap answers at once, before the chart has come back from the server */
-    .stApp[data-test-script-state="running"] [class*="st-key-lsc_row_"]:has(button:focus) .lt-row{background:rgba(0,113,227,0.05);}
-    .stApp[data-test-script-state="running"] [class*="st-key-lsc_row_"]:has(button:focus) .lt-chev{transform:rotate(45deg);border-color:var(--blue-fill);}
+    /* the tap answers at once, before the chart comes back from the server */
+    .stApp[data-test-script-state="running"] [class*="st-key-lsc_row_"]:has(button:focus) .lt-row{background:rgba(0,113,227,0.045);}
+    .stApp[data-test-script-state="running"] [class*="st-key-lsc_row_"]:has(button:focus) .lt-chev{transform:rotate(45deg);
+        border-color:var(--blue-fill);}
     [class*="st-key-lsc_row_"]:has(button:focus-visible) .lt-row{box-shadow:inset 0 0 0 2px var(--blue);}
-    .stApp [class*="st-key-lsc_open_"]{position:absolute!important;inset:0;z-index:2;
-        width:auto!important;height:auto!important;margin:0!important;}
-    .stApp [class*="st-key-lsc_open_"] .stButton,
-    .stApp [class*="st-key-lsc_open_"] .stButton>*{width:100%!important;height:100%!important;}
-    .stApp [class*="st-key-lsc_open_"] .stButton button{width:100%!important;height:100%!important;
-        min-height:0!important;padding:0!important;border-radius:0!important;opacity:0!important;
-        cursor:pointer!important;}
+    .stApp [class*="st-key-lsc_open_"]{position:absolute!important;inset:0;z-index:2;width:auto!important;
+        height:auto!important;margin:0!important;}
+    .stApp [class*="st-key-lsc_open_"] .stButton,.stApp [class*="st-key-lsc_open_"] .stButton>*{width:100%!important;
+        height:100%!important;}
+    .stApp [class*="st-key-lsc_open_"] .stButton button{width:100%!important;height:100%!important;min-height:0!important;
+        padding:0!important;border-radius:0!important;opacity:0!important;cursor:pointer!important;}
     .lt-row [data-sg]{position:relative;z-index:3;}
+    .stApp .st-key-lsc_expand .stButton button,.stApp .st-key-sc_expand_strats .stButton button{background:var(--card)!important;
+        color:var(--blue)!important;min-height:2.75rem!important;box-shadow:var(--shadow-sm)!important;}
+    .stApp .st-key-lsc_expand .stButton button:hover,.stApp .st-key-sc_expand_strats .stButton button:hover{
+        background:var(--card)!important;color:var(--blue)!important;box-shadow:var(--shadow)!important;}
 
-    /* what a tapped row opens: its chart and "View strategy" */
-    [class*="st-key-lsc_panel_"]{background:#FAFAFC;border-top:1px solid var(--hair);
-        padding:0.9rem 1.4rem 1.2rem;gap:0.7rem!important;}
-    [class*="st-key-lsc_panel_"] [data-testid="stPlotlyChart"]{background:#FFFFFF;
-        border:none;border-radius:var(--r-md);overflow:hidden;box-shadow:0 0 0 0.5px rgba(0,0,0,0.06);}
-    .lt-leg{display:flex;flex-wrap:wrap;align-items:center;gap:0.4rem;}
-    .lt-leg .sc-vb{cursor:default;}
-    .lt-leg-sig{background:var(--orange-bg);color:var(--orange);}
+    /* what a tapped row opens: its signal history */
+    [class*="st-key-lsc_panel_"]{background:#FAFAFC;border-top:1px solid var(--hair);padding:1.2rem 1.5rem 1.45rem;
+        gap:0.85rem!important;}
+    [class*="st-key-lsc_panel_"] [data-testid="stPlotlyChart"]{background:#FFFFFF;border:none;border-radius:var(--r-md);
+        overflow:hidden;box-shadow:0 0 0 0.5px rgba(0,0,0,0.07);}
+    .lp-h{display:flex;align-items:baseline;flex-wrap:wrap;gap:0.15rem 0.6rem;}
+    .lp-h b{font-size:1.0625rem;font-weight:600;color:var(--t1);letter-spacing:-0.016em;}
+    .lp-h span{font-size:0.9375rem;color:var(--t3);}
+    .lp-now{display:flex;flex-wrap:wrap;align-items:center;gap:0.4rem 1rem;font-size:0.8125rem;color:var(--t3);}
+    .lp-now .k{color:var(--t2);}
+    .lp-i{display:inline-flex;align-items:center;gap:0.38rem;color:var(--t1);font-weight:500;white-space:nowrap;cursor:help;}
+    .lp-i::before{content:'';flex:none;width:7px;height:7px;border-radius:50%;background:#34C759;}
+    .lp-i.off{color:var(--t3);font-weight:400;}
+    .lp-i.off::before{background:transparent;box-shadow:inset 0 0 0 1.5px var(--t4);}
+    .lt-leg{display:inline-flex;align-items:center;gap:0.95rem;margin-left:auto;white-space:nowrap;}
+    .lt-leg i{font-style:normal;font-size:0.7rem;margin-right:0.25rem;}
+    .lt-leg i.w{color:#34C759;}
+    .lt-leg i.l{color:#FF3B30;}
+    .lt-leg i.s{color:#FF9500;}
     .lt-nochart{padding:1.2rem;text-align:center;font-size:0.875rem;color:var(--t3);}
+    .stApp [class*="st-key-lsc_goto_"] .stButton button{background:var(--blue-bg)!important;color:var(--blue)!important;
+        min-height:2.2rem!important;font-size:0.875rem!important;}
+    .stApp [class*="st-key-lsc_goto_"] .stButton button:hover{background:rgba(0,113,227,0.13)!important;color:var(--blue)!important;}
+    /* past signals: the trades on the chart, as a table */
+    .ps-h{display:flex;align-items:baseline;flex-wrap:wrap;gap:0.2rem 0.6rem;margin-top:0.35rem;}
+    .ps-h b{font-size:1rem;font-weight:600;color:var(--t1);letter-spacing:-0.014em;}
+    .ps-h span{font-size:0.875rem;color:var(--t3);font-variant-numeric:tabular-nums;}
+    .ps-h em{margin-left:auto;font-style:normal;font-size:0.8125rem;color:var(--t3);}
+    .ps{background:#FFFFFF;border-radius:var(--r-md);box-shadow:0 0 0 0.5px rgba(0,0,0,0.07);max-height:23rem;
+        overflow:auto;overscroll-behavior:contain;font-variant-numeric:tabular-nums;}
+    .ps-r{display:grid;align-items:center;column-gap:1rem;padding:0.6rem 1.15rem;font-size:0.875rem;color:var(--t1);
+        grid-template-columns:6.4rem 4.6rem 4.4rem repeat(4,minmax(4.6rem,1fr)) 2.6rem;
+        border-top:1px solid var(--hair);transition:background-color .18s var(--ease);}
+    .ps-r:first-child{border-top:none;}
+    .ps-hd{position:sticky;top:0;z-index:1;background:rgba(255,255,255,0.94);font-size:0.75rem;color:var(--t3);
+        padding-top:0.55rem;padding-bottom:0.55rem;}
+    .ps-r:not(.ps-hd):hover{background:#FAFAFC;}
+    .ps-r[title]{cursor:help;}
+    .ps-x{display:contents;}
+    .ps-r .n{text-align:right;white-space:nowrap;}
+    .ps-r small{display:block;font-size:0.72rem;color:var(--t3);margin-top:0.08rem;}
+    .ps-o{display:inline-flex;align-items:center;gap:0.38rem;font-weight:500;}
+    .ps-o::before{content:'';flex:none;width:6px;height:6px;border-radius:50%;background:currentColor;}
+    .ps-r .w{color:var(--green);}
+    .ps-r .l{color:var(--red);}
+    .ps-ret{font-weight:600;}
+    .ps-none{padding:1rem 1.15rem;font-size:0.875rem;color:var(--t3);}
 
-    /* Below laptop width the numbers no longer fit one line. The header row goes
-       and every number carries its own label. */
-    @media (max-width:1279px){
-      .lt-head{display:none;}
-      .lt-g.lt-row{grid-template-columns:2rem minmax(0,1fr) auto auto 0.8rem;gap:0.55rem 0.9rem;
-          align-items:start;grid-template-areas:"rk st wr tr chev" ". str str str str"
-              ". sig sig sig sig" ". lv lv lv lv";}
-      .lt-rk{grid-area:rk;padding-top:0.15rem;}
-      .lt-st{grid-area:st;}
-      .lt-str{grid-area:str;}
-      .lt-sig{grid-area:sig;}
-      .lt-wr{grid-area:wr;}
-      .lt-tr{grid-area:tr;}
-      .lt-chev{grid-area:chev;margin-top:0.55rem;}
-      .lt-sig b{display:inline-flex;}
-      .lt-sig small{display:inline;margin:0 0 0 0.45rem;}
-      .lt-lv{grid-area:lv;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0.5rem;
-          padding:0.6rem 0.8rem;border-radius:var(--r-sm);background:var(--inset);}
-      .lt-lv .lt-n{text-align:left;}
-      .lt-row .lt-n::before{content:attr(data-l);display:block;font-size:0.72rem;font-weight:400;
-          color:var(--t3);margin-bottom:0.12rem;letter-spacing:0;}
-    }
+    /* ── Scanned Strategies: one card per stock, one under the other ─────── */
+    .sc-summary{display:flex;flex-wrap:wrap;align-items:center;gap:0.3rem 1.2rem;margin:0.75rem 0 0;
+        font-size:0.875rem;color:var(--t3);font-variant-numeric:tabular-nums;}
+    .sc-summary b{color:var(--t1);font-weight:600;}
+    .sc-summary .ok b{color:var(--green);}
+    .sc-summary .bad b{color:var(--red);}
+    /* the columns every strategy row shares (the list's header uses them too) */
+    .sc-list{--sc-cols:var(--sc-col) minmax(13rem,1fr) 4.4rem 5.2rem 5.4rem 4.4rem 13.5rem 10.5rem 0.6rem;
+        margin:1.25rem 0 0;}
+    .sc-lh,.sc-sum{display:grid;align-items:center;column-gap:1.25rem;grid-template-columns:var(--sc-cols);}
+    .sc-lh{position:sticky;top:var(--sc-nav);z-index:4;padding:0.55rem 1.5rem 0.6rem;margin-bottom:0.35rem;
+        font-size:0.75rem;color:var(--t3);background:rgba(245,245,247,0.96);
+        -webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);}
+    .sc-lh .r{text-align:right;}
+    .sc-nums{display:contents;}
+    .sc-stock{background:var(--card);border:none;border-radius:var(--r-lg);box-shadow:var(--shadow);
+        margin:0 0 1rem;overflow:hidden;content-visibility:auto;contain-intrinsic-size:auto 19rem;
+        transition:box-shadow .3s var(--ease);}
+    .sc-stock-hdr{display:flex;align-items:center;gap:0.75rem;padding:1.05rem 1.5rem 0.95rem;}
+    .sc-rank{flex:none;min-width:1.4rem;text-align:center;font-size:0.9375rem;font-weight:500;color:var(--t4);
+        font-variant-numeric:tabular-nums;cursor:help;}
+    .sc-rank-top{color:var(--blue);}
+    .sc-sym{font-size:1.25rem;font-weight:600;color:var(--t1);letter-spacing:-0.02em;white-space:nowrap;}
+    .sc-sname{font-size:0.9375rem;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+    .sc-px{margin-left:auto;font-size:1rem;font-weight:500;color:var(--t1);white-space:nowrap;
+        font-variant-numeric:tabular-nums;letter-spacing:-0.012em;}
+    .sc-px small{font-size:0.75rem;font-weight:400;color:var(--t3);margin-left:0.25rem;letter-spacing:0;}
+    .sc-ct{font-size:0.8125rem;color:var(--t3);white-space:nowrap;}
+    .sc-golive{display:inline-flex;align-items:center;gap:0.38rem;font-size:0.8125rem;font-weight:500;
+        padding:0.24rem 0.72rem;border-radius:980px;background:var(--green-bg);color:var(--green);white-space:nowrap;
+        cursor:pointer;user-select:none;transition:background-color .2s var(--ease);}
+    .sc-golive::before{content:'';width:6px;height:6px;border-radius:50%;background:#34C759;}
+    .sc-golive:hover{background:rgba(52,199,89,0.22);}
+    .sc-table{border-top:1px solid var(--hair);}
+    .sc-tr{border-top:1px solid var(--hair);}
+    .sc-table>.sc-tr:first-child{border-top:none;}
+    /* a strategy row is the <summary> of its details */
+    .sc-sum{list-style:none;cursor:pointer;padding:0.95rem 1.5rem;-webkit-tap-highlight-color:transparent;
+        transition:background-color .2s var(--ease);}
+    .sc-sum::-webkit-details-marker{display:none;}
+    .sc-sum::marker{content:'';}
+    .sc-sum:hover,.sc-det[open]>.sc-sum{background:#FAFAFC;}
+    .sc-tr-reg{display:flex;flex-direction:column;gap:0.3rem;min-width:0;}
+    .sc-tr-reg1{display:flex;align-items:center;gap:0.45rem;}
+    .sc-tr-ico{flex:none;display:inline-flex;align-items:center;justify-content:center;width:1.5rem;height:1.5rem;
+        border-radius:7px;background:var(--fill);color:var(--t2);}
+    .sc-tr-rn{font-size:0.9375rem;font-weight:600;color:var(--t1);letter-spacing:-0.012em;}
+    .sc-now-pill{font-size:0.72rem;font-weight:500;padding:0.12rem 0.5rem;border-radius:980px;
+        background:var(--blue-bg);color:var(--blue);cursor:help;}
+    .sc-tr-alt{font-size:0.8125rem;color:var(--t3);padding-left:1.95rem;}
+    .sc-sig{display:inline-flex;align-items:center;gap:0.36rem;font-size:0.75rem;font-weight:500;color:var(--green);
+        padding-left:1.95rem;white-space:nowrap;}
+    .sc-sig::before{content:'';flex:none;width:6px;height:6px;border-radius:50%;background:#34C759;}
+    .sc-tr-strat{display:flex;flex-wrap:wrap;align-items:center;row-gap:0.25rem;min-width:0;}
+    .sc-tr-n{text-align:right;font-size:1rem;font-weight:500;color:var(--t1);white-space:nowrap;letter-spacing:-0.012em;
+        font-variant-numeric:tabular-nums;}
+    .sc-tr-wr{font-size:1.0625rem;font-weight:600;}
+    .sc-tr-sm{font-size:0.72rem;font-weight:500;color:var(--orange);margin-top:0.12rem;letter-spacing:0;}
+    .sc-tr-sm:empty{display:none;}
+    .sc-thin .sc-tr-n{color:var(--t3);}
+    .sc-wl{display:flex;flex-direction:column;gap:0.32rem;min-width:0;}
+    .sc-wl-bar{display:flex;gap:2px;height:4px;border-radius:980px;overflow:hidden;background:var(--fill);}
+    .sc-wl-bar i{display:block;height:100%;}
+    .sc-wl-bar i.w{background:#34C759;}
+    .sc-wl-bar i.l{background:#FF3B30;}
+    .sc-wl-row{display:flex;flex-direction:column;gap:0.06rem;font-size:0.75rem;color:var(--t3);white-space:nowrap;
+        font-variant-numeric:tabular-nums;}
+    .sc-wl-w b{color:var(--green);font-weight:600;}
+    .sc-wl-l b{color:var(--red);font-weight:600;}
+    .sc-wl-row .z b{color:var(--t3);}
+    .sc-tv{display:flex;flex-direction:column;align-items:flex-end;gap:0.28rem;text-align:right;cursor:help;min-width:0;}
+    .sc-tv-l{font-size:0.75rem;color:var(--t3);white-space:nowrap;}
+    .sc-chev{width:0.42rem;height:0.42rem;justify-self:end;border-right:1.5px solid var(--hair2);
+        border-bottom:1.5px solid var(--hair2);transform:rotate(-45deg);
+        transition:transform .28s var(--ease-out),border-color .2s var(--ease);}
+    .sc-sum:hover .sc-chev{border-color:var(--t4);}
+    .sc-det[open]>.sc-sum .sc-chev{transform:rotate(45deg);border-color:var(--blue-fill);}
+    /* the card a "View strategy" tap jumped to, and the strategy that signalled */
+    .sc-stock.sc-focus{box-shadow:0 0 0 2px var(--blue-fill),var(--shadow-lift);}
+    .sc-tr-focus>.sc-det>.sc-sum{background:rgba(0,113,227,0.06);}
+    /* the other strategies of a regime, folded under it */
+    details.sc-more{border-top:1px solid var(--hair);}
+    details.sc-more>summary{list-style:none;cursor:pointer;color:var(--blue);font-size:0.875rem;
+        padding:0.62rem 1.5rem 0.62rem calc(1.5rem + var(--sc-col) + 1.25rem);
+        transition:background-color .2s var(--ease);-webkit-tap-highlight-color:transparent;}
+    details.sc-more>summary::-webkit-details-marker{display:none;}
+    details.sc-more>summary::marker{content:'';}
+    details.sc-more>summary::after{content:'';display:inline-block;width:0.36rem;height:0.36rem;margin-left:0.5rem;
+        border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-0.1rem) rotate(-45deg);
+        transition:transform .25s var(--ease-out);}
+    details.sc-more[open]>summary::after{transform:translateY(-0.2rem) rotate(45deg);}
+    details.sc-more>summary:hover{background:#FAFAFC;}
+    .sc-tr-sub>.sc-det>.sc-sum{background:#FBFBFD;}
+    .sc-tr-sub>.sc-det>.sc-sum:hover,.sc-tr-sub>.sc-det[open]>.sc-sum{background:#F7F7F9;}
+    .sc-grp{margin:2.2rem 0 0;font-size:0.9375rem;color:var(--t3);line-height:1.5;}
+    .sc-grp b{color:var(--t1);font-weight:600;}
 
-    .st-key-lsc_xlsx [data-testid="stCaptionContainer"] p{color:var(--t3)!important;}
+    /* what a strategy row opens: buy rule · sell rule and results · every trade */
+    .sc-det-body{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1.15fr);gap:1.4rem 2.4rem;
+        padding:1.05rem 1.5rem 1.4rem calc(1.5rem + var(--sc-col) + 1.25rem);background:#FAFAFC;
+        border-top:1px solid var(--hair);}
+    .sc-det-h{display:flex;align-items:center;font-size:0.8125rem;font-weight:600;color:var(--t1);margin-bottom:0.45rem;}
+    .sc-det-sub{font-size:0.8125rem;color:var(--t2);line-height:1.55;margin-top:0.55rem;}
+    .sc-det-sub b{color:var(--t1);font-weight:600;}
+    .sc-det-ind{display:flex;align-items:baseline;gap:0.8rem;padding:0.32rem 0;border-top:1px solid var(--hair);font-size:0.875rem;}
+    .sc-det-h+.sc-det-ind{border-top:none;}
+    .sc-det-ind>b{flex:0 0 7rem;color:var(--t1);font-weight:600;}
+    .sc-det-ar{flex:1;text-align:left;unicode-bidi:isolate;color:var(--t1);line-height:1.65;
+        font-family:'IBM Plex Sans Arabic','Inter',sans-serif!important;}
+    .sc-det-ex{display:flex;flex-wrap:wrap;gap:0.4rem;}
+    .sc-det-ex span{background:#FFFFFF;box-shadow:0 0 0 0.5px rgba(0,0,0,0.09);border-radius:980px;
+        padding:0.22rem 0.72rem;font-size:0.8125rem;color:var(--t1);}
+    .sc-det .u{color:var(--green);font-weight:600;}
+    .sc-det .d{color:var(--red);font-weight:600;}
+    .sc-tl{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;max-height:280px;overflow:auto;
+        overscroll-behavior:contain;margin-top:0.45rem;font-size:0.8125rem;color:var(--t1);font-variant-numeric:tabular-nums;}
+    .sc-tl>span{padding:0.3rem 1.3rem 0.3rem 0;border-bottom:1px solid var(--hair);white-space:nowrap;}
+    .sc-tl>span:nth-child(4n){text-align:right;padding-right:0;}
+    .sc-tl>.h{position:sticky;top:0;background:#FAFAFC;font-size:0.72rem;font-weight:400;color:var(--t3);}
+    .sc-val{margin-top:1.05rem;padding-top:0.9rem;border-top:1px solid var(--hair);}
+    .sc-val-h{display:flex;align-items:center;font-size:0.8125rem;font-weight:600;color:var(--t1);margin-bottom:0.5rem;}
+    .sc-val-row{display:flex;align-items:center;gap:0.9rem;}
+    .sc-val-l{font-size:0.75rem;color:var(--t3);margin-bottom:0.15rem;}
+    .sc-val-v{display:flex;align-items:baseline;gap:0.4rem;font-variant-numeric:tabular-nums;}
+    .sc-val-v b{font-size:1.0625rem;font-weight:600;color:var(--t1);}
+    .sc-val-n{font-size:0.75rem;color:var(--t3);}
+    .sc-val-na{font-size:0.8125rem;color:var(--t3);}
+    .sc-val-arrow{color:var(--t4);}
+    .sc-val-note{margin-top:0.5rem;font-size:0.78rem;line-height:1.5;color:var(--t2);}
 
-    /* commodity prices */
+    /* ── commodity prices ────────────────────────────────────────────────── */
     .sc-h3{display:flex;flex-wrap:wrap;align-items:baseline;gap:0.1rem 0.5rem;font-size:1.1875rem;font-weight:600;
-        color:var(--t1);letter-spacing:-0.018em;margin:1.7rem 0 0.75rem;}
+        color:var(--t1);letter-spacing:-0.018em;margin:2rem 0 0.75rem;}
     .sc-h3-s{font-size:0.8125rem;font-weight:400;color:var(--t3);letter-spacing:-0.004em;}
-    .sc-pts{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:0.6rem;margin-bottom:1rem;}
-    .sc-pt{background:var(--card);border:none;border-radius:var(--r-md);
-        padding:0.8rem 0.95rem 0.75rem;box-shadow:var(--shadow-sm);min-width:0;}
-    .sc-pt-n{font-size:0.8125rem;font-weight:400;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .sc-pts{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:0.6rem;margin-bottom:0.4rem;}
+    .sc-pt{background:var(--card);border:none;border-radius:var(--r-md);padding:0.8rem 0.95rem 0.75rem;
+        box-shadow:var(--shadow-sm);min-width:0;}
+    .sc-pt-n{font-size:0.8125rem;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .sc-pt-v{font-size:1.1875rem;font-weight:600;color:var(--t1);letter-spacing:-0.022em;
         font-variant-numeric:tabular-nums;margin-top:0.15rem;}
     .sc-pt-s{font-size:0.72rem;color:var(--t3);margin-top:0.18rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .sc-pt-s .up{color:var(--green);font-weight:500;}
     .sc-pt-s .dn{color:var(--red);font-weight:500;}
 
-    /* a stock card's latest price */
-    .sc-px{margin-left:auto;font-size:1rem;font-weight:500;color:var(--t1);white-space:nowrap;
-        font-variant-numeric:tabular-nums;letter-spacing:-0.014em;}
-    .sc-px small{font-size:0.72rem;font-weight:400;color:var(--t3);margin-left:0.2rem;letter-spacing:0;}
-    .sc-stock-hdr .sc-px+.sc-cfire,.sc-stock-hdr .sc-px+.sc-ct{margin-left:0!important;}
-    [data-testid="stHorizontalBlock"]:has(.st-key-lsc_xlsx) [data-testid="stMarkdownContainer"]{
-        margin-bottom:0!important;}
+    /* ── empty states ────────────────────────────────────────────────────── */
+    .sc-empty{background:var(--card);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:4.5rem 2rem;
+        text-align:center;margin-top:1.2rem;}
+    .sc-empty-sm{padding:2.6rem 2rem;}
+    .sc-empty-t{font-size:1.1875rem;font-weight:600;color:var(--t1);letter-spacing:-0.018em;}
+    .sc-empty-s{font-size:0.9375rem;color:var(--t3);margin-top:0.45rem;line-height:1.5;letter-spacing:-0.008em;}
 
-    /* ── smaller screens (this CSS only exists on the Strategy Scanner page) ── */
+    /* ── links into the Arabic guide: a small "؟", or a term underlined with
+       dots. Clicking anything with data-sg opens the guide on that section. */
+    [data-sg]{cursor:pointer;}
+    .qg{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:15px;height:15px;
+        margin:0 0.3rem;border-radius:50%;background:var(--blue-fill);color:#FFFFFF;
+        font:600 0.625rem/1 'IBM Plex Sans Arabic',sans-serif;vertical-align:middle;user-select:none;
+        letter-spacing:0;text-transform:none;transition:background-color .2s var(--ease),transform .2s var(--ease);}
+    .qg:hover{background:var(--blue-fill-h);transform:scale(1.1);}
+    .sgt{text-decoration:underline dotted rgba(0,0,0,0.22);text-decoration-thickness:1px;text-underline-offset:3px;
+        transition:color .2s var(--ease),text-decoration-color .2s var(--ease);}
+    .sgt:hover{color:var(--blue)!important;text-decoration-color:var(--blue);}
+
+    /* ── narrower screens (this CSS only exists on the Strategy Scanner page) ── */
     @media (max-width:1500px){
-      .main .block-container,div.block-container{padding-left:1.5rem!important;padding-right:1.5rem!important;}
+      .stApp{--sc-pad:1.5rem;}
       [class*="st-key-sc_flt_f"] [role="radiogroup"] button{padding:0 0.6rem!important;}
+    }
+    /* below this a strategy row no longer fits one line: its numbers move to a
+       second line and carry their own labels */
+    @media (max-width:1359px){
+      .sc-lh{display:none;}
+      .sc-sum{grid-template-columns:var(--sc-col) minmax(0,1fr) auto 0.6rem;
+          grid-template-areas:"reg strat strat chev" ". nums val .";row-gap:0.8rem;align-items:start;}
+      .sc-tr-reg{grid-area:reg;}
+      .sc-tr-strat{grid-area:strat;padding-top:0.15rem;}
+      .sc-tv{grid-area:val;}
+      .sc-chev{grid-area:chev;margin-top:0.5rem;}
+      .sc-nums{grid-area:nums;display:grid;grid-template-columns:repeat(4,max-content) minmax(11rem,17rem);
+          gap:0.6rem 2.2rem;align-items:start;}
+      .sc-nums .sc-tr-n{text-align:left;}
+      .sc-tr-n::before{content:attr(data-l);display:block;font-size:0.72rem;font-weight:400;color:var(--t3);
+          margin-bottom:0.18rem;letter-spacing:0;}
+      .sc-wl{padding-top:0.3rem;}
     }
     @media (max-width:1279px){
       .sc-pts{grid-template-columns:repeat(4,minmax(0,1fr));}
@@ -2538,58 +2375,85 @@ def render_auto_scanner_page() -> None:
           flex:0 1 auto!important;width:auto!important;min-width:0!important;}
       /* a column with nothing in it (no days box, no Clear filters) takes no room */
       [data-testid="stHorizontalBlock"]:has(.st-key-sc_market_box)>[data-testid="stColumn"]:not(:has([data-testid="stElementContainer"])),
-      [data-testid="stHorizontalBlock"]:has([class*="st-key-sc_flt_f"])>[data-testid="stColumn"]:not(:has([data-testid="stElementContainer"])){display:none!important;}
+      [data-testid="stHorizontalBlock"]:has([class*="st-key-sc_flt_f"])>[data-testid="stColumn"]:not(:has([data-testid="stElementContainer"])){
+          display:none!important;}
+      /* Live Signal Check: the header row goes and every number carries its own label */
+      .lt-head{display:none;}
+      .lt-g.lt-row{grid-template-columns:2rem minmax(0,1fr) auto auto 0.8rem;gap:0.6rem 0.9rem;align-items:start;
+          grid-template-areas:"rk st wr tr chev" ". str str str str" ". sig sig sig sig" ". lv lv lv lv";}
+      .lt-rk{grid-area:rk;padding-top:0.15rem;}
+      .lt-st{grid-area:st;}
+      .lt-str{grid-area:str;}
+      .lt-sig{grid-area:sig;}
+      .lt-wr{grid-area:wr;}
+      .lt-tr{grid-area:tr;}
+      .lt-chev{grid-area:chev;margin-top:0.55rem;}
+      .lt-sig b{display:inline-flex;}
+      .lt-sig small{display:inline;margin:0 0 0 0.45rem;padding:0;}
+      .lt-lv{grid-area:lv;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0.5rem;
+          padding:0.65rem 0.85rem;border-radius:var(--r-sm);background:var(--inset);}
+      .lt-lv .lt-n{text-align:left;}
+      .lt-row .lt-n::before{content:attr(data-l);display:block;font-size:0.72rem;font-weight:400;color:var(--t3);
+          margin-bottom:0.12rem;letter-spacing:0;}
+    }
+    @media (max-width:1100px){
+      .sc-det-body{grid-template-columns:minmax(0,1fr) minmax(0,1fr);padding-left:1.5rem;}
+      .sc-det-body>:last-child{grid-column:1/-1;}
+      .ps-r{grid-template-columns:5.9rem 4.2rem 4rem repeat(4,minmax(0,1fr)) 2.2rem;column-gap:0.7rem;}
     }
     @media (max-width:860px){
-      .sc-tb{flex-wrap:wrap;gap:1rem 1.8rem;}
-      .sc-tb>div:first-child{flex:1 1 100%;}
+      .sc-tb{display:block;}
+      .sc-kpis{justify-content:flex-start;margin-top:1.2rem;}
+      .sc-kpi{text-align:left;}
+      .sc-nav-r{display:none;}
     }
     @media (max-width:640px){
-      .main .block-container,div.block-container{padding:0.7rem 0.8rem 3.5rem!important;}
+      .stApp{--sc-pad:0.8rem;--sc-nav:2.9rem;--sc-col:auto;}
+      .main .block-container,div.block-container{padding-top:0.6rem!important;padding-bottom:3.5rem!important;}
       /* the app's floating translate button covers less of the page */
       #translate-fab-btn{transform:scale(0.78);transform-origin:bottom left;}
-      /* Back on top, then the title, then four KPIs in one line */
-      [data-testid="stHorizontalBlock"]:has(>[data-testid="stColumn"] .st-key-sc_back){
-          flex-direction:column-reverse!important;gap:0.35rem!important;}
-      .st-key-sc_back .stButton button{width:auto!important;}
-      .sc-tb{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0.7rem 0.4rem;margin-bottom:0.9rem;}
-      .sc-tb>div:first-child{grid-column:1/-1;margin:0!important;}
       .sc-title{font-size:2rem;}
-      .sc-sub{font-size:0.9rem;line-height:1.4;margin-top:0.35rem;}
-      .sc-kpi{text-align:left;min-width:0;}
+      .sc-sub{font-size:0.9rem;line-height:1.4;margin-top:0.4rem;}
+      .sc-tb{margin-bottom:1rem;}
+      .sc-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0.5rem;margin-top:1rem;}
       .sc-kv{font-size:1.25rem;}
-      .sc-kl{font-size:0.6875rem;line-height:1.25;margin-top:0.3rem;}
-      .sc-kl .qg{display:none;}
-      /* segmented controls fill the width, with their text as tight as it stays readable */
+      .sc-kl{font-size:0.6875rem;line-height:1.25;margin-top:0.3rem;white-space:normal;}
+      .sc-nav{gap:0.1rem;}
+      .sc-nav-t{display:none;}
+      .sc-nav-a{padding:0 0.7rem;font-size:0.8125rem;height:1.95rem;gap:0.35rem;}
+      .sc-nav-a .l{display:none;}
+      .sc-nav-a .s{display:inline;}
+      .st-key-lsc_xlsx{padding-top:0;align-items:flex-start;}
+      .st-key-sc_ctl{padding:0.95rem 0.9rem 1rem;border-radius:var(--r-md);}
+      .sc-ctl-hr{margin:0 -0.9rem;}
+      /* segmented controls fill the width, their text as tight as it stays readable */
       .st-key-sc_market_box [data-testid="stElementContainer"],.st-key-sc_seg_box [data-testid="stElementContainer"],
       [class*="st-key-sc_flt_f"] [data-testid="stElementContainer"],
       .st-key-sc_market_box [data-testid="stButtonGroup"],.st-key-sc_seg_box [data-testid="stButtonGroup"],
       [class*="st-key-sc_flt_f"] [data-testid="stButtonGroup"]{width:100%!important;}
       .st-key-sc_market_box [role="radiogroup"],.st-key-sc_seg_box [role="radiogroup"],
-      [class*="st-key-sc_flt_f"] [role="radiogroup"]{display:flex!important;width:100%!important;
-          min-width:100%!important;}
+      [class*="st-key-sc_flt_f"] [role="radiogroup"]{display:flex!important;width:100%!important;min-width:100%!important;}
       .st-key-sc_market_box [role="radiogroup"] button,.st-key-sc_seg_box [role="radiogroup"] button,
-      [class*="st-key-sc_flt_f"] [role="radiogroup"] button{flex:1 1 auto!important;min-width:0!important;
-          padding:0 0.5rem!important;}
+      [class*="st-key-sc_flt_f"] [role="radiogroup"] button{flex:1 1 auto!important;min-width:0!important;padding:0 0.5rem!important;}
       .st-key-sc_market_box [role="radiogroup"] button p,.st-key-sc_seg_box [role="radiogroup"] button p,
       [class*="st-key-sc_flt_f"] [role="radiogroup"] button p{font-size:0.84rem!important;white-space:nowrap;}
-      /* filters: one per line, full width */
       [data-testid="stHorizontalBlock"]:has([class*="st-key-sc_flt_f"])>[data-testid="stColumn"]{
           flex:1 1 100%!important;width:100%!important;}
       [data-testid="stHorizontalBlock"]:has([class*="st-key-sc_flt_f"])>[data-testid="stColumn"]:not(:has(*)){display:none!important;}
       /* commodity prices: one line to swipe, gold and silver first */
-      .sc-pts{display:flex;overflow-x:auto;gap:0.5rem;margin:0 -0.8rem 0.8rem;padding:0.15rem 0.8rem 0.45rem;
+      .sc-pts{display:flex;overflow-x:auto;gap:0.5rem;margin:0 -0.8rem 0.4rem;padding:0.15rem 0.8rem 0.45rem;
           scrollbar-width:none;}
       .sc-pts::-webkit-scrollbar{display:none;}
       .sc-pt{flex:0 0 7.6rem;}
       /* section titles */
-      .lsc-section-hdr{margin:1.4rem 0 0.9rem;}
-      .lsc-section-label,.sc-h2-t{font-size:1.4375rem;}
-      .sc-h2{flex-wrap:wrap;gap:0.2rem 0.6rem;margin-top:2.6rem!important;}
-      .sc-h2-s{font-size:0.84rem;line-height:1.4;}
-      .sc-h2-c{margin-left:0;}
-      .sc-legend{gap:0.25rem 0.8rem;font-size:0.75rem;margin-bottom:0.8rem;}
-      /* the table: a compact card per row */
+      .sc-sec{margin-top:2.4rem;}
+      .sc-sec-t{font-size:1.4375rem;}
+      .sc-sec-h{flex-wrap:wrap;}
+      .sc-sec-s{font-size:0.84rem;line-height:1.45;}
+      .sc-legend{gap:0.25rem 0.8rem;font-size:0.75rem;}
+      .stApp .st-key-lsc_xlsx [data-testid="stDownloadButton"] button p{font-size:0.875rem!important;}
+      [data-testid="stHorizontalBlock"]:has(.st-key-lsc_xlsx){gap:0.3rem!important;}
+      /* the live table: a compact card per row */
       .st-key-lsc_tbl{border-radius:var(--r-md);}
       .lt-g.lt-row{grid-template-columns:1.25rem minmax(0,1fr) auto auto 0.55rem;gap:0.5rem 0.65rem;
           padding:0.85rem 0.9rem;grid-template-areas:"rk st wr tr chev" "str str str str str"
@@ -2604,37 +2468,47 @@ def render_auto_scanner_page() -> None:
       /* on a phone the whole row is the tap target, badges included */
       .lt-row [data-sg]{position:static;z-index:auto;}
       .lt-wr{font-size:1rem;}
-      [class*="st-key-lsc_panel_"]{padding:0.75rem 0.6rem 0.8rem;}
-      [data-testid="stHorizontalBlock"]:has(.st-key-lsc_xlsx){gap:0.4rem!important;}
-      /* stock cards in Scanned Strategies */
-      .sc-grid{gap:0.8rem;}
-      .sc-grid .sc-stock-hdr{padding:0.95rem 1rem 0.8rem;gap:0.5rem;flex-wrap:wrap;}
+      .sc-chip-ind{font-size:0.84rem;white-space:normal;}
+      [class*="st-key-lsc_panel_"]{padding:0.85rem 0.65rem 0.9rem;}
+      .lt-leg{margin-left:0;}
+      .ps-h em{display:none;}
+      .ps-hd{display:none;}
+      .ps-r{grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"d o ret" "x x x";
+          row-gap:0.4rem;column-gap:0.8rem;padding:0.65rem 0.85rem;}
+      .ps-d{grid-area:d;}
+      .ps-r>.ps-o{grid-area:o;}
+      .ps-ret{grid-area:ret;}
+      .ps-x{grid-area:x;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0.3rem;}
+      .ps-x>.n{text-align:left;font-size:0.8125rem;}
+      .ps-x>.n::before{content:attr(data-l);display:block;font-size:0.6875rem;color:var(--t3);}
+      .ps-x small{display:none;}
+      /* Scanned Strategies */
+      .sc-stock{border-radius:var(--r-md);margin-bottom:0.8rem;}
+      .sc-stock-hdr{flex-wrap:wrap;gap:0.3rem 0.6rem;padding:0.9rem 1rem 0.8rem;}
       .sc-sym{font-size:1.1875rem;}
-      .sc-sname{font-size:0.8125rem;max-width:100%;}
-      .sc-grid .sc-tr{padding:0.9rem 1rem;gap:0.55rem 0.55rem;}
-      .sc-grid .sc-tr-n{font-size:1rem;}
-      .sc-tr-l{font-size:0.6875rem;width:auto;}
-      .sc-chip-ind{white-space:normal;}
-      .sc-grid details.sc-more>summary{padding:0.55rem 1rem;}
-      .sc-det-hint{display:none;}
-      .sc-det-body{padding:0.7rem 0.7rem;}
+      .sc-sname{order:9;flex:1 1 100%;font-size:0.8125rem;padding-left:2rem;}
+      .sc-sum{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"reg val" "strat strat" "nums nums";
+          column-gap:0.75rem;row-gap:0.7rem;padding:0.9rem 1rem;}
+      .sc-chev{display:none;}
+      .sc-tr-strat{padding-top:0;}
+      .sc-nums{grid-template-columns:repeat(4,minmax(0,1fr));gap:0.6rem 0.5rem;}
+      .sc-tr-n{font-size:0.9375rem;}
+      .sc-tr-n::before{font-size:0.6875rem;}
+      .sc-wl{grid-column:1/-1;padding-top:0.1rem;}
+      .sc-wl-row{flex-direction:row;justify-content:space-between;}
+      .sc-tr-alt,.sc-sig{padding-left:0;}
+      details.sc-more>summary{padding-left:1rem;}
+      .sc-det-body{grid-template-columns:minmax(0,1fr);padding:0.9rem 1rem 1.1rem;gap:1.1rem;}
       .sc-det-ind{flex-direction:column;gap:0.1rem;}
       .sc-det-ind>b{flex:none;}
       .sc-tl>span{padding-right:0.7rem;}
     }
     @media (max-width:370px){
       .lt-lv{grid-template-columns:repeat(3,minmax(0,1fr));}
+      .ps-x{grid-template-columns:repeat(3,minmax(0,1fr));}
       .st-key-sc_market_box [role="radiogroup"] button p,.st-key-sc_seg_box [role="radiogroup"] button p,
       [class*="st-key-sc_flt_f"] [role="radiogroup"] button p{font-size:0.78rem!important;}
     }
-
-    /* a page with nothing to show yet */
-    .sc-empty{background:var(--card);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:4.5rem 2rem;text-align:center;}
-    .sc-empty-t{font-size:1.1875rem;font-weight:600;color:var(--t1);letter-spacing:-0.018em;}
-    .sc-empty-s{font-size:0.9375rem;color:var(--t3);margin-top:0.45rem;line-height:1.5;letter-spacing:-0.008em;}
-
-    /* fewer "?" marks: the regime pill tooltip is enough */
-    .sc-rcard-top .sc-help-pill{display:none;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -2739,11 +2613,6 @@ def render_auto_scanner_page() -> None:
         used where a "؟" after every label would crowd the cards."""
         return f"<span class='sgt' data-sg='{sg}' title='اضغط للشرح في دليل الصفحة'>{text}</span>"
 
-    def _lbl(text, sg) -> str:
-        """Small label above a number in a strategy block, linked to the guide."""
-        return (f"<span class='sc-tr-l sgt' data-sg='{sg}' "
-                f"title='اضغط للشرح في دليل الصفحة'>{text}</span>")
-
     _VAL_HELP = (
         'The strategy was picked using the first 70% of the period, then '
         'checked once on the last 30% — bars the search never saw. Validated '
@@ -2783,8 +2652,7 @@ def render_auto_scanner_page() -> None:
                      f"Numbers above are from the fitted period.")
         return (
             "<div class='sc-val'>"
-            "<div class='sc-val-h'>Validation"
-            f"<span class='sc-help' title='{_VAL_HELP}'>?</span></div>"
+            f"<div class='sc-val-h'><span class='sgt' data-sg='18' title='{_VAL_HELP}'>Validation</span></div>"
             "<div class='sc-val-row'>"
             f"<div class='sc-val-c'><div class='sc-val-l'>Fitted (first 70%)</div>"
             f"<div class='sc-val-v'><b>{float(_is_wr):.0f}%</b>"
@@ -2875,7 +2743,7 @@ def render_auto_scanner_page() -> None:
 
     def _wl_bar(c) -> str:
         """Winning vs losing trades: a split bar, then the count and the
-        average % of each side."""
+        average % of each side, one line each."""
         _wn = int(c.get('wins', 0) or 0)
         _ln = int(c.get('losses', 0) or 0)
         _ag = float(c.get('avg_gain', 0) or 0)
@@ -2885,12 +2753,10 @@ def render_auto_scanner_page() -> None:
             f"<div class='sc-wl-bar'><i class='w' style='flex:{_wn}'></i>"
             f"<i class='l' style='flex:{_ln}'></i></div>"
             "<div class='sc-wl-row'>"
-            f"<span class='sc-wl-w{' z' if not _wn else ''}'><b>{_wn}</b> "
-            f"{'winning trade' if _wn == 1 else 'winning trades'}"
-            + (f" · avg <b>+{_ag:.1f}%</b>" if _wn else '') + "</span>"
-            f"<span class='sc-wl-l{' z' if not _ln else ''}'><b>{_ln}</b> "
-            f"{'losing trade' if _ln == 1 else 'losing trades'}"
-            + (f" · avg <b>−{_al:.1f}%</b>" if _ln else '') + "</span>"
+            f"<span class='sc-wl-w{' z' if not _wn else ''}'><b>{_wn}</b> winning"
+            + (f" · avg +{_ag:.1f}%" if _wn else '') + "</span>"
+            f"<span class='sc-wl-l{' z' if not _ln else ''}'><b>{_ln}</b> losing"
+            + (f" · avg −{_al:.1f}%" if _ln else '') + "</span>"
             "</div></div>")
 
     # What each indicator has to show for a strategy to buy — the guide's
@@ -2902,13 +2768,13 @@ def render_auto_scanner_page() -> None:
     _TRADES_SHOWN = 30
 
     def _details(c, regime) -> str:
-        """Folded "Strategy details": buy rule, sell rule, how the trades
-        ended, every trade, and the fitted → held-back comparison."""
+        """What a strategy row opens ("Strategy details"): the buy rule, the
+        sell rule with how the trades ended and the fitted → held-back
+        comparison, and every trade."""
         from scanner_engine import resolve_period as _rp
         _hold, _pt, _sl = _rp(st.session_state.sc_period)[2:5]
         _keys = list(c.get('indicators', []))
         _trades = list(c.get('trades') or ())
-        _n = int(c.get('total', 0) or 0)
         _ok = _is_validated(c)
         _rsn = c.get('fail_reason', 'few')
 
@@ -2949,11 +2815,8 @@ def render_auto_scanner_page() -> None:
                      "Run Scan.</div>")
 
         return (
-            "<details class='sc-det'>"
-            f"<summary>Strategy details<span class='sc-det-hint'> · buy &amp; sell rules, "
-            f"all {_n} trades</span>{_q(20)}</summary>"
             "<div class='sc-det-body'>"
-            f"<div><div class='sc-det-h'>Buy when all {len(_keys)} are true on the same day</div>"
+            f"<div><div class='sc-det-h'>Buy when all {len(_keys)} are true on the same day{_q(20)}</div>"
             + _buy
             + f"<div class='sc-det-sub'>Checked at the daily close, only on {regime.title()} days. "
               "Buy at the next day's open.</div></div>"
@@ -2962,14 +2825,18 @@ def render_auto_scanner_page() -> None:
             f"<span><b class='u'>+{_pt * 100:g}%</b> target</span>"
             f"<span><b class='d'>−{_sl * 100:g}%</b> stop</span>"
             f"<span>close of day <b>{_hold}</b></span></div>"
-            + _ends_html + "</div>"
+            + _ends_html + _val_box(c) + "</div>"
             f"<div>{_list}</div>"
-            + _val_box(c)
-            + "</div></details>")
+            "</div>")
 
     def _strat_row(c, regime, is_now=False, alt=False, focus=False) -> str:
-        """One table row: regime · strategy · numbers · trades · validation.
-        `focus` highlights the strategy a Live Signal Check card jumped to."""
+        """One strategy, one row: regime · indicators · win rate · profit
+        factor · expectancy · trades · winning and losing trades · validation.
+        The row is the <summary> of its own <details>, so tapping it opens the
+        strategy's rules and every trade. The columns are shared by every card
+        (the list's header names them); on narrower screens the numbers move to
+        a second line and show their own labels (data-l). `focus` highlights the
+        strategy a Live Signal Check row jumped to."""
         c = c or {}
         _w = float(c.get('win_rate', 0) or 0)
         _p = float(c.get('profit_factor', 0) or 0)
@@ -2977,39 +2844,38 @@ def render_auto_scanner_page() -> None:
         _n = int(c.get('total', 0) or 0)
         _thin = _n < 10
         if alt:
-            _reg = "<div class='sc-tr-reg sc-tr-alt'>Alternative</div>"
+            _reg = "<div class='sc-tr-reg'><span class='sc-tr-alt'>Alternative</span>"
         else:
-            _reg = (f"<div class='sc-tr-reg' title='{_REGIME_HELP.get(regime, '')}'>"
+            _reg = (f"<div class='sc-tr-reg' title='{_REGIME_HELP.get(regime, '')}'><span class='sc-tr-reg1'>"
                     f"<span class='sc-tr-ico'>{_REGIME_ICON.get(regime, '')}</span>"
                     f"<span class='sc-tr-rn sgt' data-sg='3'>{regime.title()}</span>"
                     + ("<span class='sc-now-pill' data-sg='3' title='The stock is in this market "
                        "regime today, so this is the strategy that applies now.'>Today</span>"
                        if is_now else '')
-                    + "</div>")
-        _sig = (f"<span class='sc-cfire'>{_age_txt(_sig_age(c))}</span>"
-                if _is_live(c) else '')
+                    + "</span>")
+        _reg += (f"<span class='sc-sig'>{_age_txt(_sig_age(c))}</span>" if _is_live(c) else '') + "</div>"
         return (
             f"<div class='sc-tr{' sc-tr-now' if is_now and not alt else ''}"
             f"{' sc-tr-sub' if alt else ''}{' sc-thin' if _thin else ''}"
             f"{' sc-tr-focus' if focus else ''}'>"
+            "<details class='sc-det'><summary class='sc-sum'>"
             + _reg
-            + f"<div class='sc-tr-strat'>{_chips(c.get('indicators', []))}{_sig}</div>"
-            # Each number carries its own label: the cards sit two per row, too
-            # narrow for a shared column header. A label opens its guide section.
-            + f"<div class='sc-tr-n'>{_lbl('Win rate', 7)}{_w:.0f}%</div>"
-            + f"<div class='sc-tr-n' title='{_PF_HELP}'>{_lbl('Profit factor', 7)}{_p:.1f}×</div>"
-            + f"<div class='sc-tr-n' title='{_EXP_HELP}' "
-              f"style='color:{'var(--red)' if _e <= 0 else 'var(--green)'};'>"
-              f"{_lbl('Expectancy', 7)}{_e:+.1f}%</div>"
-            + f"<div class='sc-tr-n'>{_lbl('Trades', 7)}{_n}<div class='sc-tr-sm'>"
+            + f"<div class='sc-tr-strat'>{_chips(c.get('indicators', []))}</div>"
+            + "<div class='sc-nums'>"
+            + f"<div class='sc-tr-n sc-tr-wr' data-l='Win rate'>{_w:.0f}%</div>"
+            + f"<div class='sc-tr-n' data-l='Profit factor' title='{_PF_HELP}'>{_p:.1f}×</div>"
+            + f"<div class='sc-tr-n' data-l='Expectancy' title='{_EXP_HELP}' "
+              f"style='color:{'var(--red)' if _e <= 0 else 'var(--green)'};'>{_e:+.1f}%</div>"
+            + f"<div class='sc-tr-n sc-tr-cnt' data-l='Trades'>{_n}<div class='sc-tr-sm'>"
               f"{'too few' if _thin else ''}</div></div>"
-            + _val_cell(c)
-            # Winning and losing trades, then the folded details.
             + _wl_bar(c)
+            + "</div>"
+            + _val_cell(c)
+            + "<i class='sc-chev'></i></summary>"
             + _details(c, regime)
-            + "</div>")
+            + "</details></div>")
 
-    # ── top bar ───────────────────────────────────────────────────────────────
+    # ── title ─────────────────────────────────────────────────────────────────
     _n_res  = len(st.session_state.sc_results or [])
     _n_fire = sum(1 for row in (st.session_state.sc_results or [])
                   if _live_combos(row))
@@ -3019,29 +2885,34 @@ def render_auto_scanner_page() -> None:
                       if any(_is_validated(c) for c in _live_combos(row)))
     _upd = (st.session_state.get('_sc_full_cache') or {}).get(f"{_mk}|{st.session_state.sc_period}|v3")
     _upd_txt = _time.strftime('%H:%M', _time.localtime(_upd[0])) if _upd else '—'
-    _tl, _tr = st.columns([1, 0.12])
-    with _tl:
-        st.markdown(
-            "<div class='sc-tb'>"
-            "<div style='margin-right:auto;'><div class='sc-title'>Strategy Scanner</div>"
-            f"<div class='sc-sub'>The best indicator strategies for {_M['everything']}, "
-            "in every market regime.</div></div>"
-            f"<div class='sc-kpi'><div class='sc-kv' style='color:var(--green);'>{_n_fire}</div>"
-            f"<div class='sc-kl'>Live signals{_q(10)}</div></div>"
-            f"<div class='sc-kpi'><div class='sc-kv'>{_n_fire_val}</div>"
-            f"<div class='sc-kl'>Validated{_q(18)}</div></div>"
-            f"<div class='sc-kpi'><div class='sc-kv'>{_n_res}<span style='color:var(--t4);"
-            f"font-weight:500;'>/{len(_ALL_SYMS)}</span></div>"
-            f"<div class='sc-kl'>{_M['nouns'].capitalize()} scanned{_q(1)}</div></div>"
-            f"<div class='sc-kpi'><div class='sc-kv'>{_upd_txt}</div>"
-            f"<div class='sc-kl'>Updated{_q(12)}</div></div>"
-            "</div>",
-            unsafe_allow_html=True)
-    with _tr:
-        with st.container(key="sc_back"):
-            if st.button("‹  Back", key="sc_back_btn", use_container_width=True):
-                st.session_state.show_champions_vault = False
-                st.rerun()
+    # Back sits above the title, the way iOS places it, so the numbers on the
+    # right line up with the edge of the page.
+    with st.container(key="sc_back"):
+        if st.button("Back", key="sc_back_btn", icon=":material/chevron_left:"):
+            st.session_state.show_champions_vault = False
+            st.rerun()
+    # Each number's label opens its guide section (dotted underline, no "؟":
+    # four blue marks in a row made the title area busy).
+    st.markdown(
+        "<div class='sc-tb'><div class='sc-tb-l'>"
+        "<div class='sc-title'>Strategy Scanner</div>"
+        f"<div class='sc-sub'>The best indicator strategies for {_M['everything']}, "
+        "in every market regime.</div></div>"
+        "<div class='sc-kpis'>"
+        f"<div class='sc-kpi'><div class='sc-kv g'>{_n_fire}</div>"
+        f"<div class='sc-kl'>{_term('Live signals', 10)}</div></div>"
+        f"<div class='sc-kpi'><div class='sc-kv'>{_n_fire_val}</div>"
+        f"<div class='sc-kl'>{_term('Validated', 18)}</div></div>"
+        f"<div class='sc-kpi'><div class='sc-kv'>{_n_res}<small>/{len(_ALL_SYMS)}</small></div>"
+        f"<div class='sc-kl'>{_term(_M['nouns'].capitalize() + ' scanned', 1)}</div></div>"
+        f"<div class='sc-kpi'><div class='sc-kv'>{_upd_txt}</div>"
+        f"<div class='sc-kl'>{_term('Updated', 12)}</div></div>"
+        "</div></div>",
+        unsafe_allow_html=True)
+    # The section bar (Live Signal Check · Scanned Strategies · guide) goes
+    # here once there are results. st.empty keeps it a direct child of the
+    # page, which is what lets it stick to the top while the page scrolls.
+    _nav_slot = st.empty()
 
     # ── Arabic guide: what the page does and how, incl. the background work ──
     from scanner_guide import render_scanner_guide
@@ -3090,9 +2961,6 @@ def render_auto_scanner_page() -> None:
                         "score past trades. " + " · ".join(
                             f"{k}: {_PCFG[k][0]} days" for k in ('Short', 'Medium', 'Long'))
                         + ". Longer periods give more reliable stats.")
-    _SCAN_HELP = (f"Run the scanner across all {_M['in_text']} for the selected period. "
-                  "Recomputes regime, fits strategies, and detects which ones are "
-                  "currently firing.")
     _DAYS_HELP = (f"Scan the last N TRADING days ({_DAYS_MIN}-{_DAYS_MAX}). {_M['days_note']} "
                   "weekends are never counted — 30 means 30 real "
                   "sessions (~6 weeks). Extra history is still loaded behind the scenes "
@@ -3140,7 +3008,11 @@ def render_auto_scanner_page() -> None:
 
     if not st.session_state.get('sc_seg'):
         st.session_state.sc_seg = _cur_seg
-    _r1 = st.columns([3.3, 3.6, 1.05, 1.25], gap="medium", vertical_alignment="bottom")
+    # One card holds everything that decides what the page shows: what to scan
+    # here, then (once there are results) the search and the filters.
+    _ctl = st.container(key="sc_ctl")
+    with _ctl:
+        _r1 = st.columns([3.3, 3.6, 1.05, 1.25], gap="medium", vertical_alignment="bottom")
     with _r1[0]:
         st.markdown(f"<div class='sc-flt-l'>Market{_q(21)}</div>", unsafe_allow_html=True)
         with st.container(key="sc_market_box"):
@@ -3173,8 +3045,7 @@ def render_auto_scanner_page() -> None:
                 st.rerun()
     with _r1[3]:
         with st.container(key="sc_run"):
-            if st.button("Run Scan", key="sc_run_btn", use_container_width=True,
-                         help=_SCAN_HELP):
+            if st.button("Run Scan", key="sc_run_btn", use_container_width=True):
                 st.session_state.sc_results   = None
                 st.session_state.sc_done      = False
                 st.session_state.sc_requested = True
@@ -3342,11 +3213,13 @@ def render_auto_scanner_page() -> None:
                 f"<div class='sc-pts'>{_px_tiles}</div>",
                 unsafe_allow_html=True)
 
-    # ── search bar (styled in the page CSS block) ────────────────────────────
-    with st.container(key="sc_search_box"):
-        _sc_query = st.text_input(
-            " ", placeholder=_M['search'],
-            key="sc_search_q", label_visibility="collapsed")
+    # ── search and filters: the lower half of the settings card ──────────────
+    with _ctl:
+        st.markdown("<div class='sc-ctl-hr'></div>", unsafe_allow_html=True)
+        with st.container(key="sc_search_box"):
+            _sc_query = st.text_input(
+                " ", placeholder=_M['search'],
+                key="sc_search_q", label_visibility="collapsed")
     _sc_q = (_sc_query or '').strip().lower()
     if _sc_q:
         _rows = [r for r in _rows
@@ -3374,7 +3247,7 @@ def render_auto_scanner_page() -> None:
             st.session_state[_k] = _v
 
     # On a phone the filters fold away, or the table would start two screens down.
-    with (st.expander("Filters") if _PHONE else st.container()):
+    with _ctl, (st.expander("Filters") if _PHONE else st.container()):
         _fc = st.columns([1.3, 1, 1.45, 1.5, 0.75], gap="medium", vertical_alignment="bottom")
         # Each filter label has a "؟" to the guide: what the filter does (10), what
         # a market regime is (3), what Validated means (18).
@@ -3418,7 +3291,7 @@ def render_auto_scanner_page() -> None:
     _n_searched = len(_rows)
     _rows = [r for r in _rows if any(_strats(r, _rn) for _rn in _REGIMES)]
     if _f_on:
-        st.markdown(
+        _ctl.markdown(
             f"<div class='sc-flt-sum'><b>{len(_rows)}</b> of {_n_searched} {_M['nouns']} have a "
             "strategy that matches the filter</div>",
             unsafe_allow_html=True)
@@ -3448,10 +3321,8 @@ def render_auto_scanner_page() -> None:
                   if not _is_validated(c) and c.get('fail_reason') == 'lost')
 
     # ══════════════════════════════════════════════════════════════════════════
-    # SECTION 2 — Live Signal Check
+    # SECTION 1 — Live Signal Check
     # ══════════════════════════════════════════════════════════════════════════
-    _REGIME_SHORT = {'TREND': 'Trend', 'RANGE': 'Range', 'VOLATILE': 'Volatile'}
-
     # Only include stocks where one of the CURRENT regime's strategies started
     # a signal within the live window (_LIVE_MAX_AGE).
     _fire_rows_raw = [r for r in _rows if _live_shown(r)]
@@ -3465,33 +3336,44 @@ def render_auto_scanner_page() -> None:
     _fire_rows = sorted(_fire_rows_raw, key=_lsc_score, reverse=True)
     _n_signals = len(_fire_rows)
 
-    # section header
-    st.markdown(
-        f"<div class='lsc-section-hdr'>"
-        f"<div class='lsc-section-line'></div>"
-        f"<div class='lsc-section-pill'>"
-        f"<span class='sc-live-dot'></span>"
-        f"<span class='lsc-section-label'>Live Signal Check</span>"
-        f"{_q(10)}"
-        + (f"<span class='lsc-section-count'>{_n_signals}</span>" if _n_signals else '')
-        + f"</div>"
-        f"<div class='lsc-section-line-r'></div>"
-        f"</div>"
-        f"<div class='sc-h2-s' style='margin:-0.6rem 0 1.2rem;'>{_M['nouns'].capitalize()} where a "
-        f"strategy for today's market regime started a buy signal in the last {_LIVE_MAX_AGE + 1} trading days. "
-        f"Highest win rate first.</div>" + _IND_LEGEND,
+    # The section bar under the title. Its links are handled in the page by
+    # scanner_guide's click handler: data-go scrolls to a section (or opens the
+    # guide), and the bar marks the section on screen while scrolling.
+    # Phones get the short names (.s), so the three links fit one line.
+    _nav_slot.markdown(
+        "<div class='sc-nav'><span class='sc-nav-t'>Strategy Scanner</span>"
+        "<span class='sc-nav-a' role='link' tabindex='0' data-go='lsc'>"
+        "<span class='l'>Live Signal Check</span><span class='s'>Signals</span>"
+        f"<span class='c'>{_n_signals}</span></span>"
+        "<span class='sc-nav-a' role='link' tabindex='0' data-go='scanned'>"
+        "<span class='l'>Scanned Strategies</span><span class='s'>Strategies</span>"
+        f"<span class='c'>{len(_rows)}</span></span>"
+        "<span class='sc-nav-a' role='link' tabindex='0' data-go='guide' lang='ar'>"
+        "<span class='l'>دليل الصفحة</span><span class='s'>الدليل</span></span>"
+        f"<span class='sc-nav-r'>{_M['label']} · {_sc_period_label(_sel_period)} · updated {_upd_txt}</span>"
+        "</div>",
         unsafe_allow_html=True)
+
+    def _lsc_head(n) -> str:
+        """Live Signal Check's title block; its id is the section bar's anchor.
+        The indicator-type key sits here once, for both sections."""
+        return (
+            "<div class='sc-sec' id='sc-sec-lsc'><div class='sc-sec-h'>"
+            "<span class='sc-live-dot'></span><span class='sc-sec-t'>Live Signal Check</span>"
+            f"{_q(10)}" + (f"<span class='lsc-section-count'>{n}</span>" if n else '') + "</div>"
+            f"<div class='sc-sec-s'>{_M['nouns'].capitalize()} where a strategy for today's market "
+            f"regime started a buy signal in the last {_LIVE_MAX_AGE + 1} trading days, highest win "
+            f"rate first. {_prices_note()}. Tap a row for its chart and past signals.</div>"
+            + _IND_LEGEND + "</div>")
 
     if not _fire_rows:
         st.markdown(
-            "<div style='background:#FFFFFF;border:1px solid #E8E8ED;"
-            "border-radius:14px;padding:3rem;text-align:center;'>"
-            "<div style='font-size:0.75rem;font-weight:800;color:#636366;"
-            "text-transform:uppercase;letter-spacing:1.2px;'>No best-fit signals</div>"
-            "<div style='font-size:0.62rem;color:#636366;margin-top:0.4rem;'>"
-            + ("No live signal matches the filter" if _f_on else
-               f"No {_M['noun']}'s current-regime strategy triggered in the last "
-               f"{_LIVE_MAX_AGE + 1} trading days")
+            _lsc_head(0)
+            + "<div class='sc-empty sc-empty-sm'><div class='sc-empty-t'>No live signal right now</div>"
+            "<div class='sc-empty-s'>"
+            + ("No live signal matches the filter." if _f_on else
+               f"No {_M['noun']}'s strategy for today's market regime started a signal in the last "
+               f"{_LIVE_MAX_AGE + 1} trading days.")
             + "</div></div>",
             unsafe_allow_html=True)
     else:
@@ -3510,7 +3392,8 @@ def render_auto_scanner_page() -> None:
             return df
 
         # ── price levels of a live signal ─────────────────────────────────────
-        _RR_COL = {'Great': '#1B7A36', 'Good': '#C93400', 'Weak': '#D70015'}
+        # Good is a fine rating, so it stays neutral rather than warning orange.
+        _RR_COL = {'Great': 'var(--green)', 'Good': 'var(--t2)', 'Weak': 'var(--orange)'}
         _lv_cache = st.session_state.setdefault('_lsc_levels', {})
 
         def _lsc_levels(sym, df, price):
@@ -3602,33 +3485,24 @@ def render_auto_scanner_page() -> None:
                     f"Validation {st.session_state.sc_f_va}"
                     + (f' · Search "{_sc_query.strip()}"' if _sc_q else ''))
         _mk_title = _M['label'].title()
-        try:
-            _xlsx = build_live_signal_xlsx(
-                _tbl, f"LIVE SIGNAL CHECK | {len(_tbl)} {_mk_title}",
-                f"Source: Strategy Scanner · Market: {_M['label']} · "
-                f"Period: {_sc_period_label(_sel_period)} · "
-                f"Filters: {_filters} · Highest win rate first · "
-                f"Generated {_now:%Y-%m-%d %H:%M} (Riyadh)", currency=_M['cur'],
-                name_head=f"{_M['noun'].title()} Name" if _mk != 'COM' else 'Commodity')
-        except ImportError:                                 # xlsxwriter not installed
-            _xlsx = None
-
-        _tt, _tb = st.columns([1, 0.2], vertical_alignment="center")
-        with _tt:
-            st.markdown(
-                f"<div class='lsc-tbl-s'>{_prices_note()}. Tap a row for its chart.</div>",
-                unsafe_allow_html=True)
-        with _tb, st.container(key="lsc_xlsx"):
-            if _xlsx:
-                st.download_button(
-                    "Download Excel", data=_xlsx,
-                    file_name=f"Live_Signal_Check_{len(_tbl)}_{_mk_title.replace(' ', '_')}"
-                              f"_with_Win_Rate_{_now:%Y-%m-%d}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    icon=":material/download:", on_click="ignore",
-                    use_container_width=True, key="lsc_xlsx_btn")
-            else:
-                st.caption("Excel export needs the xlsxwriter package.")
+        # The file is built once per set of signals, not on every rerun.
+        _xkey = (_mk, _sel_period, _filters, _upd_txt,
+                 tuple((t['symbol'], t['date'], t['win_rate'], t['trades'], t['entry']) for t in _tbl))
+        _xc = st.session_state.get('_lsc_xlsx')
+        if _xc and _xc[0] == _xkey:
+            _xlsx = _xc[1]
+        else:
+            try:
+                _xlsx = build_live_signal_xlsx(
+                    _tbl, f"LIVE SIGNAL CHECK | {len(_tbl)} {_mk_title}",
+                    f"Source: Strategy Scanner · Market: {_M['label']} · "
+                    f"Period: {_sc_period_label(_sel_period)} · "
+                    f"Filters: {_filters} · Highest win rate first · "
+                    f"Generated {_now:%Y-%m-%d %H:%M} (Riyadh)", currency=_M['cur'],
+                    name_head=f"{_M['noun'].title()} Name" if _mk != 'COM' else 'Commodity')
+            except ImportError:                             # xlsxwriter not installed
+                _xlsx = None
+            st.session_state['_lsc_xlsx'] = (_xkey, _xlsx)
 
         def _pc(v, sign):
             return f"{sign}{v:.1f}%" if v is not None else '—'
@@ -3640,8 +3514,9 @@ def render_auto_scanner_page() -> None:
                     + (f"<small>{sub}</small>" if sub else '') + "</div>")
 
         def _lt_row(t, pos, is_open) -> str:
-            """One row of the table: the stock, its signal, the strategy behind it,
-            the entry plan and the strategy's record."""
+            """One row of the table: the stock, its signal, the strategy behind it
+            (its indicators first, then regime and validation), the entry plan and
+            the strategy's record."""
             _age = _sig_age(t['combo']) or 0
             _when = ('Latest session' if _age == 0 else
                      '1 session earlier' if _age == 1 else f'{_age} sessions earlier')
@@ -3657,16 +3532,19 @@ def render_auto_scanner_page() -> None:
                 + "</div>"
                 f"<div class='lt-sig'><b style='--d:{'var(--green)' if _age <= 1 else 'var(--orange)'};'>"
                 f"{t['combo'].get('signal_date') or '—'}</b><small>{_when}</small></div>"
-                "<div class='lt-str'><div class='lt-str-t'>"
+                f"<div class='lt-str'><div class='lt-chips'>{_chips(t['combo'].get('indicators', []))}</div>"
+                "<div class='lt-str-t'>"
                 f"<span class='lsc-regime2' data-sg='3' title='{_REGIME_HELP.get(_rgn, '')}'>"
                 f"{_REGIME_ICON.get(_rgn, '')} {_rgn.title()} · {t['rank_lbl']}</span>"
                 + _val_badge(t['combo'])
-                + (f"<span class='lsc-more' data-sg='10' title='{t['more']} more "
+                # A tap on it opens the row like anywhere else: the chart's
+                # View strategy lists the other strategies.
+                + (f"<span class='lsc-more' title='{t['more']} more "
                    f"{'strategy' if t['more'] == 1 else 'strategies'} for this regime also "
                    f"started a signal in the last {_LIVE_MAX_AGE + 1} trading days. "
                    f"View strategy shows them.'>+{t['more']} more signalling</span>"
                    if t['more'] else '')
-                + f"</div><div class='lt-chips'>{_chips(t['combo'].get('indicators', []))}</div></div>"
+                + "</div></div>"
                 "<div class='lt-lv'>"
                 + _lt_n('Entry', 'Entry', _fp(t['entry'] if t['entry'] is not None else t['price']),
                         f"{t['quality'].title()}<span class='lt-qw'> entry</span>" if t['quality'] else '')
@@ -3687,8 +3565,52 @@ def render_auto_scanner_page() -> None:
                         cls=' lt-tr')
                 + "<div class='lt-chev'></div></div>")
 
+        def _past_signals(hist, pf) -> str:
+            """Every trade on the chart as a table, newest first (`hist` comes from
+            the same simulate_trade run that draws the triangles)."""
+            if not hist:
+                return ("<div class='ps-h'><b>Past signals</b></div>"
+                        "<div class='ps'><div class='ps-none'>No past signal in this market regime "
+                        "inside the scanned period.</div></div>")
+            def _pct(v):
+                return f"{'+' if v >= 0 else '−'}{abs(v):.1f}%"
+
+            _wn = sum(1 for h in hist if h['won'])
+            _rows_html = ''
+            for h in sorted(hist, key=lambda h: h['date'], reverse=True):
+                _tip = (f"Signal on {h['date']}: every indicator agreed at that close. Bought the next "
+                        f"session ({h['entry_date']}) at the open, {h['entry']:{pf}}. Sold at "
+                        f"{h['exit']:{pf}} ({_EXIT_TXT.get(h['reason'], h['reason']).lower()}) after "
+                        f"{h['days']} {'day' if h['days'] == 1 else 'days'}: {'win' if h['won'] else 'loss'} "
+                        f"{_pct(h['ret'])}. On the way it reached {h['hi']:{pf}} ({_pct(h['hi_pct'])}) "
+                        f"at best and {h['lo']:{pf}} ({_pct(h['lo_pct'])}) at worst.")
+                _rows_html += (
+                    f"<div class='ps-r' title='{_tip}'>"
+                    f"<div class='ps-d'>{h['date']}</div>"
+                    f"<div class='ps-o {'w' if h['won'] else 'l'}'>{'Win' if h['won'] else 'Loss'}</div>"
+                    f"<div class='n ps-ret {'w' if h['won'] else 'l'}'>{_pct(h['ret'])}</div>"
+                    "<div class='ps-x'>"
+                    f"<div class='n' data-l='Bought'>{h['entry']:{pf}}<small>{h['entry_date']}</small></div>"
+                    f"<div class='n' data-l='Highest'>{h['hi']:{pf}}<small>{_pct(h['hi_pct'])}</small></div>"
+                    f"<div class='n' data-l='Lowest'>{h['lo']:{pf}}<small>{_pct(h['lo_pct'])}</small></div>"
+                    f"<div class='n' data-l='Sold'>{h['exit']:{pf}}"
+                    f"<small>{_EXIT_TXT.get(h['reason'], h['reason'])}</small></div>"
+                    f"<div class='n' data-l='Days'>{h['days']}</div>"
+                    "</div></div>")
+            return (
+                "<div class='ps-h'><b>Past signals</b>"
+                f"<span>{len(hist)} · {_wn} winning · {len(hist) - _wn} losing</span>"
+                "<em>Newest first · hover a row for the whole trade</em></div>"
+                "<div class='ps'><div class='ps-r ps-hd'><div>Signal</div><div>Result</div>"
+                "<div class='n'>Return</div><div class='ps-x'><div class='n'>Bought</div>"
+                "<div class='n'>Highest</div><div class='n'>Lowest</div><div class='n'>Sold</div>"
+                "<div class='n'>Days</div></div></div>"
+                + _rows_html + "</div>")
+
         def _signal_panel(t) -> None:
-            """What a tapped row opens: "View strategy ↓" and the signal's chart."""
+            """What a tapped row opens: the stock's signal history. Which of the
+            strategy's indicators hold on the latest session, the chart with every
+            past trade, the same trades as a table, and "View strategy ↓"."""
             _row        = t['row']
             _sym_d      = t['symbol']
             _df_f       = _stock_df(_row['_sym'])
@@ -3700,21 +3622,22 @@ def render_auto_scanner_page() -> None:
             _eng_date   = _best_combo.get('signal_date')
             _en, _sl_p, _t1, _t2 = t['entry'], t['stop'], t['t1'], t['t2']
             _ladder     = None not in (_en, _sl_p, _t1, _t2)
+            _big, _small = _sym_labels(_row['_sym'], _row.get('_sname') or '')
             with st.container(key=f"lsc_panel_{_sym_d}"):
                 _pl, _pr = st.columns([1, 0.2], vertical_alignment="center")
                 with _pl:
                     st.markdown(
-                        "<div class='lt-leg'><span class='sc-vb sc-vb-ok'>▲ Win</span>"
-                        "<span class='sc-vb sc-vb-bad'>▲ Loss</span>"
-                        "<span class='sc-vb lt-leg-sig'>▲ Signal"
-                        + (f" · {_eng_date}" if _eng_date else '') + "</span>"
-                        f"{_q(17)}</div>",
+                        "<div class='lp-h'><b>Signal history</b>"
+                        f"<span>{_html.escape(_big)}"
+                        + (f" · {_html.escape(_small)}" if _small else '') + "</span></div>",
                         unsafe_allow_html=True)
                 with _pr, st.container(key=f"lsc_goto_{_sym_d}"):
-                    st.button("View strategy ↓", key=f"lsc_goto_btn_{_sym_d}",
-                              on_click=_goto_strategy, args=(_sym_d,),
-                              use_container_width=True,
-                              help=f"Jump to this {_M['noun']}'s strategies in Scanned Strategies")
+                    # A full rerun, not just this section: the card it jumps to
+                    # is in Scanned Strategies.
+                    if st.button("View strategy ↓", key=f"lsc_goto_btn_{_sym_d}",
+                                 use_container_width=True):
+                        _goto_strategy(_sym_d)
+                        st.rerun()
                 try:
                     if _df_f is None:
                         raise ValueError('no price data')
@@ -3901,6 +3824,7 @@ def render_auto_scanner_page() -> None:
 
                     _win_x, _win_y, _win_t    = [], [], []
                     _loss_x, _loss_y, _loss_t = [], [], []
+                    _hist = []        # the same trades, for the Past signals table
                     _REASON = {'target': 'Hit target', 'stop': 'Hit stop', 'time': 'Time limit'}
                     _msize  = 10 if _PHONE else 13
 
@@ -3915,6 +3839,18 @@ def render_auto_scanner_page() -> None:
                         _xval = _xd.iloc[_ci] if hasattr(_xd, 'iloc') else _xd[_ci]
                         _yval = float(_cdf['Low'].iloc[_ci]) * 0.991
                         _won  = _tr['outcome'] == 'win'
+                        # best and worst price while the trade was open
+                        _e0, _e1 = _tr['entry_idx'], _tr['exit_idx']
+                        _hi = float(_np.max(_high_arr[_e0:_e1 + 1]))
+                        _lo = float(_np.min(_low_arr[_e0:_e1 + 1]))
+                        _hist.append({
+                            'date': str(_df_f['Date'].iloc[_fi])[:10],
+                            'entry_date': str(_df_f['Date'].iloc[_e0])[:10],
+                            'entry': _tr['entry'], 'exit': _tr['exit'], 'hi': _hi, 'lo': _lo,
+                            'hi_pct': (_hi / _tr['entry'] - 1) * 100 if _tr['entry'] else 0.0,
+                            'lo_pct': (_lo / _tr['entry'] - 1) * 100 if _tr['entry'] else 0.0,
+                            'ret': _tr['ret'] * 100, 'days': _e1 - _e0 + 1,
+                            'won': _won, 'reason': _tr['reason']})
                         _txt  = (f"<b>{'Win' if _won else 'Loss'} {_tr['ret'] * 100:+.1f}%</b><br>"
                                  f"Signal {str(_df_f['Date'].iloc[_fi])[:10]}<br>"
                                  f"Bought {_tr['entry']:{_pf}} · sold {_tr['exit']:{_pf}}<br>"
@@ -4073,6 +4009,22 @@ def render_auto_scanner_page() -> None:
                                       spikemode='across', spikedash='dot')
                     fig.update_yaxes(showspikes=True, spikecolor='#D2D2D7', spikethickness=1,
                                       spikemode='across', spikedash='dot')
+
+                    # Which of the strategy's conditions hold on the latest
+                    # session (a filled dot) and which no longer do (a ring),
+                    # with the chart's key on the right.
+                    _last_day = str(_df_f['Date'].iloc[-1])[:10] if 'Date' in _df_f.columns else ''
+                    _now_on = [(k, int(_states_all[k][-1]) == 1) for k in _inds if k in _states_all]
+                    st.markdown(
+                        "<div class='lp-now'><span class='k'>On the latest session</span>"
+                        + ''.join(f"<span class='lp-i{'' if _on else ' off'}' title='{_ind_label([k])} "
+                                  f"{'is true' if _on else 'is not true'} on {_last_day}'>"
+                                  f"{_ind_label([k])}</span>" for k, _on in _now_on)
+                        + "<span class='lt-leg'><span><i class='w'>▲</i>Win</span>"
+                        "<span><i class='l'>▲</i>Loss</span>"
+                        "<span><i class='s'>▲</i>Signal" + (f" · {_eng_date}" if _eng_date else '')
+                        + f"</span>{_q(17)}</span></div>",
+                        unsafe_allow_html=True)
                     # theme=None: keep this light chart's own colours (the
                     # Streamlit theme follows the app's dark mode). On a phone the
                     # chart must not catch the finger: the page has to keep scrolling.
@@ -4082,6 +4034,7 @@ def render_auto_scanner_page() -> None:
                                                 'lasso2d', 'select2d', 'autoScale2d'],
                                             'displaylogo': False,
                                             'scrollZoom': not _PHONE})
+                    st.markdown(_past_signals(_hist, _pf), unsafe_allow_html=True)
                 except Exception:
                     st.markdown("<div class='lt-nochart'>The chart couldn't be drawn. "
                                 "Tap Run Scan and try again.</div>",
@@ -4104,64 +4057,85 @@ def render_auto_scanner_page() -> None:
             f"<div class='lt-n'>{_term('Risk : Reward', 19)}</div></div>"
             f"<div class='lt-n'>{_term('Win rate', 7)}</div>"
             f"<div class='lt-n'>{_term('Trades', 7)}</div><div></div></div>")
-        _open_sym = st.session_state.get('lsc_open')
-        with st.container(key="lsc_tbl"):
-            st.markdown(_lt_head, unsafe_allow_html=True)
-            for _lt_pos, _t in enumerate(
-                    _tbl if st.session_state.lsc_show_all else _tbl[:_LSC_PREVIEW], 1):
-                _sym_d = _t['symbol']
-                with st.container(key=f"lsc_row_{_sym_d}"):
-                    st.markdown(_lt_row(_t, _lt_pos, _sym_d == _open_sym), unsafe_allow_html=True)
-                    st.button(f"Chart of {_sym_d}", key=f"lsc_open_{_sym_d}",
-                              on_click=_toggle_row, args=(_sym_d,))
-                if _sym_d == _open_sym:
-                    _signal_panel(_t)
 
-        # The row just opened stays in view: opening it can close a tall chart above
-        # it, which moves it up by that chart's height. Runs once per tap.
-        _open_nonce = st.session_state.get('lsc_open_nonce')
-        if _open_sym and _open_nonce != st.session_state.get('lsc_open_done'):
-            st.session_state.lsc_open_done = _open_nonce
-            import streamlit.components.v1 as _components
-            _js = ("<script>(function go(n) {"
-                   " const el = window.parent.document.querySelector('.st-key-lsc_row_SYM');"
-                   " if (!el) { if (n < 50) setTimeout(function () { go(n + 1); }, 100); return; }"
-                   " const r = el.getBoundingClientRect();"
-                   " if (r.top < 0 || r.top > window.parent.innerHeight * 0.5)"
-                   "  el.scrollIntoView({behavior: 'smooth', block: 'start'});"
-                   "})(0);</script>").replace('SYM', _open_sym)
-            _components.html(f"{_js}<!-- {_open_nonce} -->", height=0)
+        def _flip_show_all():
+            st.session_state.lsc_show_all = not st.session_state.lsc_show_all
 
-        # ── expand / collapse button for Section 2 ────────────────────────────
-        if len(_fire_rows) > _LSC_PREVIEW:
-            _lsc_lbl = (f"Show all {len(_fire_rows)} signals  ↓"
-                        if not st.session_state.lsc_show_all else "Show less ↑")
-            if st.button(_lsc_lbl, key="lsc_expand", use_container_width=True):
-                st.session_state.lsc_show_all = not st.session_state.lsc_show_all
-                st.rerun()
+        # A fragment: tapping a row, or Show all, redraws this section only. The
+        # chart opens without the rest of the page (the guide, every stock card)
+        # being rebuilt and sent again. View strategy still reruns the whole page.
+        @st.fragment
+        def _live_signal_check():
+            _h1, _h2 = st.columns([1, 0.24], vertical_alignment="top")
+            with _h1:
+                st.markdown(_lsc_head(_n_signals), unsafe_allow_html=True)
+            with _h2, st.container(key="lsc_xlsx"):
+                if _xlsx:
+                    st.download_button(
+                        "Download Excel", data=_xlsx,
+                        file_name=f"Live_Signal_Check_{len(_tbl)}_{_mk_title.replace(' ', '_')}"
+                                  f"_with_Win_Rate_{_now:%Y-%m-%d}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        icon=":material/download:", on_click="ignore", key="lsc_xlsx_btn")
+                else:
+                    st.caption("Excel export needs the xlsxwriter package.")
+
+            _open_sym = st.session_state.get('lsc_open')
+            with st.container(key="lsc_tbl"):
+                st.markdown(_lt_head, unsafe_allow_html=True)
+                for _lt_pos, _t in enumerate(
+                        _tbl if st.session_state.lsc_show_all else _tbl[:_LSC_PREVIEW], 1):
+                    _sym_d = _t['symbol']
+                    with st.container(key=f"lsc_row_{_sym_d}"):
+                        st.markdown(_lt_row(_t, _lt_pos, _sym_d == _open_sym), unsafe_allow_html=True)
+                        st.button(f"Chart of {_sym_d}", key=f"lsc_open_{_sym_d}",
+                                  on_click=_toggle_row, args=(_sym_d,))
+                    if _sym_d == _open_sym:
+                        _signal_panel(_t)
+
+            # The row just opened stays in view: opening it can close a tall chart
+            # above it, which moves it up by that chart's height. Runs once per tap.
+            _open_nonce = st.session_state.get('lsc_open_nonce')
+            if _open_sym and _open_nonce != st.session_state.get('lsc_open_done'):
+                st.session_state.lsc_open_done = _open_nonce
+                import streamlit.components.v1 as _components
+                _js = ("<script>(function go(n) {"
+                       " const el = window.parent.document.querySelector('.st-key-lsc_row_SYM');"
+                       " if (!el) { if (n < 50) setTimeout(function () { go(n + 1); }, 100); return; }"
+                       " const r = el.getBoundingClientRect();"
+                       " if (r.top < 0 || r.top > window.parent.innerHeight * 0.5)"
+                       "  el.scrollIntoView({behavior: 'smooth', block: 'start'});"
+                       "})(0);</script>").replace('SYM', _open_sym)
+                _components.html(f"{_js}<!-- {_open_nonce} -->", height=0)
+
+            if len(_fire_rows) > _LSC_PREVIEW:
+                st.button(f"Show all {len(_fire_rows)} signals  ↓"
+                          if not st.session_state.lsc_show_all else "Show less ↑",
+                          key="lsc_expand", on_click=_flip_show_all, use_container_width=True)
+
+        _live_signal_check()
 
     # ══════════════════════════════════════════════════════════════════════════
-    # SECTION 1 — Scanned Strategy Grid
+    # SECTION 2 — Scanned Strategies
     # ══════════════════════════════════════════════════════════════════════════
     st.markdown(
-        f"<div class='sc-h2'><span class='sc-h2-t'>Scanned Strategies{_q(9)}</span>"
-        f"<span class='sc-h2-s'>Up to 3 strategies per market regime for each {_M['noun']} · "
-        "highest win rate first, judged on today's regime (the first row of each card)</span>"
-        f"<span class='sc-h2-c'>{len(_rows)} {_M['nouns']}</span></div>"
+        "<div class='sc-sec' id='sc-sec-scanned'><div class='sc-sec-h'>"
+        f"<span class='sc-sec-t'>Scanned Strategies</span>{_q(9)}"
+        f"<span class='sc-sec-c'>{len(_rows)} {_M['nouns']}</span></div>"
+        f"<div class='sc-sec-s'>Up to 3 strategies per market regime for each {_M['noun']}, highest "
+        "win rate first, judged on today's regime (the first row of each card). Tap a strategy "
+        "for its buy and sell rules and every trade.</div>"
         "<div class='sc-summary'>"
-        f"<span class='sc-chip'><b>{len(_all_combos):,}</b> strategies</span>"
-        f"<span class='sc-chip' data-sg='18'><span class='sc-vb sc-vb-ok' style='padding:0 0.45rem;'>"
-        f"{_n_val}</span> validated</span>"
-        f"<span class='sc-chip' data-sg='18'><span class='sc-vb sc-vb-warn' style='padding:0 0.45rem;'>"
-        f"{len(_all_combos) - _n_val - _n_fail}</span> not validated</span>"
-        f"<span class='sc-chip' data-sg='18'><span class='sc-vb sc-vb-bad' style='padding:0 0.45rem;'>"
-        f"{_n_fail}</span> failed test</span>"
-        + (f"<span class='sc-chip'><b>{_rejected}</b> {_M['nouns']} without a profitable strategy</span>"
+        f"<span><b>{len(_all_combos):,}</b> strategies</span>"
+        f"<span class='ok sgt' data-sg='18'><b>{_n_val}</b> validated</span>"
+        f"<span class='sgt' data-sg='18'><b>{len(_all_combos) - _n_val - _n_fail}</b> not validated</span>"
+        f"<span class='bad sgt' data-sg='18'><b>{_n_fail}</b> failed test</span>"
+        + (f"<span><b>{_rejected}</b> {_M['nouns']} without a profitable strategy</span>"
            if _rejected else '')
-        + "</div>",
+        + "</div></div>",
         unsafe_allow_html=True)
 
-    # Three rows of two cards. The 16 commodities all show: gold and silver must
+    # Six cards, then Show all. The 16 commodities all show: gold and silver must
     # not hide behind "Show all" because of where their win rate ranks them.
     _PREVIEW_COUNT = len(_rows) if _mk == 'COM' else 6
     _show_all_key  = 'sc_show_all_strats'
@@ -4177,12 +4151,21 @@ def render_auto_scanner_page() -> None:
     _rows_to_show = (_rows if st.session_state[_show_all_key]
                      else _rows[:max(_PREVIEW_COUNT, (_focus_idx or 0) + 1)])
 
-    st.markdown(_IND_LEGEND, unsafe_allow_html=True)
+    # The column names, once above the cards (they stick under the section bar
+    # while scrolling). Below 1360px the rows carry their own labels instead.
+    _list_head = (
+        "<div class='sc-lh'>"
+        f"<div>{_term('Market regime', 3)}</div><div>{_term('Strategy', 4)}</div>"
+        "<div class='sc-nums'>"
+        f"<div class='r'>{_term('Win rate', 7)}</div><div class='r'>{_term('Profit factor', 7)}</div>"
+        f"<div class='r'>{_term('Expectancy', 7)}</div><div class='r'>{_term('Trades', 7)}</div>"
+        f"<div>{_term('Winning / losing trades', 20)}</div></div>"
+        f"<div class='r'>{_term('Validation', 18)}</div><div></div></div>")
 
-    # One card per stock, two side by side: a block per market regime (today's
-    # first), alternatives folded under their regime's block. Cards come sorted
-    # with every stock that has a strategy for today's regime first; a divider
-    # separates the rest.
+    # One card per stock, one under the other: a row per market regime (today's
+    # first), alternatives folded under their regime's row. Cards come sorted
+    # with every stock that has a strategy for today's regime first; a line of
+    # text separates the rest.
     _cards_today, _cards_other = [], []
     for _pos, _row in enumerate(_rows_to_show, 1):
         _sym_d = _short(_row['_sym'])
@@ -4210,11 +4193,14 @@ def render_auto_scanner_page() -> None:
                     "this regime, highest win rate first. None is a subset or superset of "
                     "another, and any two share under 60% of their trades (fitted part).'>"
                     f"{len(_alts)} more {'strategy' if len(_alts) == 1 else 'strategies'} "
-                    f"for {_rname.title()}{_q(8)}</summary>"
+                    f"for {_rname.title()}</summary>"
                     + ''.join(_strat_row(_a, _rname, alt=True, focus=_a is _focus_cb)
                               for _a in _alts)
                     + "</details>")
 
+        # "Live signal" leads back up to the stock's row in Live Signal Check
+        # (the page's click handler scrolls there and opens its chart). The
+        # regime count only shows when one is missing.
         (_cards_today if _lists.get(_cur_reg) else _cards_other).append(
             f"<div class='sc-stock sc-card-{_sym_d}{' sc-focus' if _is_focus else ''}'>"
             "<div class='sc-stock-hdr'>"
@@ -4224,28 +4210,31 @@ def render_auto_scanner_page() -> None:
             + (f"<span class='sc-sname'>{_sym_small}</span>" if _sym_small else '')
             + f"<span class='sc-px'>{_fp(float(_row.get('price', 0) or 0))}"
             + (f"<small>{_card_cur}</small>" if _card_cur else '') + "</span>"
-            + ("<span class='sc-cfire' data-sg='10' style='margin-left:auto;'>Live signal</span>"
+            + (f"<span class='sc-golive' data-lsc='{_sym_d}' title='A strategy for today’s market "
+               f"regime started a buy signal: tap to see it in Live Signal Check'>Live signal ↑</span>"
                if _has_fire else
-               f"<span class='sc-ct'>{len(_present)} of 3 regimes</span>")
+               f"<span class='sc-ct'>{len(_present)} of 3 regimes</span>" if len(_present) < 3 else '')
             + "</div>"
             + "<div class='sc-table'>" + _body + "</div>"
             + "</div>")
 
     if _cards_today:
-        st.markdown(f"<div class='sc-grid'>{''.join(_cards_today)}</div>",
+        st.markdown(f"<div class='sc-list'>{_list_head}{''.join(_cards_today)}</div>",
                     unsafe_allow_html=True)
     if _cards_other:
         st.markdown(
             "<div class='sc-grp'><b>No strategy for today's market regime"
-            + (" matches the filter" if _f_on else "") + "</b> — "
+            + (" matches the filter" if _f_on else "") + "</b>: "
             f"the {_M['nouns']} below only have strategies for other regimes, ranked by "
             f"their best win rate.{_q(9)}</div>",
             unsafe_allow_html=True)
-        st.markdown(f"<div class='sc-grid'>{''.join(_cards_other)}</div>",
+        st.markdown(f"<div class='sc-list'>{_list_head}{''.join(_cards_other)}</div>",
                     unsafe_allow_html=True)
 
     # Scroll to the requested card once per "View strategy" tap. The script
-    # runs in a tiny iframe and reaches the page it sits in.
+    # runs in a tiny iframe and reaches the page it sits in. It scrolls a
+    # second time once the cards on the way have been drawn (cards off screen
+    # are only laid out when they come near, see content-visibility).
     _nonce = st.session_state.get('sc_focus_nonce')
     if _focus_idx is not None and _nonce != st.session_state.get('sc_focus_done'):
         st.session_state.sc_focus_done = _nonce
@@ -4254,27 +4243,20 @@ def render_auto_scanner_page() -> None:
                " const d = window.parent.document;"
                " const el = d.querySelector('.sc-card-SYM .sc-tr-focus')"
                " || d.querySelector('.sc-card-SYM');"
-               " if (el) el.scrollIntoView({behavior: 'smooth', block: 'center'});"
-               " else if (n < 50) setTimeout(function () { go(n + 1); }, 100);"
+               " if (!el) { if (n < 50) setTimeout(function () { go(n + 1); }, 100); return; }"
+               " el.scrollIntoView({behavior: 'smooth', block: 'center'});"
+               " setTimeout(function () { el.scrollIntoView({behavior: 'smooth', block: 'center'}); }, 650);"
                "})(0);</script>").replace('SYM', _focus)
         _components.html(f"{_js}<!-- {_nonce} -->", height=0)
 
-    # ── expand / collapse button for Section 1 ────────────────────────────
+    # ── expand / collapse button for Scanned Strategies ──────────────────────
     if len(_rows) > _PREVIEW_COUNT:
-        _remaining = len(_rows) - _PREVIEW_COUNT
         _btn_label = (
             f"Show all {len(_rows)} {_M['nouns']}  ↓"
             if not st.session_state[_show_all_key]
             else "Show less ↑"
         )
-        st.markdown(
-            "<style>"
-            ".st-key-sc_expand_strats .stButton button{"
-            "color:var(--blue)!important;font-size:0.9rem!important;font-weight:600!important;"
-            "padding:0.5rem 1.2rem!important;margin:0.8rem 0 0.5rem!important;}"
-            "</style>",
-            unsafe_allow_html=True)
-        if st.button(_btn_label, key="sc_expand_strats"):
+        if st.button(_btn_label, key="sc_expand_strats", use_container_width=True):
             st.session_state[_show_all_key] = not st.session_state[_show_all_key]
             st.session_state.sc_focus = None      # "Show less" really shows less
             st.rerun()

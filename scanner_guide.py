@@ -13,6 +13,8 @@ the "where to change it" table.
 """
 from __future__ import annotations
 
+import functools
+
 import streamlit as st
 
 
@@ -340,6 +342,9 @@ _CSS = """
 """
 
 
+# Built once per server process: the text only depends on the code's settings,
+# and every rerun of the page (each tap) used to build it again.
+@functools.lru_cache(maxsize=1)
 def _build_html() -> str:
     from scanner_engine import (_PERIOD_CFG, _WARMUP_BARS, _TRAIN_FRAC,
                                 _OOS_MIN_TRADES, _OOS_LOW_SAMPLE, _MIN_SPLIT_SPAN,
@@ -552,7 +557,7 @@ def _build_html() -> str:
             ['<b>Wins / Losses</b>', 'عدد الصفقات الرابحة / الخاسرة', ''],
             ['<b>Win Rate</b>', _ltr('Wins ÷ Total × 100'), 'نسبة الصفقات الرابحة'],
             ['<b>Avg Gain / Avg Loss</b>', 'متوسط نسبة الربح في الصفقات الرابحة / متوسط نسبة الخسارة في الخاسرة',
-             'بيظهر تحت أرقام كل استراتيجية جنب عدد الصفقات الكسبانة والخسرانة (avg)، ويُستخدم لحساب Expectancy'],
+             'بيظهر في عمود Winning / losing trades جنب عدد الصفقات الكسبانة والخسرانة (avg)، ويُستخدم لحساب Expectancy'],
             ['<b>Profit Factor</b>', _ltr('مجموع نسب الربح ÷ مجموع نسب الخسارة'),
              'أكبر من 1 = الاستراتيجية كسبت. لو مفيش خسائر خالص يظهر 9.9 (والحد الأقصى 9.9)'],
             ['<b>Expectancy</b>', _ltr('WinRate × AvgGain − (1 − WinRate) × AvgLoss'),
@@ -594,7 +599,7 @@ def _build_html() -> str:
         "<h4>ج) الاختبار (مرة واحدة لكل استراتيجية)</h4>"
         f"<p>كل استراتيجية من القائمة تتجرب مرة واحدة على الـ{test_pct}% الأحدث. تنجح لو حققت "
         f"<b>{_OOS_MIN_TRADES} صفقات أو أكثر</b> في نفس حالة السوق <b>و</b> كانت رابحة (Expectancy > 0 و Profit Factor > 1).</p>"
-        + _table(['الشارة', 'معناها', 'الأرقام الكبيرة في الكارت'], [
+        + _table(['الشارة', 'معناها', 'الأرقام اللي في صف الاستراتيجية'], [
             ["<span class='sg-pill' style='background:#E9F7EE;color:#1B7A36'>✓ Validated</span>",
              f"نجحت في الاختبار على بيانات لم يرها البحث. <b>الأقوى والأوثق.</b>",
              f"من جزء الاختبار (آخر {test_pct}%)"],
@@ -606,8 +611,9 @@ def _build_html() -> str:
              "اتختبرت على عدد كافي من الصفقات <b>وخسرت</b>. الأفضل تجنبها.",
              f"من جزء البحث (أول {train_pct}%)"],
         ])
-        + "<h4>صندوق Validation تحت كل كارت</h4>"
-        "<p>فيه رقمين جنب بعض: <b>Fitted (first 70%)</b> = نسبة النجاح وعدد الصفقات في جزء البحث، "
+        + "<h4>Validation جوه تفاصيل الاستراتيجية</h4>"
+        "<p>لما تدوس على صف استراتيجية في Scanned Strategies بيفتح تحته جزء Validation، "
+        "فيه رقمين جنب بعض: <b>Fitted (first 70%)</b> = نسبة النجاح وعدد الصفقات في جزء البحث، "
         "و<b>Held back (last 30%)</b> = نفس الأرقام في جزء الاختبار. مثلاً 46% من 13 صفقة ← 50% من 12 صفقة. "
         "لو الرقم نزل كتير من Fitted لـ Held back، فالاستراتيجية غالباً كانت \"متفصّلة\" على الماضي. "
         "\"no trades\" يعني مفيش ولا صفقة في جزء الاختبار.</p>"
@@ -623,35 +629,46 @@ def _build_html() -> str:
 
     # 9 ────────────────────────────────────────────────────────────────────────
     S.append(_sec(9, 'جدول Scanned Strategies: كل استراتيجيات كل سهم', (
-        "<p>تحت Live Signal Check فيه كارت لكل سهم (كارتين جنب بعض)، وجواه جزء لكل حالة سوق "
+        "<p>تحت Live Signal Check فيه <b>كارت لكل سهم، الكروت تحت بعض</b>. جوه الكارت <b>صف لكل حالة سوق</b> "
         f"(↗ Trend، ↔ Range، ⚡︎ Volatile) لقينا لها استراتيجية كسبت في جزء البحث — ممكن تكون نجحت أو فشلت "
         "في الاختبار بعد كده، وده مكتوب في Validation. الكروت مترتبة بنسبة النجاح لاستراتيجية حالة السوق "
-        "اللي السهم فيها النهارده (أول جزء في الكارت، عليه Today)، والأسهم اللي مالهاش استراتيجية للحالة دي "
-        "بتيجي بعد خط فاصل. بيظهر أول 6 وتحتهم Show all (في السلع بتظهر كلها). "
-        "الرقم اللي في أعلى الكارت هو آخر سعر.</p>"
+        "اللي السهم فيها النهارده (أول صف في الكارت، عليه Today)، والأسهم اللي مالهاش استراتيجية للحالة دي "
+        "بتيجي بعد سطر فاصل. بيظهر أول 6 وتحتهم Show all (في السلع بتظهر كلها).</p>"
+        "<p>أسماء الأعمدة مكتوبة مرة واحدة فوق الكروت، وبتفضل ظاهرة فوق وانت بتنزل. على الشاشات الأصغر "
+        "الأرقام بتنزل لسطر تاني في نفس الصف، وكل رقم مكتوب فوقه اسمه.</p>"
+        "<h4>أول سطر في الكارت</h4>"
         + _table(['الجزء', 'معناه'], [
+            ['الرقم، الرمز، الاسم', 'ترتيب السهم (1 = أعلى نسبة نجاح)، ورمزه واسمه.'],
+            ['السعر', 'آخر سعر في البيانات وقت الفحص.'],
+            ['Live signal ↑', 'السهم فيه إشارة حية فوق في Live Signal Check. دوس عليها تطلع على صفه هناك '
+                              'ويتفتح الشارت بتاعه.'],
+            ['2 of 3 regimes', 'بتظهر بس لو فيه حالة سوق ناقصة: مالقيناش لها استراتيجية كسبانة للسهم ده.'],
+        ])
+        + "<h4>صف الاستراتيجية</h4>"
+        + _table(['العمود', 'معناه'], [
             ['Market regime', 'حالة السوق. شارة <b>Today</b> = دي الحالة اللي السهم فيها دلوقتي، '
-                              'يعني دي الاستراتيجية اللي تنطبق النهارده.'],
-            ['Strategy', 'المؤشرات اللي لازم <b>كلها</b> تتحقق في نفس اليوم. النقطة الملونة جنب كل مؤشر بتقول نوعه (المفتاح فوق القسم).'],
+                              'يعني دي الاستراتيجية اللي تنطبق النهارده. ولو بدأت إشارة بيظهر تحتها '
+                              '<b>New signal</b> أو <b>Signal 1 session ago</b>.'],
+            ['Strategy', 'المؤشرات اللي لازم <b>كلها</b> تتحقق في نفس اليوم. النقطة الملونة جنب كل مؤشر '
+                         'بتقول نوعه (المفتاح تحت عنوان Live Signal Check).'],
             ['Win rate', 'نسبة الصفقات الكسبانة.'],
             ['Profit factor', 'إجمالي المكسب ÷ إجمالي الخسارة. أكبر من 1 = الاستراتيجية كسبت.'],
             ['Expectancy', 'متوسط المكسب في الصفقة الواحدة (%). أهم رقم في الصف.'],
             ['Trades', 'عدد الصفقات. لو أقل من 10 الأرقام بتبهت '
                        'ويظهر "too few" لأن عينة صغيرة كده مش موثوقة.'],
-            ['الخط الأخضر والأحمر', 'الصفقات الكسبانة (winning) والخسرانة (losing): عدد كل نوع ومتوسط نسبته '
-                                    '(القسم 20).'],
-            ['Strategy details ›', 'بيفتح شروط الشراء والبيع، والصفقات خلصت إزاي، وكل صفقة بتاريخها '
-                                   '(القسم 20).'],
+            ['Winning / losing trades', 'خط أخضر وأحمر بطول الصفقات الكسبانة والخسرانة، وتحته عدد كل نوع '
+                                        'ومتوسط نسبته (القسم 20).'],
             ['Validation', 'نجحت في الاختبار ولا لأ (القسم 18 بيشرحها بالتفصيل)، وتحتها سطر بأرقام الاختبار. '
                            'حط الماوس عليها تشوف أرقام جزء البحث وجزء الاختبار جنب بعض.'],
         ])
-        + f"<p>تحت الصف ممكن تلاقي \"2 more strategies for Range ›\": دي استراتيجيات تانية لنفس الحالة "
+        + "<p><b>دوس على أي صف</b> يفتح تحته تفاصيل الاستراتيجية (Strategy details): شروط الشراء، "
+        "وشروط البيع والصفقات خلصت إزاي ونتيجة الاختبار، وكل صفقة بتاريخها (القسم 20). ودوس تاني يقفل.</p>"
+        f"<p>تحت الصف ممكن تلاقي \"2 more strategies for Range ›\": دي استراتيجيات تانية لنفس الحالة "
         f"(لحد {_TOP_PER_REGIME - 1})، مختلفة فعلاً: مش جزء من مؤشرات استراتيجية فوقها ولا فيها كل مؤشراتها "
         "وزيادة، والصفقات المشتركة بينها وبين أي استراتيجية فوقها أقل من 60% من مجموع صفقات الاتنين مع بعض "
-        "(محسوبة على جزء البحث).</p>"
-        f"<p>شارة <b>New signal</b> أو <b>Signal 1 session ago</b> على أي استراتيجية = بدأت إشارة في آخر "
-        f"{live_days} جلسات على يوم من نفس حالتها. شارة <b>Live signal</b> جنب اسم السهم = السهم موجود فوق في "
-        "Live Signal Check. البحث والفلاتر بيشتغلوا على الأقسام كلها مع بعض.</p>"
+        "(محسوبة على جزء البحث). كل واحدة منهم صف زي اللي فوقها، وبيتفتح بنفس الطريقة.</p>"
+        f"<p>الإشارة على أي استراتيجية = بدأت إشارة في آخر {live_days} جلسات على يوم من نفس حالتها. "
+        "البحث والفلاتر بيشتغلوا على الأقسام كلها مع بعض.</p>"
         "<h4>الأرقام أعلى الصفحة</h4>"
         + _table(['الرقم', 'معناه'], [
             ['Live signals', 'عدد الأسهم اللي فيها إشارة حية (Live Signal Check من غير بحث).'],
@@ -660,6 +677,10 @@ def _build_html() -> str:
             ['Stocks scanned', 'الأسهم اللي بياناتها نزلت واتحللت من إجمالي القائمة.'],
             ['Updated', 'وقت آخر فحص في الجلسة دي (— لو مفيش).'],
         ])
+        + "<h4>الشريط اللي تحت العنوان</h4>"
+        "<p>فيه <b>Live Signal Check</b> و<b>Scanned Strategies</b> وجنب كل واحد عدده، و<b>دليل الصفحة</b>. "
+        "دوس على أي واحد ينقلك عليه. الشريط بيفضل ثابت فوق وانت بتنزل، وبيعلّم القسم اللي انت فيه، "
+        "وعلى اليمين السوق والفترة ووقت آخر فحص.</p>"
     )))
 
     # 10 ───────────────────────────────────────────────────────────────────────
@@ -669,33 +690,48 @@ def _build_html() -> str:
         "تداول، على يوم كان من نفس الحالة. الترتيب: الأعلى نسبة نجاح الأول (نسبة الاستراتيجية اللي إدّت "
         "الإشارة)، ولو اتساووا الأكتر صفقات. بيظهر أول 10 وتحتهم Show all.</p>"
         "<p>كل سهم صف واحد في جدول واحد، فيه كل حاجة مرة واحدة بس. "
-        "<b>دوس على أي صف</b> يفتح تحته الشارت وزرار View strategy، ودوس عليه تاني يقفل.</p>"
+        "<b>دوس على أي صف</b> يفتح تحته تاريخ إشارات السهم: الشارت، وتحته جدول <b>Past signals</b> بكل "
+        "صفقة، وزرار View strategy. ودوس على الصف تاني يقفل. لما تدوس، القسم ده بس اللي بيتحدث مش الصفحة "
+        "كلها، فالشارت بيفتح أسرع.</p>"
         "<h4>إزاي تقرا الصف</h4>"
         + _table(['الجزء', 'معناه'], [
             ['Signal', 'إمتى بدأت الإشارة. Latest session = آخر جلسة في البيانات، '
                        '1 session earlier = الجلسة اللي قبلها، وهكذا. الإشارة بتتأكد بعد إغلاق الجلسة دي.'],
-            ['↔ Range · Best fit', 'حالة السوق، وترتيب الاستراتيجية فيها (Best fit = الأولى، أو Strategy #2 / #3).'],
+            ['المؤشرات', 'أول سطر في عمود Strategy: شروط الاستراتيجية — كلها اتحققت في يوم الإشارة. '
+                         'النقطة الملونة جنب كل مؤشر بتقول نوعه (المفتاح تحت عنوان القسم).'],
+            ['↔ Range · Best fit', 'السطر اللي تحته: حالة السوق، وترتيب الاستراتيجية فيها '
+                                   '(Best fit = الأولى، أو Strategy #2 / #3).'],
             ['✓ Validated / Not validated / ✕ Failed test',
-             'نتيجة الاستراتيجية في الاختبار (القسم 8). خلي بالك: ممكن يظهر صف لاستراتيجية ✕ Failed test، '
+             'نتيجة الاستراتيجية في الاختبار (القسم 8). ✓ Validated بالأخضر و ✕ Failed test بالأحمر، '
+             'و Not validated مكتوبة عادي. خلي بالك: ممكن يظهر صف لاستراتيجية ✕ Failed test، '
              'يعني خسرت في جزء الاختبار، فالأحسن تتجنبها.'],
             ['+2 more signalling', 'استراتيجيات تانية لنفس الحالة بتدي إشارة برضه — تأكيد إضافي. '
-                                   'تفاصيلها في Scanned Strategies.'],
-            ['المؤشرات', 'شروط الاستراتيجية — كلها اتحققت في يوم الإشارة. النقطة الملونة جنب كل مؤشر بتقول نوعه.'],
+                                   'View strategy بيوديك عليها في Scanned Strategies.'],
             ['Entry', 'آخر سعر في البيانات وقت الفحص، وده سعر الدخول المقترح. بعد الإغلاق ده سعر إغلاق اليوم، '
                       'لكن لو الفحص اتعمل والسوق شغال ممكن يبقى سعر الجلسة الجارية (متأخر شوية)، '
                       'وما بيتحدثش لوحده. الكلمة اللي تحته (Good entry مثلاً) بتقول السعر قريب من الدعم قد إيه.'],
             ['Stop loss · Target 1 · Target 2 · Risk : Reward',
-             'مستويات مقترحة من شكل الشارت (القسم 11). مهم: دي <b>مش</b> نفس قواعد الاختبار.'],
+             'مستويات مقترحة من شكل الشارت (القسم 11). مهم: دي <b>مش</b> نفس قواعد الاختبار. '
+             'تحت Risk : Reward تقييم Great (بالأخضر) أو Good (القسم 19).'],
             ['Win rate · Trades', 'نسبة نجاح الاستراتيجية اللي إدّت الإشارة وعدد صفقاتها (بالبرتقاني لو أقل من 10)، '
                                   'وتحته الكسبانة (W) والخسرانة (L).'],
         ])
         + "<h4>لما تدوس على الصف</h4>"
         + _table(['الجزء', 'معناه'], [
+            ['Signal history', 'اسم السهم، وجنبه زرار View strategy ↓.'],
+            ['On the latest session', 'مؤشرات الاستراتيجية في آخر جلسة: نقطة خضرا = شرطه لسه متحقق، '
+                                      'ودايرة فاضية = مبقاش متحقق. كده تعرف الإعداد لسه قايم ولا اتغير بعد الإشارة. '
+                                      'وفي آخر نفس السطر مفتاح المثلثات اللي على الشارت.'],
             ['الشارت', 'كل صفقة من صفقات الاستراتيجية على السعر، وشريط لكل مؤشر (القسم 17).'],
+            ['Past signals', 'نفس صفقات الشارت في جدول، الأحدث فوق: يوم الإشارة (Signal)، كسبت ولا خسرت '
+                             '(Result)، العائد (Return)، سعر الشراء ويومه (Bought)، أعلى وأقل سعر وصله السهم '
+                             'والصفقة مفتوحة (Highest / Lowest)، سعر البيع وسببه (Sold)، وعدد الأيام (Days). '
+                             'حط الماوس على أي صف تقرا قصة الصفقة كاملة. عدد الصفوف = W + L في صف السهم.'],
             ['View strategy ↓', 'بينزلك على نفس السهم في Scanned Strategies، ويعلّم الكارت بإطار أزرق ويظلل '
-                                'الاستراتيجية اللي إدّت الإشارة. هناك تلاقي باقي أرقامها وكل صفقة بتاريخها.'],
+                                'الاستراتيجية اللي إدّت الإشارة. هناك تلاقي باقي أرقامها وشروطها. '
+                                'ومن هناك <b>Live signal ↑</b> على الكارت بيرجعك لنفس الصف هنا.'],
         ])
-        + "<h4>الفلاتر (تحت مربع البحث)</h4>"
+        + "<h4>الفلاتر (في كارت الإعدادات، تحت مربع البحث)</h4>"
         + _table(['الفلتر', 'بيعمل إيه'], [
             ['Win rate', 'يخفي أي استراتيجية نسبة نجاحها أقل من اللي اخترته (60%+ / 70%+ / 80%+).'],
             ['Trades', 'يخفي أي استراتيجية صفقاتها أقل من 10 أو 20 — أحسن طريقة تبعد بيها الأرقام المبهرة '
@@ -707,7 +743,7 @@ def _build_html() -> str:
         "و Scanned Strategies. لما يكون فيه فلتر شغال بيظهر سطر بعدد الأسهم المطابقة، وزرار "
         "<b>Clear filters</b> يرجّع كله. على الموبايل الفلاتر متطبّقة في زرار Filters عشان الجدول يبان بسرعة.</p>"
         "<h4>ملف الإكسل</h4>"
-        "<p>زرار <b>Download Excel</b> بينزّل <b>كل</b> الإشارات الحية بعد الفلاتر (مش أول 10 بس)، بنفس الترتيب، "
+        "<p>زرار <b>Download Excel</b> (جنب عنوان القسم) بينزّل <b>كل</b> الإشارات الحية بعد الفلاتر (مش أول 10 بس)، بنفس الترتيب، "
         "في ملف منسّق: السعر، الدخول، الوقف، الأهداف ونسبها، Risk : Reward وتقييمه (Great / Good — القسم 19 "
         "بيشرحه)، نسبة النجاح، الصفقات والكسبانة والخسرانة، وحالة السوق والـValidation والمؤشرات. "
         "فوقه السوق والفترة والفلاتر اللي اخترتها ووقت التحميل.</p>"
@@ -744,9 +780,12 @@ def _build_html() -> str:
     S.append(_sec(12, 'اللي بيحصل في الخلفية: التشغيل والتخزين المؤقت', (
         "<ol>"
         "<li>عند فتح الصفحة: لا يحصل أي تحميل أو تحليل.</li>"
-        "<li>عند الضغط على ↻ Run Scan: تحميل أسعار كل الأسهم في طلب واحد (أول مرة غالباً لحد دقيقتين تقريباً، "
+        "<li>عند الضغط على Run Scan: تحميل أسعار كل الأسهم في طلب واحد (أول مرة غالباً لحد دقيقتين تقريباً، "
         "والحد الأقصى قبل ما يعتبره فشل ≈ 4 دقائق)، "
         "ثم تحليل الأسهم واحد واحد مع شريط تقدم (≈ 40–70 ثانية).</li>"
+        "<li>لما تدوس على صف في Live Signal Check، أو Show all بتاعه، القسم ده بس اللي بيتعمل من جديد "
+        "(مش الصفحة كلها)، فالشارت بيفتح في ثانية تقريباً. أما الفلاتر والبحث وView strategy "
+        "فبيعيدوا الصفحة كلها لأنهم بيغيروا القسمين.</li>"
         "<li><b>تخزين مؤقت للأسعار</b>: 20 دقيقة، مشترك بين كل المستخدمين على نفس السيرفر.</li>"
         "<li><b>تخزين مؤقت للنتائج</b>: 20 دقيقة لكل مستخدم ولكل سوق ولكل فترة — لو ضغطت Run Scan تاني "
         "لنفس السوق والفترة، أو رجعت لسوق لسه فاحصه، خلال 20 دقيقة النتيجة تظهر فوراً بدون إعادة حساب.</li>"
@@ -857,15 +896,15 @@ def _build_html() -> str:
         + "<p>يعني رغم إن نص الصفقات بس كسبت، الاستراتيجية في المتوسط بتكسب 1% في كل صفقة.</p>"
         "<h4>5. هتلاقي ده فين على الشاشة</h4>"
         "<p>Win rate و Profit factor و Expectancy وعدد الصفقات (وتحته الكسبانة W والخسرانة L) هتلاقيهم "
-        "في جزء الاستراتيجية في Scanned Strategies — زرار View strategy في جدول Live Signal Check بيوديك عليه، "
+        "في صف الاستراتيجية في Scanned Strategies — زرار View strategy في جدول Live Signal Check بيوديك عليه، "
         "وصف السهم في الجدول فيه نسبة النجاح وعدد الصفقات والكسبانة والخسرانة كمان. "
-        "ولو دوست على الصف هتلاقي كل صفقة من الـ12 على الشارت، ولو وقفت على مثلث هتشوف سعر دخولها "
-        "وخروجها وسبب الخروج (القسم 17).</p>"
+        "ولو دوست على الصف هتلاقي كل صفقة من الـ12 على الشارت، وتحته جدول Past signals فيه الـ12 صفقة "
+        "بسعر دخولها وخروجها وسبب الخروج وأعلى وأقل سعر وصلته (القسم 17).</p>"
     )))
 
     # 17 ───────────────────────────────────────────────────────────────────────
     S.append(_sec(17, 'إزاي تتأكد بنفسك إن النتايج حقيقية', (
-        "<p>دوس على أي صف في جدول Live Signal Check يفتح تحته الشارت.</p>"
+        "<p>دوس على أي صف في جدول Live Signal Check يفتح تحته الشارت، وتحت الشارت جدول Past signals.</p>"
         "<h4>الشارت</h4>"
         "<ul>"
         "<li><b>فوق:</b> شموع السعر، ومثلثات على كل صفقة اتحسبت في الجدول (أخضر = ربح، أحمر = خسارة)، "
@@ -881,16 +920,19 @@ def _build_html() -> str:
         "يوم الإشارة، سعر الشراء (افتتاح اليوم اللي بعده) وسعر البيع، وسبب الخروج "
         "(<b>Hit target</b> = لمس الهدف، <b>Hit stop</b> = ضرب الوقف، <b>Time limit</b> = خلصت المدة)، وعدد الأيام.</p>"
         "<h4>كل صفقة بتاريخها</h4>"
-        "<p>View strategy بيوديك على الاستراتيجية في Scanned Strategies، وجواها <b>Strategy details</b> "
-        "فيها كل صفقة: تاريخها، نتيجتها، وخلصت إزاي، وكام يوم (القسم 20).</p>"
-        + _note("المثلثات وقائمة الصفقات بيتحسبوا بنفس الدالة اللي عملت الفحص (" + _ltr('simulate_trade') + "). "
-                "عدد المثلثات الخضرا والحمرا بيطابق عدد الصفقات الكسبانة والخسرانة في الاستراتيجية.", 'ok')
+        "<p>تحت الشارت على طول جدول <b>Past signals</b>: كل مثلث على الشارت صف فيه، بيوم الإشارة ونتيجتها "
+        "وعائدها، وسعر الشراء والبيع وسببه، وأعلى وأقل سعر وصله السهم والصفقة مفتوحة، وعدد الأيام. "
+        "وكمان View strategy بيوديك على الاستراتيجية في Scanned Strategies، ولما تدوس على صفها بيفتح "
+        "<b>Strategy details</b> فيها شروط الشراء والبيع وكل صفقة (القسم 20).</p>"
+        + _note("المثلثات وجدول Past signals وقائمة الصفقات بيتحسبوا بنفس الدالة اللي عملت الفحص ("
+                + _ltr('simulate_trade') + "). عدد المثلثات الخضرا والحمرا، وصفوف Past signals، "
+                "بيطابقوا عدد الصفقات الكسبانة والخسرانة في الاستراتيجية.", 'ok')
         + "<h4>اختبار سريع تعمله في 30 ثانية</h4>"
-        "<ol><li>دوس على أي صف في الجدول، ثم View strategy، وافتح Strategy details ولاحظ تاريخ أي صفقة.</li>"
-        "<li>ارجع للشارت ودوّر على اليوم اللي قبل التاريخ ده (الشراء بيبقى تاني يوم الإشارة): "
-        "لازم تلاقي مثلث، وتحته كل أشرطة المؤشرات متلونة، و<b>All agree</b> بادئ يومها.</li>"
-        "<li>عدّ المثلثات الخضرا والحمرا على الشارت: لازم يساووا W و L في صف السهم في الجدول، "
-        "ومجموعهم يساوي Trades.</li></ol>"
+        "<ol><li>دوس على أي صف في الجدول، وبص على أول صف في Past signals ولاحظ يوم الإشارة (Signal).</li>"
+        "<li>دوّر على اليوم ده في الشارت: لازم تلاقي مثلث، وتحته كل أشرطة المؤشرات متلونة، "
+        "و<b>All agree</b> بادئ يومها. والشراء (Bought) بيكون على افتتاح الجلسة اللي بعدها.</li>"
+        "<li>عدّ صفوف Past signals الكسبانة والخسرانة (أو المثلثات الخضرا والحمرا): لازم يساووا W و L "
+        "في صف السهم في الجدول، ومجموعهم يساوي Trades.</li></ol>"
         "<p>الاستراتيجيات Validated بتعرض صفقات آخر 30% بس (جزء الاختبار)، والـNot validated بتعرض صفقات "
         "أول 70%. علشان كده المثلثات ممكن تكون في جزء من الشارت بس.</p>"
     )))
@@ -971,7 +1013,7 @@ def _build_html() -> str:
             ['<b>Validated</b>', 'اللي نجحت في الاختبار بس. هتلاقي أسهم أقل بكتير، وده طبيعي.'],
             ['<b>Not validated</b>', 'كل اللي ما اتثبتتش، ومنها ✕ Failed test.'],
         ])
-        + "<p>الفلتر بيشتغل على الصفحة كلها: كروت Live Signal Check، والجدول، وملف الإكسل، "
+        + "<p>الفلتر بيشتغل على الصفحة كلها: جدول Live Signal Check، وملف الإكسل، "
         "و Scanned Strategies.</p>"
         + _note("<b>الترتيب كدليل، من الأقوى للأضعف:</b> ✓ Validated، بعدها Not validated بـ 10 صفقات أو أكتر "
                 "و Expectancy كويس، وفي الآخر Not validated بصفقات قليلة. وما تدخلش على ✕ Failed test.", 'ok')
@@ -1017,17 +1059,17 @@ def _build_html() -> str:
     )))
 
     # 20 ───────────────────────────────────────────────────────────────────────
-    S.append(_sec(20, 'الصفقات الكسبانة والخسرانة، و Strategy details', _bidi_fix(
-        "<p><b>باختصار:</b> تحت أرقام كل استراتيجية فيه خط أخضر وأحمر: الأخضر = الصفقات اللي كسبت، "
-        "والأحمر = اللي خسرت، وجنب كل لون عدد الصفقات ومتوسط نسبتها. وتحته "
-        "<b>Strategy details ›</b>: دوس عليه يفتح كل حاجة عن الاستراتيجية.</p>"
-        "<h4>الخط الأخضر والأحمر</h4>"
+    S.append(_sec(20, 'الصفقات الكسبانة والخسرانة، وتفاصيل الاستراتيجية (Strategy details)', _bidi_fix(
+        "<p><b>باختصار:</b> في كل صف استراتيجية عمود <b>Winning / losing trades</b>: خط أخضر وأحمر، "
+        "الأخضر = الصفقات اللي كسبت والأحمر = اللي خسرت، وتحته عدد كل نوع ومتوسط نسبته. "
+        "و<b>لو دوست على الصف نفسه</b> بيفتح تحته Strategy details: كل حاجة عن الاستراتيجية.</p>"
+        "<h4>عمود Winning / losing trades</h4>"
         + _table(['اللي مكتوب', 'معناه'], [
-            [_l('13 winning trades · avg +8.0%'), '13 صفقة كسبت، والواحدة كسبت في المتوسط 8.0%'],
-            [_l('2 losing trades · avg −5.0%'), 'صفقتين خسروا، والواحدة خسرت في المتوسط 5.0%'],
+            [_l('13 winning · avg +8.0%'), '13 صفقة كسبت، والواحدة كسبت في المتوسط 8.0%'],
+            [_l('2 losing · avg −5.0%'), 'صفقتين خسروا، والواحدة خسرت في المتوسط 5.0%'],
             ['طول الأخضر والأحمر', 'نسبة كل نوع من إجمالي الصفقات — نفس Win rate بس مرسومة'],
         ])
-        + "<h4>جوه Strategy details</h4>"
+        + "<h4>جوه Strategy details: 3 أجزاء جنب بعض</h4>"
         + _table(['الجزء', 'معناه'], [
             ['Buy when all … are true', 'شرط كل مؤشر بالعربي (نفس جدول المؤشرات في القسم 4). لازم كلهم '
                                         'يتحققوا في نفس اليوم، في يوم من نفس حالة السوق، والشراء على '
@@ -1036,17 +1078,17 @@ def _build_html() -> str:
                                               'الأول. بيختلفوا حسب الفترة اللي اخترتها (القسم 2).'],
             ['How the trades ended', 'كام صفقة وصلت للهدف، وكام ضربت الوقف، وكام اتقفلت لما المدة خلصت، '
                                      'ومتوسط عدد الأيام في الصفقة.'],
+            ['Validation', 'نسبة النجاح في جزء البحث (Fitted) جنب نسبتها في جزء الاختبار (Held back) (القسم 8).'],
             ['Every trade', 'كل صفقة لوحدها: يوم الشراء (Bought)، النتيجة (Result)، اتقفلت إزاي (Ended by)، '
                             'وعدد أيامها (Days). الأحدث فوق.'],
-            ['Validation', 'نسبة النجاح في جزء البحث جنب نسبتها في جزء الاختبار (القسم 8).'],
         ])
         + "<h4>مثال</h4>"
         f"<p>في فترة Long الهدف {_l(f'+{l_pt * 100:g}%')} والوقف {_l(f'−{l_sl * 100:g}%')} والمدة "
-        f"{l_hold} يوم. استراتيجية مكتوب تحتها <b>{_l('13 winning trades · avg +8.0%')}</b> و "
-        "<b>0 losing trades</b>: يعني الـ13 صفقة كلهم وصلوا للهدف، وعلشان كده Expectancy = +8.0% "
+        f"{l_hold} يوم. استراتيجية مكتوب في صفها <b>{_l('13 winning · avg +8.0%')}</b> و "
+        "<b>0 losing</b>: يعني الـ13 صفقة كلهم وصلوا للهدف، وعلشان كده Expectancy = +8.0% "
         "و Profit factor = 9.9 (مفيش خسارة خالص، و 9.9 هو أعلى رقم).</p>"
-        f"<p>ولو مكتوب <b>{_l('5 winning trades · avg +6.2%')}</b> و "
-        f"<b>{_l('6 losing trades · avg −4.1%')}</b>: "
+        f"<p>ولو مكتوب <b>{_l('5 winning · avg +6.2%')}</b> و "
+        f"<b>{_l('6 losing · avg −4.1%')}</b>: "
         f"Expectancy = {_l('(5 × 6.2 − 6 × 4.1) ÷ 11 = +0.6%')} للصفقة. يعني رغم إن الخسرانة أكتر، "
         "الاستراتيجية كسبانة لأن مكسب الكسبانة أكبر من خسارة الخسرانة.</p>"
         + _note("ليه متوسط المكسب ممكن يطلع أقل من الهدف؟ لأن فيه صفقات بتتقفل في آخر يوم من المدة "
@@ -1054,6 +1096,9 @@ def _build_html() -> str:
         + _note("الصفقات اللي في الليستة هي بالظبط الصفقات اللي الأرقام اتحسبت منها: لو الاستراتيجية "
                 "✓ Validated فهي صفقات جزء الاختبار (آخر 30%)، ولو لأ فهي صفقات جزء البحث (أول 70%). "
                 "وكلها من الماضي ومن غير عمولات (القسم 6)، فمش ضمان للي جاي.", 'warn')
+        + "<p>ولو السهم فيه إشارة حية، نفس صفقات الاستراتيجية اللي إدّت الإشارة بتلاقيها كمان في جدول "
+        "Past signals تحت الشارت في Live Signal Check، ومعاها أعلى وأقل سعر وصله السهم في كل صفقة "
+        "(القسم 10).</p>"
     )))
 
     # 21 ───────────────────────────────────────────────────────────────────────
@@ -1135,10 +1180,12 @@ def _build_html() -> str:
         + _step(2, 'اضغط <b>Run Scan</b> واستنى التحليل يخلص')
         + _step(3, 'راجع الفرص في <b>Live Signal Check</b>، وابدأ باللي عليها ✓ Validated '
                    f'(القسم {_new_no[18]} بيشرح ليه)')
-        + _step(4, 'دوس على أي صف يفتح الشارت، و<b>View strategy</b> يوديك على تفاصيل استراتيجيته في Scanned Strategies')
+        + _step(4, 'دوس على أي صف يفتح الشارت وجدول الصفقات اللي فاتت (Past signals)، و<b>View strategy</b> '
+                   'يوديك على استراتيجيته في Scanned Strategies')
         + "</div>"
         + _note("مش لازم تدوّر هنا: في الصفحة، دوس على أي <b>؟</b> أو أي كلمة تحتها خط منقّط "
-                "(أو على علامة ✓ Validated)، والدليل هيتفتح على القسم اللي بيشرحها على طول.", 'info')
+                "(أو على علامة ✓ Validated)، والدليل هيتفتح على القسم اللي بيشرحها على طول. "
+                "والشريط اللي تحت العنوان بينقلك بين Live Signal Check و Scanned Strategies والدليل.", 'info')
         + "</div>"
     )
 
@@ -1232,36 +1279,107 @@ def _ideas_html() -> str:
 _AR_LETTERS_SG = "أبجدهوزحطيكلمن"
 
 
-# Clicking anything on the page that carries data-sg='<section id>' (the "؟"
-# marks, the Validated badges) opens this guide on that section. Installed once
-# into the page itself, so it keeps working across Streamlit reruns.
+# The page's links, installed once into the page itself so they keep working
+# across Streamlit reruns:
+#   data-sg='<section id>'  (the "؟" marks, dotted terms, Validated badges)
+#                           opens this guide on that section;
+#   data-go='lsc' / 'scanned' / 'guide'  (the section bar) scrolls to that part;
+#   data-lsc='<symbol>'     ("Live signal" on a stock card) scrolls up to the
+#                           stock's row in Live Signal Check and opens its chart.
+# While scrolling, the section bar marks the part on screen, and once it sticks
+# to the top it shows the page's name.
+# Version 2: a page still running version 1 (opened before an update) gets this
+# one too; both open the guide only when it is closed, so nothing doubles.
 _HELP_LINKS_JS = """function (w, d) {
-  if (w.__sgHelp) return;
+  if (w.__sgHelpV === 2) return;
   w.__sgHelp = true;
-  d.addEventListener('click', function (e) {
-    var q = e.target.closest && e.target.closest('[data-sg]');
-    if (!q) return;
-    e.preventDefault();
-    e.stopPropagation();
-    var exp = d.querySelector('.st-key-sg_wrap details'), opened = false;
+  w.__sgHelpV = 2;
+  var later = function (f, ms) { w.setTimeout(f, ms); };
+  function openGuide() {
+    var exp = d.querySelector('.st-key-sg_wrap details');
     if (exp && !exp.open) {
       var s = exp.querySelector('summary');
-      if (s) { s.click(); opened = true; }
+      if (s) { s.click(); return true; }
     }
-    var id = 'sg-sec-' + q.getAttribute('data-sg'), n = 0;
+    return false;
+  }
+  function guideSection(id) {
+    var opened = openGuide(), n = 0;
     (function go() {
       var sec = d.getElementById(id);
-      if (!sec) { if (n++ < 40) w.setTimeout(go, 100); return; }
+      if (!sec) { if (n++ < 40) later(go, 100); return; }
       sec.open = true;
       var jump = function () { sec.scrollIntoView({behavior: 'smooth', block: 'start'}); };
       // Scroll once the guide has opened, and again after it has finished
       // laying out (opening it shifts everything below).
-      w.setTimeout(jump, opened ? 350 : 0);
-      w.setTimeout(jump, opened ? 1200 : 700);
+      later(jump, opened ? 350 : 0);
+      later(jump, opened ? 1200 : 700);
       sec.classList.add('sg-flash');
-      w.setTimeout(function () { sec.classList.remove('sg-flash'); }, 2200);
+      later(function () { sec.classList.remove('sg-flash'); }, 2200);
     })();
+  }
+  function jump(k) {
+    var el;
+    if (k === 'guide') { openGuide(); el = d.querySelector('.st-key-sg_wrap'); }
+    else el = d.getElementById('sc-sec-' + k);
+    if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'});
+  }
+  function toRow(sym) {
+    var n = 0, asked = false;
+    (function find() {
+      var row = d.querySelector('.st-key-lsc_row_' + sym);
+      if (!row) {
+        // past the first rows: ask for all of them once, then wait for it
+        var more = d.querySelector('.st-key-lsc_expand button');
+        if (!asked && more && /Show all/.test(more.textContent)) { asked = true; more.click(); }
+        if (n++ < 80) later(find, 125);
+        return;
+      }
+      row.scrollIntoView({behavior: 'smooth', block: 'start'});
+      if (!row.querySelector('.lt-open')) {
+        var b = row.querySelector('[class*="st-key-lsc_open_"] button');
+        if (b) later(function () { b.click(); }, 450);
+      }
+    })();
+  }
+  d.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    var a = t.closest('[data-go]');
+    var r = a ? null : t.closest('[data-lsc]');
+    var q = (a || r) ? null : t.closest('[data-sg]');
+    if (!a && !r && !q) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (a) jump(a.getAttribute('data-go'));
+    else if (r) toRow(r.getAttribute('data-lsc'));
+    else guideSection('sg-sec-' + q.getAttribute('data-sg'));
   }, true);
+  d.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var a = e.target && e.target.closest && e.target.closest('[data-go]');
+    if (a) { e.preventDefault(); jump(a.getAttribute('data-go')); }
+  }, true);
+  var queued = false;
+  function spy() {
+    queued = false;
+    var nav = d.querySelector('.sc-nav');
+    if (!nav) return;
+    var box = nav.getBoundingClientRect(), cur = null, best = -1e9;
+    nav.querySelectorAll('[data-go]').forEach(function (a) {
+      var k = a.getAttribute('data-go');
+      var el = k === 'guide' ? d.querySelector('.st-key-sg_wrap') : d.getElementById('sc-sec-' + k);
+      if (!el) return;
+      var top = el.getBoundingClientRect().top;
+      if (top <= box.bottom + 90 && top > best) { best = top; cur = a; }
+    });
+    nav.querySelectorAll('[data-go]').forEach(function (a) { a.classList.toggle('on', a === cur); });
+    nav.classList.toggle('stuck', box.top <= 1);
+  }
+  d.addEventListener('scroll', function () {
+    if (!queued) { queued = true; w.requestAnimationFrame(spy); }
+  }, true);
+  later(spy, 800);
 }"""
 
 
@@ -1274,14 +1392,14 @@ def _install_help_links() -> None:
     components.html(
         "<script>(function () {"
         " var w = window.parent, d = w.document;"
-        " if (w.__sgHelp) return;"
+        " if (w.__sgHelpV === 2) return;"
         f" var install = {_HELP_LINKS_JS};"
         " try {"
         "  var s = d.createElement('script');"
         f"  s.textContent = '(' + {json.dumps(_HELP_LINKS_JS)} + ')(window, document);';"
         "  d.head.appendChild(s);"
         " } catch (err) {}"
-        " if (!w.__sgHelp) install(w, d);"
+        " if (w.__sgHelpV !== 2) install(w, d);"
         "})();</script>",
         height=0)
 
